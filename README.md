@@ -1,0 +1,1 @@
+# Distributed-Smart-Camera-AAL-System
