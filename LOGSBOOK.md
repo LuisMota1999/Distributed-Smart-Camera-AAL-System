@@ -7,7 +7,7 @@
 ## **04/10/2022**
 ### Discutir abordagens de arquitetura que possam ser implementados
 - Quais os dados vão ser transmitidos entre os nós da rede? 
- - Por exemplo: (Data/Hora, Posição, Evento, Grau de certeza)
+   - Por exemplo: (Data/Hora, Posição, Evento, Grau de certeza)
 - Leituras protocolares de comunicação
 
 ## **11/10/2022**
