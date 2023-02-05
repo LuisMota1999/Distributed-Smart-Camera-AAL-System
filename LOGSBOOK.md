@@ -80,6 +80,12 @@
 ### Leitura e extração de informações relevantes de artigos cientificos:
 - [Cooperative People Tracking by Distributed Cameras Network](https://www.mdpi.com/2079-9292/10/15/1780)
 - [Self-Coordinated Target Assignment and Camera Handoff in Distributed Network of Embedded Smart Cameras](https://dl.acm.org/doi/abs/10.1145/2659021.2659049)
+
+### Abordagem de cada cenário de aplicação, responder às seguintes questões:
+- Como é que o sistema vai ser implementado?
+- Para que serve?
+- Que vantagem tem sobre sistemas existentes no mercado?
+- Desenhar diagramas para ilustrar os cenários de aplicação
  
 ### Escrita de subtópico do capítulo 1:
 - Metodologia
