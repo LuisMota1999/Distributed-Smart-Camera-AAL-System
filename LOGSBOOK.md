@@ -89,3 +89,8 @@
  
 ### Escrita de subtópico do capítulo 1:
 - Metodologia
+
+## **10/02/2023**
+### Cenários de aplicação
+- Discussão acerca dos diagramas de caso de uso
+- Vantagens que o sistema tem sobre sistemas tradicionais
