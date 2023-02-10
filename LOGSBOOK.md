@@ -94,3 +94,7 @@
 ### Cenários de aplicação
 - Discussão acerca dos diagramas de caso de uso
 - Vantagens que o sistema tem sobre sistemas tradicionais
+- Discussão de abordagens da linha temporal:
+   - Todos os nós contribuem para a linha temporal e guardam o evento que estão a detetar juntamente com informações como dia, hora, local, evento, posição, etc.
+   - O nó pode consultar a linha temporal de outro nó caso o grau de certeza esteja abaixo de um threshhold de X %.
+   - Podemos ter um nó que esteja um nivel acima de todos os outros nós em que tenha uma visão top-down do que está a acontecer e de toda a linha temporal para fazer uma análise critica e detetar padrões na rotina do utilizador. 
