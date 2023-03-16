@@ -14,6 +14,7 @@ As instruções para instalar o software necessário num Jetson Nano encontram-s
 Para mais informações consultar a [documentação](https://www.home-assistant.io/installation/linux#docker-compose) do Home Assistant.
 
 1. Instalar e Testar o Docker:
+   
     1.
             sudo apt-get update
             sudo apt-get install \
