@@ -39,7 +39,7 @@ Seguir as configurações no [README.md](https://github.com/LuisMota1999/Distrib
     python3 wire.py # CTRL+C para terminar processo
     deactivate
 
-##### 10. Instalar Edge Device
+##### 8. Instalar Edge Device
     git clone https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System.git
     cd Distributed-Smart-Camera-AAL-System
     python3 -m venv ./venv
