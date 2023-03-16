@@ -2,9 +2,9 @@
 
 ### Pré-Requisitos:
 - Nvidia Jetson Nano 2GB developer Kit (2)
-- Câmera (2)
+- Camera (2)
 - MicroSD UHS-I 64GB (2)
-- Fonte de alimentação de 5v==3A micro USB-C (2)
+- Fonte de alimentação de 5v==3A USB-C (2)
 
 ##### 1. Instalar o sistema operativo num cartão.
 Download de [Jetson Nano 2GB Image](https://developer.nvidia.com/jetson-nano-2gb-sd-card-image/) para instalar a imagem do Jetson Nano 2GB num cartão microSD. 
@@ -28,7 +28,7 @@ Colocar o cartão microSD num dos Jetson Nano e fazer setup inicial, definindo o
 ##### 6. Instalar e configurar Home Assistant (via Docker)
 Seguir as configurações no [README.md](https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System/blob/master/README.md) referentes ao Home Assistant.
 
-##### 7. Testar a câmera
+##### 7. Testar a camera
     mkdir python-camera-example
     cd ./python-camera-example
     wget https://raw.githubusercontent.com/spatialaudio/python-sounddevice/0.4.1/examples/wire.py
