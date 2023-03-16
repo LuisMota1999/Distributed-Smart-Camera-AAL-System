@@ -28,7 +28,7 @@ Colocar o cartão microSD num dos Jetson Nano e fazer setup inicial, definindo o
 ##### 6. Instalar e configurar Home Assistant (via Docker)
 Seguir as configurações no [README.md](https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System/blob/master/README.md) referentes ao Home Assistant.
 
-##### 7. Testar a câmera (opcional)
+##### 7. Testar a câmera
     mkdir python-camera-example
     cd ./python-camera-example
     wget https://raw.githubusercontent.com/spatialaudio/python-sounddevice/0.4.1/examples/wire.py
