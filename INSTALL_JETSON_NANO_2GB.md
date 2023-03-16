@@ -1,0 +1,50 @@
+## Configurar Nvidia Jetson Nano 2GB 
+
+### Pré-Requisitos:
+- Nvidia Jetson Nano 2GB developer Kit (2)
+- Câmera (2)
+- MicroSD UHS-I 64GB (2)
+- Fonte de alimentação de 5v==3A micro USB-C (2)
+
+##### 1. Instalar o sistema operativo num cartão.
+Download de [Jetson Nano 2GB Image](https://developer.nvidia.com/jetson-nano-2gb-sd-card-image/) para instalar a imagem do Jetson Nano 2GB num cartão microSD. 
+
+Para mais informações consultar: [Getting Started with Jetson Nano 2GB Developer Kit](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-2gb-devkit)
+
+##### 2. Setup inicial.
+Colocar o cartão microSD num dos Jetson Nano e fazer setup inicial, definindo o nome de utilizador e a senha de acesso.
+
+##### 3. Depois de reboot, instalar updates adicionais
+    sudo apt update  
+    sudo apt upgrade
+
+##### 4. Instalar packages necessárias
+    sudo apt install python3-venv  
+
+##### 5. Instalar o docker
+    curl -fsSL https://get.docker.com -o get-docker.sh  
+    sudo sh get-docker.sh
+
+##### 6. Instalar e configurar Home Assistant (via Docker)
+Seguir as configurações no [README.md](https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System/blob/master/README.md) referentes ao Home Assistant.
+
+##### 7. Testar a câmera (opcional)
+    mkdir python-camera-example
+    cd ./python-camera-example
+    wget https://raw.githubusercontent.com/spatialaudio/python-sounddevice/0.4.1/examples/wire.py
+    python3 -m venv ./venv
+    source ./venv/bin/activate
+    pip install sounddevice
+    pip install numpy
+    python3 wire.py # CTRL+C para terminar processo
+    deactivate
+
+##### 10. Instalar Edge Device
+    git clone https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System.git
+    cd Distributed-Smart-Camera-AAL-System
+    python3 -m venv ./venv
+    source ./venv/bin/activate
+    pip install opencv-contrib-python
+    pip install numpy
+    python3 main.py         !Nota: CTRL+C para terminar processo
+    deactivate
