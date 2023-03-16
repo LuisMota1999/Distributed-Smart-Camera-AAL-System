@@ -73,7 +73,7 @@ Para mais informações consultar a [documentação](https://www.home-assistant.
 - Os datasets não estão incluídos no repositório GitHub por possuirem um tamanho bastante elevado.  Se o disco do projeto não for suficiente para guardar os datasets, o caminho para os mesmos, pode ser passado como argumento para os ficheiros de retreino.
 
 
-##Autor
+## Autor
 
 * Luís mota
 
