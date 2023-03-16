@@ -4,7 +4,7 @@
 - Nvidia Jetson Nano 2GB developer Kit (2)
 - Camera (2)
 - MicroSD UHS-I 64GB (2)
-- Fonte de alimentação de 5v==3A USB-C (2)
+- Fonte de alimentação de 5v==3A do tipo USB-C (2)
 
 ##### 1. Instalar o sistema operativo num cartão.
 Download de [Jetson Nano 2GB Image](https://developer.nvidia.com/jetson-nano-2gb-sd-card-image/) para instalar a imagem do Jetson Nano 2GB num cartão microSD. 
