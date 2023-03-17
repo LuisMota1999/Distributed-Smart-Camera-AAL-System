@@ -2,7 +2,7 @@
 .idea/
 
 #Folder containing data to models
-edge-device/
+edge-device/model/datasets
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
