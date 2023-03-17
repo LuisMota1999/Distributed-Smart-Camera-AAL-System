@@ -1,0 +1,22 @@
+@startuml
+
+participant Peer
+control API 
+actor User
+participant Schema
+database Blockchain 
+
+User -> API: Initialize App
+Peer -> API: Discovery Service\nRequest to join network (IP,PORT)
+API --> Peer: Response: 200 Connection Established (List of Peers)
+User -> User: Daily Actions
+Peer -> Peer: Capturing video frame
+Peer -> API: Register Action Event
+API -> Schema:\nValidate Structure
+Schema -> Blockchain: \nVerify
+Blockchain --> Schema: Return Model
+Schema --> API: Model Schema Response
+API --> Peer: \nResponse: 200 OK {Event registered}
+Peer -> API: Handle Event
+API -> User: Alert response
+@enduml
