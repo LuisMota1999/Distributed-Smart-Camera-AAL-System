@@ -8,7 +8,6 @@ app = Flask(__name__)
 
 base_url = 'http://localhost:8080/rest'
 
-eventsAudio = []
 eventsVideo = []
 MAX_EVENTS = 5
 last_event = ""
@@ -29,7 +28,8 @@ def getHomeAssistantLabel():
     if json['type'] == "video":
         eventsVideo.append(json)
     else:
-        eventsAudio.append(json)
+        print("Not Found!")
+        return
 
     # Função que trata a informação:
     handleEvents(json)
