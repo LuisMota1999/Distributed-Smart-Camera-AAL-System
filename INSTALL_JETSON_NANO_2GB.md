@@ -11,6 +11,12 @@ Download de [Jetson Nano 2GB Image](https://developer.nvidia.com/jetson-nano-2gb
 
 Para mais informações consultar: [Getting Started with Jetson Nano 2GB Developer Kit](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-2gb-devkit)
 
+- <b>Via SDK Manager</b>
+
+Através da versão 16.04, 18.04, 20.04 ou 22.04 de ubuntu é possível através SDK Manager da Nvidia realizar todo o processo de <i>flash</i> e boot inicial diretamente no Jetson Nano 2GB. Além disso, é necessário criar uma conta nvidia através do [site da nvidia](https://developer.nvidia.com/login) para ter o respetivo acesso. 
+
+Para mais informações consultar [Nvidia SDK Manager Jetson Nano 2GB Documentation](https://docs.nvidia.com/sdk-manager/install-with-sdkm-jetson/index.html)
+
 ##### 2. Setup inicial.
 Colocar o cartão microSD num dos Jetson Nano e fazer setup inicial, definindo o nome de utilizador e a senha de acesso.
 
