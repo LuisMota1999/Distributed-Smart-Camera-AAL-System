@@ -21,7 +21,15 @@ class NodeDiscovery(threading.Thread):
     def run(self):
         browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         while self.running:  # check running flag
-            # do some background work here, if any
+            # send keep-alive messages to all discovered nodes
+            for uri in self.discovered_nodes:
+                try:
+                    proxy = Pyro4.Proxy(uri)
+                    proxy.ping()
+                except Pyro4.errors.CommunicationError:
+                    # node is no longer available
+                    self.remove_node(uri)
+            time.sleep(10)  # send keep-alive messages every 10 seconds
             pass
 
     def stop(self):
