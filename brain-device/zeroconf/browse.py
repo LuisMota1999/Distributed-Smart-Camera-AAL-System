@@ -6,8 +6,9 @@ import socket
 import time
 import argparse
 import logging
-from time import sleep
 from typing import cast
+import random
+import string
 
 
 class NodeDiscovery(threading.Thread):
@@ -25,7 +26,8 @@ class NodeDiscovery(threading.Thread):
             for uri in self.discovered_nodes:
                 try:
                     proxy = Pyro4.Proxy(uri)
-                    proxy.ping()
+
+                    proxy.keep_alive()
                 except Pyro4.errors.CommunicationError:
                     # node is no longer available
                     self.remove_node(uri)
@@ -59,17 +61,14 @@ class NodeListener:
             uri = Pyro4.URI(f"PYRO:{info.server.lower()}:{info.port}")
             self.node_discovery.remove_node(uri)
 
-    def add_service(self, zeroconf, type, name):
+    def add_service(self, zeroconf, service_type, name):
 
-        info = zeroconf.get_service_info(type, name)
-        print(info)
+        info = zeroconf.get_service_info(service_type, name)
+
         if info:
-            uri = Pyro4.URI(f"PYRO:{info.server.lower()}:{info.port}")
-            self.node_discovery.add_node(uri)
-
-    def update_service(self, zeroconf, service_type, name, state_change):
-        print(f"Service update: {service_type} {name} {state_change}")
-        self.add_service(zeroconf, service_type, name)
+            uri = info.properties.get(b'URI')
+            print(f"{uri.decode()}")
+            self.node_discovery.add_node(uri.decode())
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -91,6 +90,8 @@ class NodeListener:
                         print(f"    {key}: {value}")
                 else:
                     print("  No properties")
+
+                self.add_service(zeroconf, service_type, name)
             else:
                 print("  No info")
             print('\n')
@@ -103,6 +104,7 @@ class Node:
         self.discovered_nodes = []
         self.daemon = Pyro4.Daemon()
         self.ns = Pyro4.naming.locateNS()
+        self.last_keep_alive = time.time()
 
     @Pyro4.expose
     def add_node(self, uri):
@@ -133,7 +135,7 @@ class Node:
 
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("name", help="Node name")
+        # parser.add_argument("name", help="Node name")
         parser.add_argument('--debug', action='store_true')
         parser.add_argument('--find', action='store_true', help='Browse all available services')
         version_group = parser.add_mutually_exclusive_group()
@@ -150,18 +152,23 @@ class Node:
         else:
             ip_versionX = IPVersion.V4Only
 
-        print(self.daemon.sock.getsockname()[1])
+        hostname = socket.gethostname()
+        ip_address = socket.gethostbyname(hostname)
+        # print(self.daemon.sock.getsockname()[1])
         self.uri = self.daemon.register(self)
+
+
         service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
-            addresses=[socket.inet_aton("127.0.0.1")],
+            addresses=[socket.inet_aton(ip_address)],
             port=self.daemon.sock.getsockname()[1],
             weight=0,
             priority=0,
-            properties={},
+            properties={'URI': self.uri},
         )
-
+        uri_value = service_info.properties.get('URI')
+        #print(f"Main  - {uri_value}")
         zc = Zeroconf(ip_version=ip_versionX)
         zc.register_service(service_info)
         print(f"Node {self.name} registered service: {service_info}")
@@ -175,30 +182,18 @@ class Node:
             time.sleep(1)
         print(f"Node {self.name} joined the network")
 
+    @Pyro4.expose
+    def keep_alive(self):
+        print("---- Sending Keep Alive Message ---- ")
+        self.last_keep_alive = time.time()
+
+    @Pyro4.expose
+    def is_alive(self):
+        return time.time() - self.last_keep_alive < 60
+
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("name", help="Node name")
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--find', action='store_true', help='Browse all available services')
-    version_group = parser.add_mutually_exclusive_group()
-    version_group.add_argument('--v6', action='store_true')
-    version_group.add_argument('--v6-only', action='store_true')
-    args = parser.parse_args()
-
-    if args.debug:
-        logging.getLogger('zeroconf').setLevel(logging.DEBUG)
-    if args.v6:
-        ip_version = IPVersion.All
-    elif args.v6_only:
-        ip_version = IPVersion.V6Only
-    else:
-        ip_version = IPVersion.V4Only
-
-    node = Node(args.name)
+    node = Node("node1")
     node.start()
 
     node_discovery = NodeDiscovery()
@@ -210,11 +205,12 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         node_discovery.stop()
-
+    # letters = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+    #
     # node1 = Node("node1")
     # node2 = Node("node2")
-    # node3 = Node("node3")
-    # node4 = Node("node4")
+    # # node3 = Node("node3")
+    # # node4 = Node("node4")
     # node_discovery = NodeDiscovery()  # Start NodeDiscovery thread
     # node_discovery.start()
     #
@@ -222,29 +218,29 @@ def main():
     #
     # node1_thread = threading.Thread(target=node1.start)  # Start Node 1 thread
     # node2_thread = threading.Thread(target=node2.start)  # Start Node 2 thread
-    # node3_thread = threading.Thread(target=node3.start)  # Start Node 3 thread
-    # node4_thread = threading.Thread(target=node4.start)  # Start Node 4 thread
+    # # node3_thread = threading.Thread(target=node3.start)  # Start Node 3 thread
+    # # node4_thread = threading.Thread(target=node4.start)  # Start Node 4 thread
     #
     # node1_thread.start()
     # node2_thread.start()
-    # node3_thread.start()
-    # node4_thread.start()
+    # # node3_thread.start()
+    # # node4_thread.start()
     #
     # time.sleep(5)  # Wait for all nodes to start and register their services
     #
-    # discovered_nodes = node_discovery.discovered_nodes
-    # print(discovered_nodes)
+    # # discovered_nodes = node_discovery.discovered_nodes
+    # # print(discovered_nodes)
     #
-    # node1.connect_to_node("node2")
+    # # node1.connect_to_node("node2")
     # ## Falta colocar uma helper function pra descobrir qual o nó que deve procurar comunicar p.ex
-    # node1.send_message("Ola teste", node2.uri)
+    # # node1.send_message("Ola teste", node2.uri)
     # node1_thread.join()
     # node2_thread.join()
-    # node3_thread.join()
-    # node4_thread.join()
+    # # node3_thread.join()
+    # # node4_thread.join()
     #
     # node_discovery.stop()
-    time.sleep(1)  # Wait for discovery process to stop
+    # time.sleep(1)  # Wait for discovery process to stop
 
 
 # pyro4-ns
