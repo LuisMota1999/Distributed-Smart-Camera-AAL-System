@@ -21,7 +21,15 @@ class NodeDiscovery(threading.Thread):
     def run(self):
         browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         while self.running:  # check running flag
-            # do some background work here, if any
+            # send keep-alive messages to all discovered nodes
+            for uri in self.discovered_nodes:
+                try:
+                    proxy = Pyro4.Proxy(uri)
+                    proxy.ping()
+                except Pyro4.errors.CommunicationError:
+                    # node is no longer available
+                    self.remove_node(uri)
+            time.sleep(10)  # send keep-alive messages every 10 seconds
             pass
 
     def stop(self):
@@ -123,6 +131,16 @@ class Node:
 
     def start(self):
 
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument("name", help="Node name")
+        parser.add_argument('--debug', action='store_true')
+        parser.add_argument('--find', action='store_true', help='Browse all available services')
+        version_group = parser.add_mutually_exclusive_group()
+        version_group.add_argument('--v6', action='store_true')
+        version_group.add_argument('--v6-only', action='store_true')
+        args = parser.parse_args()
+
         if args.debug:
             logging.getLogger('zeroconf').setLevel(logging.DEBUG)
         if args.v6:
@@ -158,12 +176,12 @@ class Node:
         print(f"Node {self.name} joined the network")
 
 
-# pyro4-ns
-if __name__ == "__main__":
-
+def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("name", help="Node name")
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--find', action='store_true', help='Browse all available services')
     version_group = parser.add_mutually_exclusive_group()
@@ -180,37 +198,55 @@ if __name__ == "__main__":
     else:
         ip_version = IPVersion.V4Only
 
-    node1 = Node("node1")
-    node2 = Node("node2")
-    node3 = Node("node3")
-    node4 = Node("node4")
-    node_discovery = NodeDiscovery()  # Start NodeDiscovery thread
+    node = Node(args.name)
+    node.start()
+
+    node_discovery = NodeDiscovery()
     node_discovery.start()
+    time.sleep(2)
 
-    time.sleep(1)  # Wait for discovery process to happen
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        node_discovery.stop()
 
-    node1_thread = threading.Thread(target=node1.start)  # Start Node 1 thread
-    node2_thread = threading.Thread(target=node2.start)  # Start Node 2 thread
-    node3_thread = threading.Thread(target=node3.start)  # Start Node 3 thread
-    node4_thread = threading.Thread(target=node4.start)  # Start Node 4 thread
-
-    node1_thread.start()
-    node2_thread.start()
-    node3_thread.start()
-    node4_thread.start()
-
-    time.sleep(5)  # Wait for all nodes to start and register their services
-
-    discovered_nodes = node_discovery.discovered_nodes
-    print(discovered_nodes)
-
-    node1.connect_to_node("node2")
-    ## Falta colocar uma helper function pra descobrir qual o nó que deve procurar comunicar p.ex
-    node1.send_message("Ola teste", node2.uri)
-    node1_thread.join()
-    node2_thread.join()
-    node3_thread.join()
-    node4_thread.join()
-
-    node_discovery.stop()
+    # node1 = Node("node1")
+    # node2 = Node("node2")
+    # node3 = Node("node3")
+    # node4 = Node("node4")
+    # node_discovery = NodeDiscovery()  # Start NodeDiscovery thread
+    # node_discovery.start()
+    #
+    # time.sleep(1)  # Wait for discovery process to happen
+    #
+    # node1_thread = threading.Thread(target=node1.start)  # Start Node 1 thread
+    # node2_thread = threading.Thread(target=node2.start)  # Start Node 2 thread
+    # node3_thread = threading.Thread(target=node3.start)  # Start Node 3 thread
+    # node4_thread = threading.Thread(target=node4.start)  # Start Node 4 thread
+    #
+    # node1_thread.start()
+    # node2_thread.start()
+    # node3_thread.start()
+    # node4_thread.start()
+    #
+    # time.sleep(5)  # Wait for all nodes to start and register their services
+    #
+    # discovered_nodes = node_discovery.discovered_nodes
+    # print(discovered_nodes)
+    #
+    # node1.connect_to_node("node2")
+    # ## Falta colocar uma helper function pra descobrir qual o nó que deve procurar comunicar p.ex
+    # node1.send_message("Ola teste", node2.uri)
+    # node1_thread.join()
+    # node2_thread.join()
+    # node3_thread.join()
+    # node4_thread.join()
+    #
+    # node_discovery.stop()
     time.sleep(1)  # Wait for discovery process to stop
+
+
+# pyro4-ns
+if __name__ == "__main__":
+    main()
