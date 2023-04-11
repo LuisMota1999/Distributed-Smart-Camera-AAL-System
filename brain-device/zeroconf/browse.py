@@ -157,7 +157,6 @@ class Node:
         # print(self.daemon.sock.getsockname()[1])
         self.uri = self.daemon.register(self)
 
-
         service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
@@ -168,7 +167,7 @@ class Node:
             properties={'URI': self.uri},
         )
         uri_value = service_info.properties.get('URI')
-        #print(f"Main  - {uri_value}")
+        # print(f"Main  - {uri_value}")
         zc = Zeroconf(ip_version=ip_versionX)
         zc.register_service(service_info)
         print(f"Node {self.name} registered service: {service_info}")
@@ -194,12 +193,12 @@ class Node:
 
 def main():
     node = Node("node1")
-    node.start()
 
     node_discovery = NodeDiscovery()
     node_discovery.start()
     time.sleep(2)
-
+    node_thread = threading.Thread(target=node.start)
+    node_thread.start()
     try:
         while True:
             time.sleep(1)
