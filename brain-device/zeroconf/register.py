@@ -1,54 +1,28 @@
-#!/usr/bin/env python3
-
-""" Example of announcing a service (in this case, a fake HTTP server) """
-
-import argparse
-import logging
 import socket
-from time import sleep
 
-from zeroconf import IPVersion, ServiceInfo, Zeroconf
+# create a socket object
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+# get local machine name
+host = socket.gethostname()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', action='store_true')
-    version_group = parser.add_mutually_exclusive_group()
-    version_group.add_argument('--v6', action='store_true')
-    version_group.add_argument('--v6-only', action='store_true')
-    args = parser.parse_args()
+# set a port number
+port = 9999
 
-    if args.debug:
-        logging.getLogger('zeroconf').setLevel(logging.DEBUG)
-    if args.v6:
-        ip_version = IPVersion.All
-    elif args.v6_only:
-        ip_version = IPVersion.V6Only
-    else:
-        ip_version = IPVersion.V4Only
+# bind the socket to a public host, and a well-known port
+server_socket.bind((host, port))
 
-    desc = {'path': '/~paulsm/'}
+# become a server socket
+server_socket.listen(1)
 
-    info = ServiceInfo(
-        type_="_node._tcp.local.",
-        name="node1._node._tcp.local.",
-        addresses=[socket.inet_aton("127.0.0.1")],
-        port=80,
-        weight=0,
-        priority=0,
-        properties={},
-    )
+# wait for a client connection
+print('Waiting for a client connection...')
+client_socket, address = server_socket.accept()
+print(f'Connected to {address}')
 
-    zeroconf = Zeroconf(ip_version=ip_version)
-    print("Registration of a service, press Ctrl-C to exit...")
-    zeroconf.register_service(info)
-    try:
-        while True:
-            sleep(0.1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        print("Unregistering...")
-        zeroconf.unregister_service(info)
-        zeroconf.close()
+# send a message to the client
+message = 'Hello client!'
+client_socket.send(message.encode('utf-8'))
+
+# close the socket
+client_socket.close()
