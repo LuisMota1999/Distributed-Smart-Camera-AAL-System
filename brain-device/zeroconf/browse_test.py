@@ -1,14 +1,10 @@
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, ZeroconfServiceTypes, IPVersion
-import Pyro4
-import Pyro4.naming
 import threading
 import socket
 import time
 import argparse
 import logging
 from typing import cast
-import random
-import string
 
 name = "node1"
 service_type = "_node._tcp.local."
@@ -92,7 +88,7 @@ class NodeListener:
             for ip in ip_list:
 
                 self.node_discovery.add_node(ip)
-
+                print(f"{ip}, {socket.gethostbyname(socket.gethostname())}")
                 if ip != socket.gethostbyname(socket.gethostname()):
                     # Connect to the machine on the specified port
                     print("Connecting to", ip)

@@ -1,28 +1,24 @@
 import socket
 
 # create a socket object
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+clientsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # get local machine name
-host = socket.gethostname()
+host = "192.168.0.89"  # Replace with the IP address of machine A
 
-# set a port number
 port = 9999
 
-# bind the socket to a public host, and a well-known port
-server_socket.bind((host, port))
+# connect to the server
+clientsocket.connect((host, port))
 
-# become a server socket
-server_socket.listen(1)
+while True:
+    # send a message to the server
+    message = input("Enter a message to send to server: ")
+    clientsocket.send(message.encode('ascii'))
 
-# wait for a client connection
-print('Waiting for a client connection...')
-client_socket, address = server_socket.accept()
-print(f'Connected to {address}')
+    # receive a message from the server
+    data = clientsocket.recv(1024)
 
-# send a message to the client
-message = 'Hello client!'
-client_socket.send(message.encode('utf-8'))
+    print("Received message from server: {}".format(data.decode()))
 
-# close the socket
-client_socket.close()
+clientsocket.close()
