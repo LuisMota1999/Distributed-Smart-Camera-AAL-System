@@ -5,8 +5,9 @@ import time
 import argparse
 import logging
 from typing import cast
+import netifaces as ni
 
-name = "node1"
+name = socket.gethostname()
 service_type = "_node._tcp.local."
 port = 5000
 
@@ -17,35 +18,27 @@ class NodeDiscovery(threading.Thread):
         self.discovered_nodes = []
         self.zeroconf = Zeroconf()
         self.listener = NodeListener(self)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((ni.ifaddresses('eth0')[ni.AF_INET][0]['addr'], port))
+        self.socket.listen(10)
+
         self.running = True
 
     def run(self):
         # Start the service browser
         browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
-        # Start the socket server
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(('localhost', 9000))
-        server_socket.listen(5)
-
         while self.running:  # check running flag
             # Accept incoming connections from new devices
-            client_socket, address = server_socket.accept()
-            print(f"New device connected: {address[0]}")
 
-            # Add the new device to the list of discovered nodes
-            self.discovered_nodes.append(address[0])
+            try:
+                conn, addr = self.socket.accept()
+                print(addr, conn)
+                print(f"New connection from {addr[0]}")
+                # conn.send(str(f"HELLO WORLD  {name}!").encode())
 
-            # Send keep-alive messages to all discovered nodes
-            for ip in self.discovered_nodes:
-                try:
-                    conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    conn.connect((ip, port))
-                    conn.sendall(str(self.discovered_nodes).encode())
-                    conn.close()
-                except ConnectionRefusedError:
-                    self.remove_node(ip)
-                    continue
+            except ConnectionRefusedError:
+                continue
 
     def stop(self):
         self.running = False
@@ -56,8 +49,6 @@ class NodeDiscovery(threading.Thread):
             self.discovered_nodes.append(ip)
             print(f"Node {ip} added to the network")
             print(f"Discovered nodes: {self.discovered_nodes}")
-
-            # Send the list of discovered nodes to the newly added node
 
     def remove_node(self, ip):
         if ip in self.discovered_nodes:
@@ -73,10 +64,8 @@ class NodeListener:
     def remove_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
         if info:
-            # uri = Pyro4.URI(f"PYRO:{info.server.lower()}:{info.port}")
             ip_address = info.properties[b'IP']
             ip_address = ip_address.decode('UTF-8')
-            print(ip_address)
             self.node_discovery.remove_node(ip_address)
 
     def add_service(self, zeroconf, service_type, name):
@@ -86,26 +75,19 @@ class NodeListener:
             ip_list = info.parsed_addresses()
 
             for ip in ip_list:
-
                 self.node_discovery.add_node(ip)
-                print(f"{ip}, {socket.gethostbyname(socket.gethostname())}")
-                if ip != socket.gethostbyname(socket.gethostname()):
-                    # Connect to the machine on the specified port
-                    print("Connecting to", ip)
+                # print(f"{ip}, {ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']}")
+                if ip != ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']:
                     try:
                         conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         conn.connect((ip, port))
-                        conn.sendall(str(self.node_discovery.discovered_nodes).encode())
-                        conn.close()
+                        message = "Teste abc"
+                        conn.send(message.encode())
+                        data = conn.recv(1024)
+                        print("Received data:", data)
                     except ConnectionRefusedError:
-                        self.node_discovery.remove_node(ip)
-                        return
-                    # conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    # conn.connect((ip, port))
-                    # conn.send("Hello, world!".encode())
-                    # data = conn.recv(1024)
-                    # print("Received data:", data)
-                    # conn.close()
+                        print("Connection Refused Error")
+                        # return
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -137,6 +119,7 @@ class NodeListener:
 class Node:
     def __init__(self, name):
         self.name = name
+        self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = None
         self.discovered_nodes = []
         self.last_keep_alive = time.time()
@@ -147,8 +130,6 @@ class Node:
     def start(self):
 
         parser = argparse.ArgumentParser()
-
-        # parser.add_argument("name", help="Node name")
         parser.add_argument('--debug', action='store_true')
         parser.add_argument('--find', action='store_true', help='Browse all available services')
         version_group = parser.add_mutually_exclusive_group()
@@ -166,16 +147,17 @@ class Node:
             ip_versionX = IPVersion.V4Only
 
         hostname = socket.gethostname()
-        ip_address = socket.gethostbyname(hostname)
+        # ip_address = socket.gethostbyname(hostname)
 
+        print(f"HOSTNAME - {hostname}")
         service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
-            addresses=[socket.inet_aton(ip_address)],
+            addresses=[socket.inet_aton(self.ip)],
             port=port,
             weight=0,
             priority=0,
-            properties={'IP': ip_address},
+            properties={'IP': self.ip},
         )
 
         zc = Zeroconf(ip_version=ip_versionX)
