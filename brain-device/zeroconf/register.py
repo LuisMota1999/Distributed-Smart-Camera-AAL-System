@@ -1,5 +1,6 @@
 import socket
-import threading 
+import threading
+import time
 
 # Machine A IP address and port number
 IP_A = '192.168.122.94'
@@ -22,13 +23,14 @@ def send_b():
             sock_b = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock_b.connect((IP_B, PORT_B))
 
-            # Send a message to Machine B
-            message = "Hello from Machine A"
-            sock_b.send(message.encode())
+            while True:
+                # Send a message to Machine B
+                message = input("Enter a message to send to Machine B: ")
+                sock_b.send(message.encode())
 
-            # Receive a response from Machine B
-            response = sock_b.recv(1024).decode()
-            print(f"Received from Machine B: {response}")
+                # Receive a response from Machine B
+                response = sock_b.recv(1024).decode()
+                print(f"Received from Machine B: {response}")
 
             # Close the socket
             sock_b.close()
@@ -46,13 +48,14 @@ def receive_a():
     conn, addr = sock_a.accept()
     print(f"Connection from {addr}")
 
-    # Receive a message from Machine B
-    message = conn.recv(1024).decode()
-    print(f"Received from Machine B: {message}")
+    while True:
+        # Receive a message from Machine B
+        message = conn.recv(1024).decode()
+        print(f"Received from Machine B: {message}")
 
-    # Send a response to Machine B
-    response = "Hello from Machine A"
-    conn.send(response.encode())
+        # Send a response to Machine B
+        response = input("Enter a message to send to Machine B: ")
+        conn.send(response.encode())
 
     # Close the connection
     conn.close()
