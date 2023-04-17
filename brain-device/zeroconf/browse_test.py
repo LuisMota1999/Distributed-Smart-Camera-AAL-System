@@ -36,7 +36,8 @@ class NodeDiscovery(threading.Thread):
                 conn, addr = self.socket.accept()
                 print(addr, conn)
                 print(f"New connection from {addr[0]}")
-                # conn.send(str(f"HELLO WORLD  {name}!").encode())
+                message = input("Enter a new message to send:")
+                conn.send(str(message).encode())
 
             except ConnectionRefusedError:
                 continue
@@ -55,7 +56,7 @@ class NodeDiscovery(threading.Thread):
         if ip in self.discovered_nodes:
             self.discovered_nodes.remove(ip)
             print(f"Node {ip} removed from the network")
-            print(f"Discovered nodes: {self.discovered_nodes}")
+            print(f"Nodes still available: {self.discovered_nodes}")
 
 
 class NodeListener:
