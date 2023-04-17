@@ -9,7 +9,7 @@ import netifaces as ni
 
 name = socket.gethostname()
 service_type = "_node._tcp.local."
-port = 5000
+port = 12345
 
 
 class NodeDiscovery(threading.Thread):
@@ -20,7 +20,7 @@ class NodeDiscovery(threading.Thread):
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((ni.ifaddresses('eth0')[ni.AF_INET][0]['addr'], port))
+        self.socket.bind(('0.0.0.0', port)) #ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.socket.listen(10)
 
         self.running = True
