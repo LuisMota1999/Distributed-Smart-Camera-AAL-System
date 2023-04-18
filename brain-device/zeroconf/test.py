@@ -7,10 +7,12 @@ import logging
 from typing import cast
 import netifaces as ni
 import random
+
 name = socket.gethostname()
 service_type = "_node._tcp.local."
-port = random.randint(5000,6000)
+port = random.randint(5000, 6000)
 num_connections = 5
+
 
 class NodeDiscovery(threading.Thread):
     def __init__(self):
@@ -20,7 +22,7 @@ class NodeDiscovery(threading.Thread):
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((ni.ifaddresses('eth0')[ni.AF_INET][0]['addr'], port)) #
+        self.socket.bind((ni.ifaddresses('eth0')[ni.AF_INET][0]['addr'], port))  #
         self.socket.listen(num_connections)
 
         self.running = True
@@ -33,21 +35,20 @@ class NodeDiscovery(threading.Thread):
             # Accept incoming connections from new devices
 
             try:
-                
+
                 clientSocket, clientAddr = self.socket.accept()
                 print(clientAddr, clientSocket)
                 print(f"New connection from {clientAddr[0]}")
-                #message = input("Enter a new message to send:")
                 clientSocket.sendall(str(f"Welcome to the network {clientAddr[0]}").encode())
+                clientSocket.recv(1024)
                 client_thread = threading.Thread(target=self.handle_client, args=(clientSocket, clientAddr))
                 client_thread.start()
-                #trigger_message = clientSocket.recv(1024)
-                #print(f'{name} received a trigger message from {clientAddr[0]}:', trigger_message.decode())
-                
+
+
             except ConnectionRefusedError:
                 continue
 
-    def handle_client(clientSocket,clientAddress):
+    def handle_client(clientSocket, clientAddress):
         # Receive data from the client
         data = clientSocket.recv(1024)
         print(f'Received data from {clientAddress}: {data}')
@@ -103,7 +104,7 @@ class NodeListener:
                         conn.sendall(message.encode())
                         msg = conn.recv(1024)
                         print(f"Received data from machine {ip}:", msg.decode('utf-8'))
-                        
+
                     except ConnectionRefusedError:
                         print("Connection Refused Error")
                         # return
@@ -189,4 +190,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-#https://gist.github.com/victorazzam/b34e9fb3d4b1e84e9c1841635071201d
+# https://gist.github.com/victorazzam/b34e9fb3d4b1e84e9c1841635071201d

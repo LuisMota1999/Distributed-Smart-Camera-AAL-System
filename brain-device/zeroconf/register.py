@@ -1,76 +1,82 @@
 import socket
 import threading
+import uuid
 import time
 
-# Machine A IP address and port number
-IP_A = '192.168.122.94'
-PORT_A = 5000
+class Peer:
+    def __init__(self, host, port):
+        self.id = str(uuid.uuid4())
+        self.host = host
+        self.port = port
+        self.peers = set()
 
-# Machine B IP address and port number
-IP_B = '192.168.122.15'
-PORT_B = 5000
+    def start(self):
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((self.host, self.port))
+        self.socket.listen()
 
-# Initialize the socket object
-sock_a = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock_a.bind((IP_A, PORT_A))
-sock_a.listen()
+        print(f"Listening on {self.host}:{self.port}...")
 
-def send_b():
-    # Retry for up to 10seconds
-    for i in range(10):
-        try:
-            # Connect to Machine B
-            sock_b = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock_b.connect((IP_B, PORT_B))
+        # Start a thread to accept incoming connections
 
-            while True:
-                # Send a message to Machine B
-                message = input("Enter a message to send to Machine B: ")
-                sock_b.send(message.encode())
 
-                # Receive a response from Machine B
-                response = sock_b.recv(1024).decode()
-                print(f"Received from Machine B: {response}")
+    def accept_connections(self):
+        while True:
+            conn, addr = self.socket.accept()
+            print(f"Connected to {addr[0]}:{addr[1]}")
 
-            # Close the socket
-            sock_b.close()
-            break  # Exit the retry loop if successful
+            # Start a thread to handle incoming messages
+            threading.Thread(target=self.receive_message, args=(conn,)).start()
 
-        except ConnectionRefusedError:
-            print(f"Connection refused. Retrying in 1 second ({i+1}/10 attempts).")
-            time.sleep(1)
+            # Add the peer to the list of connected peers
+            self.peers.add(addr)
 
-    else:
-        raise RuntimeError("Could not establish connection to Machine B.")
+    def connect_to_peer(self, host, port):
+        while True:
+            try:
+                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.connect((host, port))
+                print(f"Connected to {host}:{port}")
+                break
+            except ConnectionRefusedError:
+                print(f"Connection refused by {host}:{port}, retrying in 10 seconds...")
+                time.sleep(10)
 
-def receive_a():
-    # Wait for incoming connections
-    conn, addr = sock_a.accept()
-    print(f"Connection from {addr}")
+        # Start a thread to handle incoming messages
+        threading.Thread(target=self.receive_message, args=(conn,)).start()
 
-    while True:
-        # Receive a message from Machine B
-        message = conn.recv(1024).decode()
-        print(f"Received from Machine B: {message}")
+        # Add the peer to the list of connected peers
+        self.peers.add((host, port))
 
-        # Send a response to Machine B
-        response = input("Enter a message to send to Machine B: ")
-        conn.send(response.encode())
+    def send_message(self, message):
+        for peer in self.peers:
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.connect(peer)
+            conn.sendall(message.encode())
 
-    # Close the connection
-    conn.close()
+    def receive_message(self, conn):
+        while True:
+            message = conn.recv(1024).decode()
+            if not message:
+                break
+            print(f"Received message: {message}")
 
-# Start the send_b thread
-send_thread = threading.Thread(target=send_b)
-send_thread.start()
+    def list_peers(self):
+        print("Connected peers:")
+        for peer in self.peers:
+            print(peer)
 
-# Start the receive_a thread
-receive_thread = threading.Thread(target=receive_a)
-receive_thread.start()
 
-# Wait for both threads to finish
-send_thread.join()
-receive_thread.join()
+if __name__ == "__main__":
+    # Create a peer and start listening for incoming connections
+    bob = Peer("192.168.122.61", 8001)
+    bob.start()
 
-# Close the socket
-sock_a.close()
+    # Connect to the other peer
+    bob.connect_to_peer("192.168.122.105", 8000)
+
+    # Send a message to the other peer
+    bob.send_message("Hello, Alice!")
+
+    # Print the list of connected peers
+    bob.list_peers()

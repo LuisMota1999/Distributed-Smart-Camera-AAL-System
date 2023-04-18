@@ -6,50 +6,86 @@ import argparse
 import logging
 from typing import cast
 import netifaces as ni
+import random
 
-name = socket.gethostname()
-service_type = "_node._tcp.local."
-port = 12345
+HOST_NAME = socket.gethostname()
+SERVICE_TYPE = "_node._tcp.local."
+HOST_PORT = random.randint(5000, 6000)
 
 
 class NodeDiscovery(threading.Thread):
-    def __init__(self):
+    def __init__(self,port):
         super().__init__()
-        self.discovered_nodes = []
+        self.discovered_nodes = set()
         self.zeroconf = Zeroconf()
+        self.port = port
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind(('0.0.0.0', port)) #ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.socket.bind(('0.0.0.0', port))  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.socket.listen(10)
-
         self.running = True
 
     def run(self):
         # Start the service browser
         browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+        threading.Thread(target=self.accept_connections).start()
 
-        while self.running:  # check running flag
-            # Accept incoming connections from new devices
+    def accept_connections(self):
+        while self.running:
+            conn, addr = self.socket.accept()
+            print(f"Connected to {addr[0]}:{addr[1]}")
 
+            # Start a thread to handle incoming messages
+            threading.Thread(target=self.handle_messages, args=(conn,)).start()
+
+    def connect_to_peer(self, host, port):
+        i = 1
+        while True:
             try:
-                conn, addr = self.socket.accept()
-                print(addr, conn)
-                print(f"New connection from {addr[0]}")
-                message = input("Enter a new message to send:")
-                conn.send(str(message).encode())
+                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.connect((host, port))
+                # print(f"Connected to {host}:{port}")
 
+                while i <= 10:
+                    message = input(f"Enter a message to {host}:{port}:")
+                    self.send_message(f"\n[Message]: {message}")
+                    i += 1
+
+                break
             except ConnectionRefusedError:
-                continue
+                print(f"Connection refused by {host}:{port}, retrying in 10 seconds...")
+                time.sleep(10)
+
+        # Start a thread to handle incoming messages
+        threading.Thread(target=self.handle_messages, args=(conn,)).start()
+
+    def send_message(self, message):
+        for peer in self.discovered_nodes:
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.connect(peer)
+            conn.sendall(message.encode())
+
+    def handle_messages(self, conn):
+        while True:
+            message = conn.recv(1024).decode()
+            if not message:
+                break
+            print(f"Received message: {message}")
+
+    def list_peers(self):
+        print("Connected peers:")
+        for peer in self.discovered_nodes:
+            print(peer)
 
     def stop(self):
         self.running = False
         self.zeroconf.close()
 
-    def add_node(self, ip):
-        if ip not in self.discovered_nodes:
-            self.discovered_nodes.append(ip)
-            print(f"Node {ip} added to the network")
+    def add_node(self, client_ip, client_port):
+        if client_ip not in self.discovered_nodes:
+            self.discovered_nodes.add((client_ip, client_port))
+            print(f"Node {client_ip} added to the network")
             print(f"Discovered nodes: {self.discovered_nodes}")
 
     def remove_node(self, ip):
@@ -72,24 +108,13 @@ class NodeListener:
 
     def add_service(self, zeroconf, service_type, name):
         info = zeroconf.get_service_info(service_type, name)
-
         if info:
             ip_list = info.parsed_addresses()
-
+            print(f"IP LIST: {ip_list}")
             for ip in ip_list:
-                self.node_discovery.add_node(ip)
-                # print(f"{ip}, {ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']}")
+                self.node_discovery.add_node(ip, info.port)
                 if ip != ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']:
-                    try:
-                        conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        conn.connect((ip, port))
-                        message = "Teste abc"
-                        conn.send(message.encode())
-                        data = conn.recv(1024)
-                        print("Received data:", data)
-                    except ConnectionRefusedError:
-                        print("Connection Refused Error")
-                        # return
+                    self.node_discovery.connect_to_peer(ip, info.port)
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -122,7 +147,7 @@ class Node:
     def __init__(self, name):
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
-        self.port = None
+        self.port = HOST_PORT
         self.discovered_nodes = []
         self.last_keep_alive = time.time()
 
@@ -149,14 +174,13 @@ class Node:
             ip_versionX = IPVersion.V4Only
 
         hostname = socket.gethostname()
-        # ip_address = socket.gethostbyname(hostname)
 
         print(f"HOSTNAME - {hostname}")
         service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
             addresses=[socket.inet_aton(self.ip)],
-            port=port,
+            port=HOST_PORT,
             weight=0,
             priority=0,
             properties={'IP': self.ip},
@@ -167,9 +191,9 @@ class Node:
 
 
 def main():
-    node = Node(name)
-
-    node_discovery = NodeDiscovery()
+    node = Node(HOST_NAME)
+    print(f"Listening on {node.ip}:{node.port}...")
+    node_discovery = NodeDiscovery(node.port)
     node_discovery.start()
     time.sleep(2)
     node_thread = threading.Thread(target=node.start)
@@ -181,6 +205,5 @@ def main():
         node_discovery.stop()
 
 
-# pyro4-ns
 if __name__ == "__main__":
     main()
