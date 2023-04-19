@@ -1,73 +1,311 @@
+import hashlib
+import json
+import time
+from urllib.parse import urlparse
+from uuid import uuid4
+import requests
+from flask import Flask, jsonify, request
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, ZeroconfServiceTypes, IPVersion
 import threading
 import socket
-import time
 import argparse
 import logging
 from typing import cast
 import netifaces as ni
 import random
 
-name = socket.gethostname()
-service_type = "_node._tcp.local."
-port = random.randint(5000, 6000)
-num_connections = 5
+class Blockchain:
+    def __init__(self):
+        self.current_transactions = []
+        self.chain = []
+        self.nodes = set()
+
+        # Create the genesis block
+        self.new_block(previous_hash='1', proof=100)
+
+    def register_node(self, address):
+        """
+        Add a new node to the list of nodes
+        :param address: Address of node. Eg. 'http://192.168.0.5:5000'
+        """
+        self.nodes.add(address)
+
+    def valid_chain(self, chain):
+        """
+        Determine if a given blockchain is valid
+        :param chain: A blockchain
+        :return: True if valid, False if not
+        """
+
+        last_block = chain[0]
+        current_index = 1
+
+        while current_index < len(chain):
+            block = chain[current_index]
+            print(f'{last_block}')
+            print(f'{block}')
+            print("\n-----------\n")
+            # Check that the hash of the block is correct
+            if block['previous_hash'] != self.hash(last_block):
+                return False
+
+            # Check that the Proof of Work is correct
+            if not self.valid_proof(last_block['proof'], block['proof']):
+                return False
+
+            last_block = block
+            current_index += 1
+
+        return True
+
+    def resolve_conflicts(self):
+        """
+        This is our consensus algorithm, it resolves conflicts
+        by replacing our chain with the longest one in the network.
+        :return: True if our chain was replaced, False if not
+        """
+
+        neighbours = self.nodes
+        new_chain = None
+
+        # We're only looking for chains longer than ours
+        max_length = len(self.chain)
+
+        # Grab and verify the chains from all the nodes in our network
+        for node in neighbours:
+            response = requests.get(f'http://{node}/chain')
+
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+
+                # Check if the length is longer and the chain is valid
+                if length > max_length and self.valid_chain(chain):
+                    max_length = length
+                    new_chain = chain
+
+        # Replace our chain if we discovered a new, valid chain longer than ours
+        if new_chain:
+            self.chain = new_chain
+            return True
+
+        return False
+
+    def new_block(self, proof, previous_hash):
+        """
+        Create a new Block in the Blockchain
+        :param proof: The proof given by the Proof of Work algorithm
+        :param previous_hash: Hash of previous Block
+        :return: New Block
+        """
+
+        block = {
+            'index': len(self.chain) + 1,
+            'timestamp': time.time(),
+            'transactions': self.current_transactions,
+            'proof': proof,
+            'previous_hash': previous_hash or self.hash(self.chain[-1]),
+        }
+
+        # Reset the current list of transactions
+        self.current_transactions = []
+
+        self.chain.append(block)
+        return block
+
+    def new_transaction(self, sender, recipient, amount):
+        """
+        Creates a new transaction to go into the next mined Block
+        :param sender: Address of the Sender
+        :param recipient: Address of the Recipient
+        :param amount: Amount
+        :return: The index of the Block that will hold this transaction
+        """
+        self.current_transactions.append({
+            'sender': sender,
+            'recipient': recipient,
+            'amount': amount,
+        })
+
+        return self.last_block['index'] + 1
+
+    @property
+    def last_block(self):
+        return self.chain[-1]
+
+    @staticmethod
+    def hash(block):
+        """
+        Creates a SHA-256 hash of a Block
+        :param block: Block
+        """
+
+        # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
+        block_string = json.dumps(block, sort_keys=True).encode()
+        return hashlib.sha256(block_string).hexdigest()
+
+    def proof_of_work(self, last_proof):
+        """
+        Simple Proof of Work Algorithm:
+         - Find a number p' such that hash(pp') contains leading 4 zeroes, where p is the previous p'
+         - p is the previous proof, and p' is the new proof
+        """
+
+        proof = 0
+        while self.valid_proof(last_proof, proof) is False:
+            proof += 1
+
+        return proof
+
+    @staticmethod
+    def valid_proof(last_proof, proof):
+        """
+        Validates the Proof
+        :param last_proof: Previous Proof
+        :param proof: Current Proof
+        :return: True if correct, False if not.
+        """
+
+        guess = f'{last_proof}{proof}'.encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:4] == "0000"
+
+
+HOST_NAME = socket.gethostname()
+SERVICE_TYPE = "_node._tcp.local."
+HOST_PORT = random.randint(5000, 6000)
 
 
 class NodeDiscovery(threading.Thread):
-    def __init__(self):
+    def __init__(self,port):
         super().__init__()
-        self.discovered_nodes = []
+        self.discovered_nodes = set()
         self.zeroconf = Zeroconf()
+        self.port = port
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((ni.ifaddresses('eth0')[ni.AF_INET][0]['addr'], port))  #
-        self.socket.listen(num_connections)
-
+        self.socket.bind(('0.0.0.0', port))  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.socket.listen(10)
         self.running = True
+        self.blockchain = Blockchain()
 
     def run(self):
         # Start the service browser
         browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+        threading.Thread(target=self.accept_connections).start()
 
-        while self.running:  # check running flag
-            # Accept incoming connections from new devices
+    def accept_connections(self):
+        while self.running:
+            conn, addr = self.socket.accept()
+            print(f"Connected to {addr[0]}:{addr[1]}")
 
+            # Start a thread to handle incoming messages
+            threading.Thread(target=self.handle_messages, args=(conn,)).start()
+
+    def new_transaction(self, sender, recipient, amount):
+        # Create a new Transaction
+        index = self.blockchain.new_transaction(sender, recipient, amount)
+
+        response = {'message': f'Transaction will be added to Block {index}'}
+        return jsonify(response), 201
+
+    def full_chain(self):
+        response = {
+            'chain': self.blockchain.chain,
+            'length': len(self.blockchain.chain),
+        }
+        return jsonify(response),200
+    
+    def mine(self,node_identifier):
+        # We run the proof of work algorithm to get the next proof...
+        last_block = self.blockchain.last_block
+        last_proof = last_block['proof']
+        proof = self.blockchain.proof_of_work(last_proof)
+
+        # We must receive a reward for finding the proof.
+        # The sender is "0" to signify that this node has mined a new coin.
+        self.blockchain.new_transaction(
+            sender="0",
+            recipient=node_identifier,
+            amount=1,
+        )
+
+        # Forge the new Block by adding it to the chain
+        previous_hash = self.blockchain.hash(last_block)
+        block = self.blockchain.new_block(proof, previous_hash)
+
+        response = {
+            'message': "New Block Forged",
+            'index': block['index'],
+            'transactions': block['transactions'],
+            'proof': block['proof'],
+            'previous_hash': block['previous_hash'],
+        }
+        return jsonify(response), 200
+
+    def consensus(self):
+        replaced = self.blockchain.resolve_conflicts()
+
+        if replaced:
+            response = {
+                'message': 'Our chain was replaced',
+                'new_chain': self.blockchain.chain
+            }
+        else:
+            response = {
+                'message': 'Our chain is authoritative',
+                'chain': self.blockchain.chain
+            }
+
+        return jsonify(response), 200
+
+    def connect_to_peer(self, host, port):
+        i = 1
+        while True:
             try:
-
-                clientSocket, clientAddr = self.socket.accept()
-                print(clientAddr, clientSocket)
-                print(f"New connection from {clientAddr[0]}")
-                clientSocket.sendall(str(f"Welcome to the network {clientAddr[0]}").encode())
-                clientSocket.recv(1024)
-                client_thread = threading.Thread(target=self.handle_client, args=(clientSocket, clientAddr))
-                client_thread.start()
-
-
+                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.connect((host, port))
+                # print(f"Connected to {host}:{port}")
+                self.send_message(f"\n[Connected]: [{host}]")
+                break
             except ConnectionRefusedError:
-                continue
+                print(f"Connection refused by {host}:{port}, retrying in 10 seconds...")
+                time.sleep(10)
 
-    def handle_client(clientSocket, clientAddress):
-        # Receive data from the client
-        data = clientSocket.recv(1024)
-        print(f'Received data from {clientAddress}: {data}')
+        # Start a thread to handle incoming messages
+        threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
-        # Send data back to the client
-        clientSocket.send(b'Received your message!')
+    def send_message(self, message):
+        for peer in self.discovered_nodes:
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.connect(peer)
+            conn.sendall(message.encode())
 
-        # Close the client connection
-        clientSocket.close()
+    def handle_messages(self, conn):
+        while True:
+            message = conn.recv(1024).decode()
+            if not message:
+                break
+            print(f"Received message: {message}")
+
+    def list_peers(self):
+        print("Connected peers:")
+        for peer in self.discovered_nodes:
+            print(peer)
 
     def stop(self):
         self.running = False
         self.zeroconf.close()
 
-    def add_node(self, ip):
-        if ip not in self.discovered_nodes:
-            self.discovered_nodes.append(ip)
-            print(f"Node {ip} added to the network")
+    def add_node(self, client_ip, client_port):
+        if client_ip not in self.discovered_nodes:
+            self.discovered_nodes.add((client_ip, client_port))
+            self.blockchain.register_node((client_ip, client_port))
+            print(f"Node {client_ip} added to the network")
             print(f"Discovered nodes: {self.discovered_nodes}")
+            print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
+            
 
     def remove_node(self, ip):
         if ip in self.discovered_nodes:
@@ -89,25 +327,13 @@ class NodeListener:
 
     def add_service(self, zeroconf, service_type, name):
         info = zeroconf.get_service_info(service_type, name)
-
         if info:
             ip_list = info.parsed_addresses()
-
+            print(f"IP LIST: {ip_list}")
             for ip in ip_list:
-                self.node_discovery.add_node(ip)
-                # print(f"{ip}, {ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']}")
+                self.node_discovery.add_node(ip, info.port)
                 if ip != ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']:
-                    try:
-                        conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        conn.connect((ip, port))
-                        message = f'Reply {name}!'
-                        conn.sendall(message.encode())
-                        msg = conn.recv(1024)
-                        print(f"Received data from machine {ip}:", msg.decode('utf-8'))
-
-                    except ConnectionRefusedError:
-                        print("Connection Refused Error")
-                        # return
+                    self.node_discovery.connect_to_peer(ip, info.port)
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -116,11 +342,20 @@ class NodeListener:
 
         if state_change is ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
+            # print("Info from zeroconf.get_service_info: %r" % (info))
+
             if info:
                 addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_scoped_addresses()]
                 print("  Addresses: %s" % ", ".join(addresses))
                 print("  Weight: %d, priority: %d" % (info.weight, info.priority))
                 print(f"  Server: {info.server}")
+                if info.properties:
+                    print("  Properties are:")
+                    for key, value in info.properties.items():
+                        print(f"    {key}: {value}")
+                else:
+                    print("  No properties")
+
                 self.add_service(zeroconf, service_type, name)
             else:
                 print("  No info")
@@ -131,12 +366,8 @@ class Node:
     def __init__(self, name):
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
-        self.port = None
-        self.discovered_nodes = []
+        self.port = HOST_PORT
         self.last_keep_alive = time.time()
-
-    def get_discovered_nodes(self):
-        return self.discovered_nodes
 
     def start(self):
 
@@ -157,11 +388,14 @@ class Node:
         else:
             ip_versionX = IPVersion.V4Only
 
+        hostname = socket.gethostname()
+
+        print(f"HOSTNAME - {hostname}")
         service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
             addresses=[socket.inet_aton(self.ip)],
-            port=port,
+            port=HOST_PORT,
             weight=0,
             priority=0,
             properties={'IP': self.ip},
@@ -172,9 +406,9 @@ class Node:
 
 
 def main():
-    node = Node(name)
-
-    node_discovery = NodeDiscovery()
+    node = Node(HOST_NAME)
+    print(f"Listening on {node.ip}:{node.port}...")
+    node_discovery = NodeDiscovery(node.port)
     node_discovery.start()
     time.sleep(2)
     node_thread = threading.Thread(target=node.start)
@@ -186,7 +420,6 @@ def main():
         node_discovery.stop()
 
 
-# pyro4-ns
 if __name__ == "__main__":
     main()
 
