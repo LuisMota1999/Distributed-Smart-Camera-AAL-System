@@ -1,54 +1,160 @@
+import hashlib
+import json
+import time
+from urllib.parse import urlparse
+from uuid import uuid4
+import requests
+from flask import Flask, jsonify, request
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, ZeroconfServiceTypes, IPVersion
-import Pyro4
-import Pyro4.naming
 import threading
 import socket
-import time
 import argparse
 import logging
 from typing import cast
+import netifaces as ni
 import random
-import string
+from ..blockchain.blockchain import Blockchain
+
+HOST_NAME = socket.gethostname()
+SERVICE_TYPE = "_node._tcp.local."
+HOST_PORT = random.randint(5000, 6000)
 
 
 class NodeDiscovery(threading.Thread):
-    def __init__(self):
+    def __init__(self, port):
         super().__init__()
-        self.discovered_nodes = []
+        self.discovered_nodes = set()
         self.zeroconf = Zeroconf()
+        self.port = port
         self.listener = NodeListener(self)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind(('0.0.0.0', port))  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.socket.listen(10)
         self.running = True
+        self.blockchain = Blockchain()
 
     def run(self):
+        # Start the service browser
         browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-        while self.running:  # check running flag
-            # send keep-alive messages to all discovered nodes
-            for uri in self.discovered_nodes:
-                try:
-                    proxy = Pyro4.Proxy(uri)
+        threading.Thread(target=self.accept_connections).start()
 
-                    proxy.keep_alive()
-                except Pyro4.errors.CommunicationError:
-                    # node is no longer available
-                    self.remove_node(uri)
-            time.sleep(10)  # send keep-alive messages every 10 seconds
-            pass
+    def accept_connections(self):
+        while self.running:
+            conn, addr = self.socket.accept()
+            print(f"Connected to {addr[0]}:{addr[1]}")
+
+            # Start a thread to handle incoming messages
+            threading.Thread(target=self.handle_messages, args=(conn,)).start()
+
+    def new_transaction(self, sender, recipient, amount):
+        # Create a new Transaction
+        index = self.blockchain.new_transaction(sender, recipient, amount)
+
+        response = {'message': f'Transaction will be added to Block {index}'}
+        return jsonify(response), 201
+
+    def full_chain(self):
+        response = {
+            'chain': self.blockchain.chain,
+            'length': len(self.blockchain.chain),
+        }
+        return jsonify(response), 200
+
+    def mine(self, node_identifier):
+        # We run the proof of work algorithm to get the next proof...
+        last_block = self.blockchain.last_block
+        last_proof = last_block['proof']
+        proof = self.blockchain.proof_of_work(last_proof)
+
+        # We must receive a reward for finding the proof.
+        # The sender is "0" to signify that this node has mined a new coin.
+        self.blockchain.new_transaction(
+            sender="0",
+            recipient=node_identifier,
+            amount=1,
+        )
+
+        # Forge the new Block by adding it to the chain
+        previous_hash = self.blockchain.hash(last_block)
+        block = self.blockchain.new_block(proof, previous_hash)
+
+        response = {
+            'message': "New Block Forged",
+            'index': block['index'],
+            'transactions': block['transactions'],
+            'proof': block['proof'],
+            'previous_hash': block['previous_hash'],
+        }
+        return jsonify(response), 200
+
+    def consensus(self):
+        replaced = self.blockchain.resolve_conflicts()
+
+        if replaced:
+            response = {
+                'message': 'Our chain was replaced',
+                'new_chain': self.blockchain.chain
+            }
+        else:
+            response = {
+                'message': 'Our chain is authoritative',
+                'chain': self.blockchain.chain
+            }
+
+        return jsonify(response), 200
+
+    def connect_to_peer(self, host, port):
+        i = 1
+        while True:
+            try:
+                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.connect((host, port))
+                # print(f"Connected to {host}:{port}")
+                self.send_message(f"\n[Connected]: [{host}]")
+                break
+            except ConnectionRefusedError:
+                print(f"Connection refused by {host}:{port}, retrying in 10 seconds...")
+                time.sleep(10)
+
+        # Start a thread to handle incoming messages
+        threading.Thread(target=self.handle_messages, args=(conn,)).start()
+
+    def send_message(self, message):
+        for peer in self.discovered_nodes:
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.connect(peer)
+            conn.sendall(message.encode())
+
+    def handle_messages(self, conn):
+        while True:
+            message = conn.recv(1024).decode()
+            if not message:
+                break
+            print(f"Received message: {message}")
+
+    def list_peers(self):
+        print("Connected peers:")
+        for peer in self.discovered_nodes:
+            print(peer)
 
     def stop(self):
         self.running = False
         self.zeroconf.close()
 
-    def add_node(self, uri):
-        if uri not in self.discovered_nodes:
-            self.discovered_nodes.append(uri)
-            print(f"Node {uri} added to the network")
+    def add_node(self, client_ip, client_port):
+        if client_ip not in self.discovered_nodes:
+            self.discovered_nodes.add((client_ip, client_port))
+            self.blockchain.register_node((client_ip, client_port))
+            print(f"Node {client_ip} added to the network")
             print(f"Discovered nodes: {self.discovered_nodes}")
+            print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
 
-    def remove_node(self, uri):
-        if uri in self.discovered_nodes:
-            self.discovered_nodes.remove(uri)
-            print(f"Node {uri} removed from the network")
-            print(f"Discovered nodes: {self.discovered_nodes}")
+    def remove_node(self, ip):
+        if ip in self.discovered_nodes:
+            self.discovered_nodes.remove(ip)
+            print(f"Node {ip} removed from the network")
+            print(f"Nodes still available: {self.discovered_nodes}")
 
 
 class NodeListener:
@@ -58,17 +164,19 @@ class NodeListener:
     def remove_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
         if info:
-            uri = Pyro4.URI(f"PYRO:{info.server.lower()}:{info.port}")
-            self.node_discovery.remove_node(uri)
+            ip_address = info.properties[b'IP']
+            ip_address = ip_address.decode('UTF-8')
+            self.node_discovery.remove_node(ip_address)
 
     def add_service(self, zeroconf, service_type, name):
-
         info = zeroconf.get_service_info(service_type, name)
-
         if info:
-            uri = info.properties.get(b'URI')
-            print(f"{uri.decode()}")
-            self.node_discovery.add_node(uri.decode())
+            ip_list = info.parsed_addresses()
+            print(f"IP LIST: {ip_list}")
+            for ip in ip_list:
+                self.node_discovery.add_node(ip, info.port)
+                if ip != ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']:
+                    self.node_discovery.connect_to_peer(ip, info.port)
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -77,7 +185,7 @@ class NodeListener:
 
         if state_change is ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
-            print("Info from zeroconf.get_service_info: %r" % (info))
+            # print("Info from zeroconf.get_service_info: %r" % (info))
 
             if info:
                 addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_scoped_addresses()]
@@ -100,42 +208,13 @@ class NodeListener:
 class Node:
     def __init__(self, name):
         self.name = name
-        self.uri = None
-        self.discovered_nodes = []
-        self.daemon = Pyro4.Daemon()
-        self.ns = Pyro4.naming.locateNS()
+        self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.port = HOST_PORT
         self.last_keep_alive = time.time()
-
-    @Pyro4.expose
-    def add_node(self, uri):
-        if uri not in self.discovered_nodes:
-            self.discovered_nodes.append(uri)
-            print(f"Node {uri} added to the network")
-
-    @Pyro4.expose
-    def send_message(self, message, recipient_uri):
-        print(f"Sending message '{message}' to {recipient_uri}")
-        proxy = Pyro4.Proxy(recipient_uri)
-        proxy.receive_message(message, self.uri)
-
-    @Pyro4.expose
-    def receive_message(self, message, sender_uri):
-        print(f"Received message '{message}' from {sender_uri}")
-
-    @Pyro4.expose
-    def get_discovered_nodes(self):
-        return self.discovered_nodes
-
-    @Pyro4.expose
-    def connect_to_node(self, node_name):
-        uri = self.ns.lookup(node_name)
-        self.send_message(f"Hello, {node_name}!", uri)
 
     def start(self):
 
         parser = argparse.ArgumentParser()
-
-        # parser.add_argument("name", help="Node name")
         parser.add_argument('--debug', action='store_true')
         parser.add_argument('--find', action='store_true', help='Browse all available services')
         version_group = parser.add_mutually_exclusive_group()
@@ -153,48 +232,26 @@ class Node:
             ip_versionX = IPVersion.V4Only
 
         hostname = socket.gethostname()
-        ip_address = socket.gethostbyname(hostname)
-        # print(self.daemon.sock.getsockname()[1])
-        self.uri = self.daemon.register(self)
 
+        print(f"HOSTNAME - {hostname}")
         service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
-            addresses=[socket.inet_aton(ip_address)],
-            port=self.daemon.sock.getsockname()[1],
+            addresses=[socket.inet_aton(self.ip)],
+            port=HOST_PORT,
             weight=0,
             priority=0,
-            properties={'URI': self.uri},
+            properties={'IP': self.ip},
         )
-        uri_value = service_info.properties.get('URI')
-        # print(f"Main  - {uri_value}")
+
         zc = Zeroconf(ip_version=ip_versionX)
         zc.register_service(service_info)
-        print(f"Node {self.name} registered service: {service_info}")
-        self.ns.register(self.name, self.uri)
-        print(f"Node {self.name} registered Pyro4 object: {self.uri}")
-        self.daemon.requestLoop()
-
-    def join(self, node_uri):
-        proxy = Pyro4.Proxy(node_uri)
-        while self.uri not in proxy.get_discovered_nodes():
-            time.sleep(1)
-        print(f"Node {self.name} joined the network")
-
-    @Pyro4.expose
-    def keep_alive(self):
-        print("---- Sending Keep Alive Message ---- ")
-        self.last_keep_alive = time.time()
-
-    @Pyro4.expose
-    def is_alive(self):
-        return time.time() - self.last_keep_alive < 60
 
 
 def main():
-    node = Node("node1")
-
-    node_discovery = NodeDiscovery()
+    node = Node(HOST_NAME)
+    print(f"Listening on {node.ip}:{node.port}...")
+    node_discovery = NodeDiscovery(node.port)
     node_discovery.start()
     time.sleep(2)
     node_thread = threading.Thread(target=node.start)
@@ -204,44 +261,9 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         node_discovery.stop()
-    # letters = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
-    #
-    # node1 = Node("node1")
-    # node2 = Node("node2")
-    # # node3 = Node("node3")
-    # # node4 = Node("node4")
-    # node_discovery = NodeDiscovery()  # Start NodeDiscovery thread
-    # node_discovery.start()
-    #
-    # time.sleep(1)  # Wait for discovery process to happen
-    #
-    # node1_thread = threading.Thread(target=node1.start)  # Start Node 1 thread
-    # node2_thread = threading.Thread(target=node2.start)  # Start Node 2 thread
-    # # node3_thread = threading.Thread(target=node3.start)  # Start Node 3 thread
-    # # node4_thread = threading.Thread(target=node4.start)  # Start Node 4 thread
-    #
-    # node1_thread.start()
-    # node2_thread.start()
-    # # node3_thread.start()
-    # # node4_thread.start()
-    #
-    # time.sleep(5)  # Wait for all nodes to start and register their services
-    #
-    # # discovered_nodes = node_discovery.discovered_nodes
-    # # print(discovered_nodes)
-    #
-    # # node1.connect_to_node("node2")
-    # ## Falta colocar uma helper function pra descobrir qual o nó que deve procurar comunicar p.ex
-    # # node1.send_message("Ola teste", node2.uri)
-    # node1_thread.join()
-    # node2_thread.join()
-    # # node3_thread.join()
-    # # node4_thread.join()
-    #
-    # node_discovery.stop()
-    # time.sleep(1)  # Wait for discovery process to stop
 
 
-# pyro4-ns
 if __name__ == "__main__":
     main()
+
+
