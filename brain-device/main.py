@@ -1,6 +1,6 @@
 import threading
 import time
-from zeroconf.network import Node, NodeDiscovery
+from zeroconf.browse import Node, NodeDiscovery
 import socket
 
 HOST_NAME = socket.gethostname()
