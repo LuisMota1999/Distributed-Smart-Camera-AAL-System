@@ -15,7 +15,7 @@ import netifaces as ni
 import random
 from ..blockchain.blockchain import Blockchain
 
-HOST_NAME = socket.gethostname()
+
 SERVICE_TYPE = "_node._tcp.local."
 HOST_PORT = random.randint(5000, 6000)
 
@@ -246,24 +246,5 @@ class Node:
 
         zc = Zeroconf(ip_version=ip_versionX)
         zc.register_service(service_info)
-
-
-def main():
-    node = Node(HOST_NAME)
-    print(f"Listening on {node.ip}:{node.port}...")
-    node_discovery = NodeDiscovery(node.port)
-    node_discovery.start()
-    time.sleep(2)
-    node_thread = threading.Thread(target=node.start)
-    node_thread.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        node_discovery.stop()
-
-
-if __name__ == "__main__":
-    main()
 
 
