@@ -1,11 +1,7 @@
 import hashlib
 import json
-from time import time
-from urllib.parse import urlparse
-from uuid import uuid4
-
+import time
 import requests
-from flask import Flask, jsonify, request
 
 
 class Blockchain:
@@ -70,8 +66,8 @@ class Blockchain:
             response = requests.get(f'http://{node}/chain')
 
             if response.status_code == 200:
-                length = response.json()['length']
-                chain = response.json()['chain']
+                length = len(self.chain)
+                chain = self.chain
 
                 # Check if the length is longer and the chain is valid
                 if length > max_length and self.valid_chain(chain):
