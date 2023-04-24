@@ -17,15 +17,17 @@ class Blockchain:
     def __init__(self):
         self.current_transactions = []
         self.chain = []
-        self.nodes = []
+        self.nodes = set()
+
+        # Create the genesis block
         self.new_block(previous_hash='1', proof=100)
 
-    def register_node(self, connection_peer):
+    def register_node(self, address):
         """
         Add a new node to the list of nodes
-        :param connection_peer: Address of node. Eg. 'http://192.168.0.5:5000'
+        :param address: Address of node. Eg. 'http://192.168.0.5:5000'
         """
-        self.nodes.append(connection_peer)
+        self.nodes.add(address)
 
     def valid_chain(self, chain):
         """
@@ -189,6 +191,7 @@ class NodeListener:
         if info:
             ip_list = info.parsed_addresses()
             for ip in ip_list:
+                self.node.add_node(ip, info.port)
                 if ip != ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']:
                     self.node.connect_to_peer(ip, info.port)
 
@@ -199,6 +202,7 @@ class NodeListener:
 
         if state_change is ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
+            # print("Info from zeroconf.get_service_info: %r" % (info))
 
             if info:
                 addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_scoped_addresses()]
@@ -219,7 +223,8 @@ class Node(threading.Thread):
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
-        self.keep_alive_timeout = 10
+        self.keep_alive_timeout = 30
+        self.discovered_nodes = set()
         self.zeroconf = Zeroconf()
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -266,13 +271,9 @@ class Node(threading.Thread):
         zc.register_service(service_info)
 
     def run(self):
-        try:
-            # Start the service browser
-            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-            threading.Thread(target=self.accept_connections).start()
-        except KeyboardInterrupt:
-            self.broadcast_message("Shutting down")
-            self.stop()
+        # Start the service browser
+        browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+        threading.Thread(target=self.accept_connections).start()
 
     def accept_connections(self):
         print("Connection Accepted")
@@ -284,27 +285,12 @@ class Node(threading.Thread):
             threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
     def connect_to_peer(self, client_host, client_port):
+
         while True:
             try:
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-
-                # set timeout for recv method
-                conn.settimeout(self.keep_alive_timeout)
-
-                # check and turn on TCP Keepalive
-                try:
-                    from socket import IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT
-                    conn.setsockopt(socket.SOL_SOCKET, SO_KEEPALIVE, 1)
-                    conn.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 1)
-                    conn.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, 3)
-                    conn.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, 5)
-                except ImportError:
-                    pass  # May not be available everywhere.
-
                 conn.connect((client_host, client_port))
-                conn.settimeout(None)
-                self.add_node(conn)
+                self.connections.append(conn)
                 self.broadcast_message(f"[Connected]: [{client_host}]")
                 break
             except ConnectionRefusedError:
@@ -313,23 +299,21 @@ class Node(threading.Thread):
 
         threading.Thread(target=self.handle_messages, args=(conn,)).start()
         threading.Thread(target=self.send_keep_alive_messages, args=(conn,)).start()
+        threading.Thread(target=self.check_keep_alive, args=(conn,)).start()
 
     def send_keep_alive_messages(self, conn):
+
         while self.running:
             try:
-                # send keep alive message
-                conn.send(b"keep alive")
+                # send a keep-alive message every 60 seconds
+                # assume 'sock' is the socket object
+                remote_address = conn.getpeername()
+                conn.send(f'[KAM]PING'.encode())
                 time.sleep(self.keep_alive_timeout)
-            except:
-                # handle error
-                break
-
-            # close connection and remove node from list
-
-        self.remove_node(conn)
-        self.list_peers()
-        self.broadcast_message(f"[Disconnected]: [-]")
-        conn.close()
+                self.last_keep_alive = time.time()
+            except socket.error:
+                print("Socket Errors")
+                pass
 
     def broadcast_message(self, message):
         for peer in self.connections:
@@ -337,30 +321,19 @@ class Node(threading.Thread):
 
     def handle_messages(self, conn):
         while self.running:
-            try:
-                message = conn.recv(1024).decode()
-                prefix, data = message[:5], message[5:]
-                if not message:
-                    break
-                print(f"Received message: {message}")
-            except socket.timeout:
-                conn.close()
-                self.remove_node(conn)
-                self.broadcast_message(f"[Disconnected]: [{conn.getpeername()[0]}]")
-            except Exception as e:
-                print(f"Error while receiving message from {conn.getpeername()[0]}: {e}")
-                conn.close()
-                self.remove_node(conn)
-                self.broadcast_message(f"[Disconnected]: [{conn.getpeername()[0]}]")
+            message = conn.recv(1024).decode()
+            prefix, data = message[:5], message[5:]
+            if not message:
                 break
+            print(f"Received message: {message}")
 
     def check_keep_alive(self, conn):
         while self.running:
             if (time.time() - self.last_keep_alive) > self.keep_alive_timeout + 10:
-                self.connections.remove(conn)
-                self.list_peers()
-                conn.close()
-                continue
+                pass
+                #self.connections.remove(conn)
+                #self.list_peers()
+                #conn.close()
             time.sleep(10)
 
     def new_transaction(self, sender, recipient, amount):
@@ -421,6 +394,9 @@ class Node(threading.Thread):
         return jsonify(response), 200
 
     def list_peers(self):
+        print("Peers [IP:PORT]:")
+        for peer in self.discovered_nodes:
+            print(peer)
         print("Connections:")
         for conn in self.connections:
             print(conn)
@@ -429,19 +405,20 @@ class Node(threading.Thread):
         self.running = False
         self.zeroconf.close()
 
-    def add_node(self, conn):
-        if conn not in self.connections:
-            self.connections.append(conn)
-            self.blockchain.register_node(conn)
-            print(f"Node {conn.getpeername()[0]} added to the network")
-            print(f"Discovered nodes: {self.list_peers}")
+    def add_node(self, client_ip, client_port):
+        if client_ip not in self.discovered_nodes:
+            self.discovered_nodes.add((client_ip, client_port))
+            self.blockchain.register_node((client_ip, client_port))
+            print(f"Node {client_ip} added to the network")
+            print(f"Discovered nodes: {self.discovered_nodes}")
             print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
 
-    def remove_node(self, conn):
-        if conn in self.connections:
-            self.connections.remove(conn)
-            print(f"Node {conn} removed from the network")
-            print(f"Nodes still available: {self.list_peers()}")
+    def remove_node(self, ip):
+        print(ip)
+        if ip in self.discovered_nodes:
+            self.discovered_nodes.remove(ip)
+            print(f"Node {ip} removed from the network")
+            print(f"Nodes still available: {self.discovered_nodes}")
 
 
 def main():
