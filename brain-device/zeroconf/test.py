@@ -170,19 +170,12 @@ class Blockchain:
 
 HOST_NAME = socket.gethostname()
 SERVICE_TYPE = "_node._tcp.local."
-HOST_PORT = random.randint(5000, 6000)
+HOST_PORT = random.randint(5000,6000)
 
 
 class NodeListener:
     def __init__(self, node):
         self.node = node
-
-    def remove_service(self, zeroconf, service_type, name):
-        info = zeroconf.get_service_info(service_type, name)
-        if info:
-            ip_address = info.properties[b'IP']
-            ip_address = ip_address.decode('UTF-8')
-            self.node.remove_node(ip_address)
 
     def add_service(self, zeroconf, service_type, name):
         info = zeroconf.get_service_info(service_type, name)
@@ -197,15 +190,20 @@ class NodeListener:
                        ) -> None:
         print(f"Service {name} of type {service_type} state changed: {state_change}")
 
-        if state_change is ServiceStateChange.Added:
+        if state_change is ServiceStateChange.Added or ServiceStateChange.Updated:
             info = zeroconf.get_service_info(service_type, name)
 
             if info:
-                addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_scoped_addresses()]
+                addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_addresses()]
                 print("  Addresses: %s" % ", ".join(addresses))
                 print("  Weight: %d, priority: %d" % (info.weight, info.priority))
-                print("  Port: %d" % info.port)
-
+                print(f"  Server: {info.server}")
+                if info.properties:
+                    print("  Properties are:")
+                    for key, value in info.properties.items():
+                        print(f"    {key}: {value}")
+                else:
+                    print("  No properties")
                 self.add_service(zeroconf, service_type, name)
             else:
                 print("  No info")
@@ -284,12 +282,12 @@ class Node(threading.Thread):
             threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
     def connect_to_peer(self, client_host, client_port):
+
         while True:
             try:
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-
-                # set timeout for recv method
                 conn.settimeout(self.keep_alive_timeout)
 
                 # check and turn on TCP Keepalive
@@ -305,11 +303,13 @@ class Node(threading.Thread):
                 conn.connect((client_host, client_port))
                 conn.settimeout(None)
                 self.add_node(conn)
-                self.broadcast_message(f"[Connected]: [{client_host}]")
+
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
+
+        threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
         threading.Thread(target=self.handle_messages, args=(conn,)).start()
         threading.Thread(target=self.send_keep_alive_messages, args=(conn,)).start()
@@ -340,6 +340,9 @@ class Node(threading.Thread):
             try:
                 message = conn.recv(1024).decode()
                 prefix, data = message[:5], message[5:]
+                if message == "keep alive":
+                    conn.send("pong".encode())
+
                 if not message:
                     break
                 print(f"Received message: {message}")
@@ -347,7 +350,7 @@ class Node(threading.Thread):
                 conn.close()
                 self.remove_node(conn)
                 self.broadcast_message(f"[Disconnected]: [{conn.getpeername()[0]}]")
-            except Exception as e:
+            except (Exception, ConnectionResetError) as e:
                 print(f"Error while receiving message from {conn.getpeername()[0]}: {e}")
                 conn.close()
                 self.remove_node(conn)
@@ -421,9 +424,10 @@ class Node(threading.Thread):
         return jsonify(response), 200
 
     def list_peers(self):
-        print("Connections:")
-        for conn in self.connections:
-            print(conn)
+        print("\n\nPeers:")
+        for i, conn in enumerate(self.connections):
+            print(f"[{i}] <{conn.getpeername()[0]}>")
+        print("\n\n")
 
     def stop(self):
         self.running = False
@@ -434,8 +438,9 @@ class Node(threading.Thread):
             self.connections.append(conn)
             self.blockchain.register_node(conn)
             print(f"Node {conn.getpeername()[0]} added to the network")
-            print(f"Discovered nodes: {self.list_peers}")
+            print(f"Discovered nodes: {self.list_peers()}")
             print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
+            self.broadcast_message(f"\n[Connected]: [{conn.getpeername()[0]}]")
 
     def remove_node(self, conn):
         if conn in self.connections:

@@ -411,7 +411,7 @@ class Node(threading.Thread):
             self.blockchain.register_node((client_ip, client_port))
             print(f"Node {client_ip} added to the network")
             print(f"Discovered nodes: {self.discovered_nodes}")
-            print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
+            #print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
 
     def remove_node(self, ip):
         print(ip)
