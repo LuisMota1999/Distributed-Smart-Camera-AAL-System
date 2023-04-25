@@ -182,7 +182,7 @@ class NodeListener:
         if info:
             ip_list = info.parsed_addresses()
             for ip in ip_list:
-                if ip != ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']:
+                if ip != self.node.ip: #and ip not in self.node.connections.getpeername()[0]:
                     self.node.connect_to_peer(ip, info.port)
 
     def update_service(self,
@@ -287,9 +287,6 @@ class Node(threading.Thread):
             try:
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-                conn.settimeout(self.keep_alive_timeout)
-
                 # check and turn on TCP Keepalive
                 try:
                     from socket import IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT
@@ -301,15 +298,13 @@ class Node(threading.Thread):
                     pass  # May not be available everywhere.
 
                 conn.connect((client_host, client_port))
-                conn.settimeout(None)
+                conn.settimeout(20.0)
                 self.add_node(conn)
 
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
-
-        threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
         threading.Thread(target=self.handle_messages, args=(conn,)).start()
         threading.Thread(target=self.send_keep_alive_messages, args=(conn,)).start()
@@ -325,10 +320,9 @@ class Node(threading.Thread):
                 break
 
             # close connection and remove node from list
-
+        self.broadcast_message(f"[Disconnected]: [{conn.getpeername()[0]}]")
         self.remove_node(conn)
         self.list_peers()
-        self.broadcast_message(f"[Disconnected]: [-]")
         conn.close()
 
     def broadcast_message(self, message):
@@ -344,27 +338,18 @@ class Node(threading.Thread):
                     conn.send("pong".encode())
 
                 if not message:
+                    print('Connection closed by', conn.getpeername()[0])
                     break
-                print(f"Received message: {message}")
             except socket.timeout:
-                conn.close()
-                self.remove_node(conn)
                 self.broadcast_message(f"[Disconnected]: [{conn.getpeername()[0]}]")
-            except (Exception, ConnectionResetError) as e:
+                self.remove_node(conn)
+                conn.close()
+            except (Exception, ConnectionResetError, OSError) as e:
                 print(f"Error while receiving message from {conn.getpeername()[0]}: {e}")
-                conn.close()
-                self.remove_node(conn)
                 self.broadcast_message(f"[Disconnected]: [{conn.getpeername()[0]}]")
-                break
-
-    def check_keep_alive(self, conn):
-        while self.running:
-            if (time.time() - self.last_keep_alive) > self.keep_alive_timeout + 10:
-                self.connections.remove(conn)
-                self.list_peers()
+                self.remove_node(conn)
                 conn.close()
-                continue
-            time.sleep(10)
+                break
 
     def new_transaction(self, sender, recipient, amount):
         # Create a new Transaction
