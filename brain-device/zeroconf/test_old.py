@@ -3,7 +3,8 @@ import json
 import time
 import requests
 from flask import jsonify
-from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, NonUniqueNameException
+from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, NonUniqueNameException, \
+    ServiceNameAlreadyRegistered
 import threading
 import socket
 import argparse
@@ -11,6 +12,7 @@ import logging
 from typing import cast
 import netifaces as ni
 import random
+from multiprocessing import Queue, Pool
 
 
 class Blockchain:
@@ -171,6 +173,7 @@ class Blockchain:
 HOST_NAME = socket.gethostname()
 SERVICE_TYPE = "_node._tcp.local."
 HOST_PORT = random.randint(5000, 6000)
+NUM_I = 1
 
 
 class NodeListener:
@@ -192,7 +195,6 @@ class NodeListener:
 
         if state_change is ServiceStateChange.Added or ServiceStateChange.Updated:
             info = zeroconf.get_service_info(service_type, name)
-            print(name)
             if info:
                 addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_addresses()]
                 print("  Addresses: %s" % ", ".join(addresses))
@@ -227,6 +229,7 @@ class Node(threading.Thread):
         self.running = True
         self.connections = []
         self.blockchain = Blockchain()
+        self.recon_state = False
         self.service_info = ServiceInfo(
             type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
@@ -257,6 +260,8 @@ class Node(threading.Thread):
         except NonUniqueNameException as ex:
             self.zeroconf.update_service(self.service_info)
 
+        threading.Thread(target=self.handle_reconnects).start()
+
     def run(self):
         try:
             # Start the service browser
@@ -264,11 +269,12 @@ class Node(threading.Thread):
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
             threading.Thread(target=self.accept_connections).start()
         except KeyboardInterrupt:
-            self.broadcast_message("Shutting down")
-            self.stop()
+            pass
+            # self.broadcast_message("Shutting down")
+            # self.stop()
 
     def accept_connections(self):
-        print("Connection Accepted")
+
         while self.running:
             conn, addr = self.socket.accept()
             print(f"Connected to {addr[0]}:{addr[1]}")
@@ -276,34 +282,69 @@ class Node(threading.Thread):
             # Start a thread to handle incoming messages
             threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
+    def validate(self, ip):
+        flag = True
+        for connection in self.connections:
+            if ip not in connection.getpeername()[0]:
+                flag = True
+            else:
+                flag = False
+        return flag
+
+    def handle_reconnects(self):
+        while self.running:
+            if len(self.connections) == 0 and self.recon_state:
+                print("Attempting to reconnect...")
+                try:
+                    self.zeroconf.unregister_service(self.service_info)
+                    time.sleep(5)
+                    self.zeroconf.register_service(self.service_info)
+                    return
+                except NonUniqueNameException:
+                    self.zeroconf.update_service(self.service_info)
+                    print("NonUniqueNameException")
+                    return
+                except ServiceNameAlreadyRegistered:
+                    self.zeroconf.update_service(self.service_info)
+                    print("ServiceNameAlreadyRegistered")
+                    return
+
     def connect_to_peer(self, client_host, client_port):
+        if self.validate(client_host) is not True:
+            print(f"Already connected to {client_host}")
+            return
+
+        retries = 1
         while self.running:
             try:
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                # check and turn on TCP Keepalive
-                try:
-                    from socket import IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT
-                    conn.setsockopt(socket.SOL_SOCKET, SO_KEEPALIVE, 1)
-                    conn.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 1)
-                    conn.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, 3)
-                    conn.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, 5)
-                except ImportError:
-                    print("Import Error")
-                    pass  # May not be available everywhere.
-
+                conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
                 conn.settimeout(20.0)
+
                 self.add_node(conn)
                 self.list_peers()
+                self.recon_state = False
                 break
+
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
+                retries += 1
+                if retries > 10:
+                    break
 
         try:
-            threading.Thread(target=self.handle_messages, args=(conn,)).start()
-            threading.Thread(target=self.send_keep_alive_messages, args=(conn,)).start()
+
+            handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
+            handle_messages.start()
+
+            send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn,))
+            send_keep_alive_msg.start()
+
+            handle_reconnects = threading.Thread(target=self.handle_reconnects)
+            handle_reconnects.start()
         except:
             print(f'Machine {conn.getpeername()[0]} is shutted down')
 
@@ -311,112 +352,64 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                conn.send(b"keep alive")
+                conn.send(b"ping")
                 time.sleep(self.keep_alive_timeout)
             except:
-                # handle error
                 break
 
         # close connection and remove node from list
-        self.remove_node(conn)
-        conn.close()
-        return
-
-    def broadcast_message(self, message):
-        for peer in self.connections:
-            peer.sendall(message.encode())
+        if conn in self.connections:
+            self.remove_node(conn)
+            conn.close()
 
     def handle_messages(self, conn):
         while self.running:
             try:
                 message = conn.recv(1024).decode()
-                prefix, data = message[:5], message[5:]
-                if message == "keep alive":
-                    conn.send("pong".encode())
-
-                if not message:
-                    print('Connection closed by', conn.getpeername()[0])
+                if message == "ping":
+                    conn.send(b"pong")
+                if message == "pingping":
                     if len(self.connections) == 0:
-                        self.zeroconf.unregister_service(self.service_info)
-                        try:
-                            self.zeroconf.register_service(self.service_info)
-                        except NonUniqueNameException as ex:
-                            self.zeroconf.update_service(self.service_info)
+                        self.recon_state = True
+                if not message:
+                    print(f"empty {message}")
+                    if conn in self.connections:
+                        self.remove_node(conn)
+                        conn.close()
                     break
 
+                print(self.running)
             except socket.timeout:
-                if conn in self.connections:
-                    self.remove_node(conn)
-                    conn.close()
-            except (Exception) as ex:
-                print(f"Exception Error {ex.strerror}")
+                print("Timeout")
                 if conn in self.connections:
                     self.remove_node(conn)
                     conn.close()
                 break
+
             except OSError as e:
                 print(f"System Error {e.strerror}")
+                if conn in self.connections:
+                    self.remove_node(conn)
+                    conn.close()
                 break
+
+            except Exception as ex:
+                print(f"Exception Error {ex.args}")
+                if conn in self.connections:
+                    self.remove_node(conn)
+                    conn.close()
+                break
+
             except ConnectionResetError as c:
                 print(f"Connection Reset Error {c.strerror}")
+                if conn in self.connections:
+                    self.remove_node(conn)
+                    conn.close()
                 break
 
-    def new_transaction(self, sender, recipient, amount):
-        # Create a new Transaction
-        index = self.blockchain.new_transaction(sender, recipient, amount)
-
-        response = {'message': f'Transaction will be added to Block {index}'}
-        return jsonify(response), 201
-
-    def full_chain(self):
-        response = {
-            'chain': self.blockchain.chain,
-            'length': len(self.blockchain.chain),
-        }
-        return jsonify(response), 200
-
-    def mine(self, node_identifier):
-        # We run the proof of work algorithm to get the next proof...
-        last_block = self.blockchain.last_block
-        last_proof = last_block['proof']
-        proof = self.blockchain.proof_of_work(last_proof)
-
-        # We must receive a reward for finding the proof.
-        # The sender is "0" to signify that this node has mined a new coin.
-        self.blockchain.new_transaction(
-            sender="0",
-            recipient=node_identifier,
-            amount=1,
-        )
-
-        # Forge the new Block by adding it to the chain
-        previous_hash = self.blockchain.hash(last_block)
-        block = self.blockchain.new_block(proof, previous_hash)
-
-        response = {
-            'message': "New Block Forged",
-            'index': block['index'],
-            'transactions': block['transactions'],
-            'proof': block['proof'],
-            'previous_hash': block['previous_hash'],
-        }
-        return jsonify(response), 200
-
-    def consensus(self):
-        replaced = self.blockchain.resolve_conflicts()
-
-        if replaced:
-            response = {
-                'message': 'Our chain was replaced',
-                'new_chain': self.blockchain.chain
-            }
-        else:
-            response = {
-                'message': 'Our chain is authoritative',
-                'chain': self.blockchain.chain
-            }
-
-        return jsonify(response), 200
+    def broadcast_message(self, message):
+        for peer in self.connections:
+            peer.sendall(message.encode())
 
     def list_peers(self):
         print("\n\nPeers:")
@@ -434,7 +427,7 @@ class Node(threading.Thread):
             self.blockchain.register_node(conn)
             print(f"Node {conn.getpeername()[0]} added to the network")
             print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
-            self.broadcast_message(f"\n[Connected]: [{conn.getpeername()[0]}]")
+            self.broadcast_message(f"\n[Connected]: [{self.ip}]")
 
     def remove_node(self, conn):
         if conn in self.connections:
