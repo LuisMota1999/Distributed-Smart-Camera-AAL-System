@@ -12,14 +12,14 @@ import logging
 from typing import cast
 import netifaces as ni
 import random
-from multiprocessing import Queue, Pool
+from datetime import datetime
 
 
 class Blockchain:
     def __init__(self):
         self.current_transactions = []
         self.chain = []
-        self.nodes = []
+        self.nodes = {}
         self.new_block(previous_hash='1', proof=100)
 
     def register_node(self, connection_peer):
@@ -27,7 +27,7 @@ class Blockchain:
         Add a new node to the list of nodes
         :param connection_peer: Address of node. Eg. 'http://192.168.0.5:5000'
         """
-        self.nodes.append(connection_peer)
+        self.nodes.update(connection_peer)
 
     def valid_chain(self, chain):
         """
@@ -240,6 +240,8 @@ class Node(threading.Thread):
             properties={'IP': self.ip},
         )
 
+        self.blockchain.register_node({self.ip: time.time()})
+
     def starter(self):
 
         parser = argparse.ArgumentParser()
@@ -283,10 +285,10 @@ class Node(threading.Thread):
             # Start a thread to handle incoming messages
             threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
-    def validate(self, ip):
+    def validate(self, ip, port):
         flag = True
         for connection in self.connections:
-            if ip not in connection.getpeername()[0]:
+            if ip != connection.getpeername()[0] and port != connection.getpeername()[1]:
                 flag = True
             else:
                 flag = False
@@ -295,17 +297,18 @@ class Node(threading.Thread):
     def handle_reconnects(self):
         while True:
             if len(self.connections) < 1 and self.recon_state is True:
+                self.blockchain.nodes[self.ip] = time.time()
                 print("Attempting to reconnect...")
+                time.sleep(self.keep_alive_timeout)
             elif len(self.connections) > 0 and self.recon_state is True:
                 self.recon_state = False
-                break
-            time.sleep(5)
-
-        print("<PEER RECONNECTED>")
+                self.broadcast_message("BC")
+                time.sleep(2)
+                continue
 
     def connect_to_peer(self, client_host, client_port):
-        if self.validate(client_host) is not True or self.ip == client_host:
-            print(f"Already connected to {client_host}")
+        if self.validate(client_host,client_port) is not True or self.ip == client_host:
+            print(f"Already connected to {client_host, client_port}")
             return
 
         while self.running:
@@ -318,7 +321,7 @@ class Node(threading.Thread):
 
                 self.add_node(conn)
                 self.list_peers()
-                self.recon_state = False
+                #self.recon_state = False
                 break
 
             except ConnectionRefusedError:
@@ -358,9 +361,12 @@ class Node(threading.Thread):
                 if message == "ping":
                     conn.send(b"pong")
                 if not message:
-                    self.service_info.priority = 1
+                    self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
+                if message == "BC":
+                    #Lidar com a sincronização da blockchain ou seja enviar os eventos da blockchain juntamente com o ultimo timestamp que esteve ativo -> Atualizar se necessario a bc -> Atualizar o timestamp
+                    print("BC")
             except socket.timeout:
                 print("Timeout")
                 self.recon_state = True
@@ -405,11 +411,15 @@ class Node(threading.Thread):
         self.zeroconf.close()
 
     def add_node(self, conn):
+        for connections in self.connections:
+            if connections.getpeername()[0] == conn.getpeername()[0]:
+                return
+
         if conn not in self.connections:
             self.connections.append(conn)
-            self.blockchain.register_node(conn)
+            self.blockchain.register_node({conn.getpeername()[0]: time.time()})
             print(f"Node {conn.getpeername()[0]} added to the network")
-            print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
+            print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
     def remove_node(self, conn, function):
         print(f"Removed by {function}")
