@@ -173,7 +173,7 @@ class Blockchain:
 HOST_NAME = socket.gethostname()
 SERVICE_TYPE = "_node._tcp.local."
 HOST_PORT = random.randint(5000, 6000)
-NUM_I = 1
+HOST_PORT_RECON = random.randint(7000, 8000)
 
 
 class NodeListener:
@@ -260,6 +260,7 @@ class Node(threading.Thread):
         except NonUniqueNameException as ex:
             self.zeroconf.update_service(self.service_info)
 
+        # threading.Thread(target=self.handle_reconnects).start()
         threading.Thread(target=self.handle_reconnects).start()
 
     def run(self):
@@ -292,29 +293,21 @@ class Node(threading.Thread):
         return flag
 
     def handle_reconnects(self):
-        while self.running:
-            if len(self.connections) == 0 and self.recon_state:
+        while True:
+            if len(self.connections) < 1 and self.recon_state is True:
                 print("Attempting to reconnect...")
-                try:
-                    self.zeroconf.unregister_service(self.service_info)
-                    time.sleep(5)
-                    self.zeroconf.register_service(self.service_info)
-                    return
-                except NonUniqueNameException:
-                    self.zeroconf.update_service(self.service_info)
-                    print("NonUniqueNameException")
-                    return
-                except ServiceNameAlreadyRegistered:
-                    self.zeroconf.update_service(self.service_info)
-                    print("ServiceNameAlreadyRegistered")
-                    return
+            elif len(self.connections) > 0 and self.recon_state is True:
+                self.recon_state = False
+                break
+            time.sleep(5)
+
+        print("<PEER RECONNECTED>")
 
     def connect_to_peer(self, client_host, client_port):
-        if self.validate(client_host) is not True:
+        if self.validate(client_host) is not True or self.ip == client_host:
             print(f"Already connected to {client_host}")
             return
 
-        retries = 1
         while self.running:
             try:
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -331,10 +324,6 @@ class Node(threading.Thread):
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
-                retries += 1
-                if retries > 10:
-                    break
-
         try:
 
             handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
@@ -343,8 +332,8 @@ class Node(threading.Thread):
             send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn,))
             send_keep_alive_msg.start()
 
-            handle_reconnects = threading.Thread(target=self.handle_reconnects)
-            handle_reconnects.start()
+            # handle_reconnects = threading.Thread(target=self.handle_reconnects)
+            # handle_reconnects.start()
         except:
             print(f'Machine {conn.getpeername()[0]} is shutted down')
 
@@ -359,7 +348,7 @@ class Node(threading.Thread):
 
         # close connection and remove node from list
         if conn in self.connections:
-            self.remove_node(conn)
+            self.remove_node(conn, "KAlive")
             conn.close()
 
     def handle_messages(self, conn):
@@ -368,42 +357,36 @@ class Node(threading.Thread):
                 message = conn.recv(1024).decode()
                 if message == "ping":
                     conn.send(b"pong")
-                if message == "pingping":
-                    if len(self.connections) == 0:
-                        self.recon_state = True
                 if not message:
-                    print(f"empty {message}")
-                    if conn in self.connections:
-                        self.remove_node(conn)
-                        conn.close()
+                    self.service_info.priority = 1
+                    self.zeroconf.update_service(self.service_info)
                     break
-
-                print(self.running)
             except socket.timeout:
                 print("Timeout")
+                self.recon_state = True
                 if conn in self.connections:
-                    self.remove_node(conn)
+                    self.remove_node(conn, "Timeout")
                     conn.close()
                 break
 
             except OSError as e:
                 print(f"System Error {e.strerror}")
                 if conn in self.connections:
-                    self.remove_node(conn)
+                    self.remove_node(conn, "OSError")
                     conn.close()
                 break
 
             except Exception as ex:
                 print(f"Exception Error {ex.args}")
                 if conn in self.connections:
-                    self.remove_node(conn)
+                    self.remove_node(conn, "Exception")
                     conn.close()
                 break
 
             except ConnectionResetError as c:
                 print(f"Connection Reset Error {c.strerror}")
                 if conn in self.connections:
-                    self.remove_node(conn)
+                    self.remove_node(conn, "ConnectionResetError")
                     conn.close()
                 break
 
@@ -414,7 +397,7 @@ class Node(threading.Thread):
     def list_peers(self):
         print("\n\nPeers:")
         for i, conn in enumerate(self.connections):
-            print(f"[{i}] <{conn.getpeername()[0]}>")
+            print(f"[{i}] <{conn.getpeername()[0]}:{conn.getpeername()[1]}>")
         print("\n\n")
 
     def stop(self):
@@ -427,9 +410,9 @@ class Node(threading.Thread):
             self.blockchain.register_node(conn)
             print(f"Node {conn.getpeername()[0]} added to the network")
             print(f"Nodes in Blockchain: {list(self.blockchain.nodes)}")
-            self.broadcast_message(f"\n[Connected]: [{self.ip}]")
 
-    def remove_node(self, conn):
+    def remove_node(self, conn, function):
+        print(f"Removed by {function}")
         if conn in self.connections:
             print(f"Node {conn} removed from the network")
             self.connections.remove(conn)
