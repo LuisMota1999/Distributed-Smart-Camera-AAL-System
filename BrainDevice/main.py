@@ -1,6 +1,6 @@
 import threading
 import time
-from zeroconf.browse import Node
+from BrainDevice.zeroconf.browse import Node
 import socket
 
 HOST_NAME = socket.gethostname()

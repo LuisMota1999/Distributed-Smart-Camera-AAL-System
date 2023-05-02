@@ -1,5 +1,5 @@
 import time
-from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, ZeroconfServiceTypes, IPVersion, \
+from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 import threading
 import socket
@@ -250,21 +250,17 @@ class Node(threading.Thread):
 
                 self.add_node(conn)
                 self.list_peers()
-                break
 
+                handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
+                handle_messages.start()
+
+                send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn,))
+                send_keep_alive_msg.start()
+
+                break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
-        try:
-
-            handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
-            handle_messages.start()
-
-            send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn,))
-            send_keep_alive_msg.start()
-
-        except:
-            print(f'Machine {conn.getpeername()[0]} is shutted down')
 
     def send_keep_alive_messages(self, conn):
         """
