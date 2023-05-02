@@ -1,19 +1,18 @@
-import time
-from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
-    NonUniqueNameException
-import threading
-import socket
 import argparse
 import logging
-from typing import cast
-import netifaces as ni
 import random
-from ..blockchain.blockchain import Blockchain
+import socket
+import threading
+import time
+from typing import cast
 
-HOST_NAME = socket.gethostname()
-SERVICE_TYPE = "_node._tcp.local."
-HOST_PORT = random.randint(5000, 6000)
-HOST_PORT_RECON = random.randint(7000, 8000)
+import netifaces as ni
+from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
+    NonUniqueNameException
+
+from ..blockchain.blockchain import Blockchain
+from ..utils.constants import Network
+from ..utils.helper import generate_unique_id
 
 
 class NodeListener:
@@ -96,9 +95,10 @@ class Node(threading.Thread):
         :raises socket.gaierror: If the IP address of the current machine cannot be determined.
         """
         super().__init__()
+        self.id = generate_unique_id()
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
-        self.port = HOST_PORT
+        self.port = Network.HOST_PORT
         self.last_keep_alive = time.time()
         self.keep_alive_timeout = 10
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
@@ -107,15 +107,16 @@ class Node(threading.Thread):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
+        self.state = Network.FOLLOWER
         self.running = True
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
         self.service_info = ServiceInfo(
-            type_="_node._tcp.local.",
+            type_=Network.SERVICE_TYPE,
             name=f"{self.name}._node._tcp.local.",
             addresses=[socket.inet_aton(self.ip)],
-            port=HOST_PORT,
+            port=Network.HOST_PORT,
             weight=0,
             priority=0,
             properties={'IP': self.ip},
@@ -145,7 +146,7 @@ class Node(threading.Thread):
         print(f"HOSTNAME - {hostname}")
         try:
             self.zeroconf.register_service(self.service_info)
-        except NonUniqueNameException as ex:
+        except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
         # threading.Thread(target=self.handle_reconnects).start()
