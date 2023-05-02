@@ -1,5 +1,5 @@
-BrainDevice package
-===================
+Brain Device package
+====================
 
 Subpackages
 -----------
@@ -10,11 +10,8 @@ Subpackages
    BrainDevice.blockchain
    BrainDevice.zeroconf
 
-Submodules
-----------
-
-BrainDevice.main module
------------------------
+Brain Device: Main.py
+---------------------
 
 .. automodule:: BrainDevice.main
    :members:

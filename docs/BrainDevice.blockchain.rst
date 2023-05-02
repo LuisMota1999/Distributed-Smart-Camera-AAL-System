@@ -1,11 +1,5 @@
-BrainDevice.blockchain package
-==============================
-
-Submodules
-----------
-
-BrainDevice.blockchain.blockchain module
-----------------------------------------
+Blockchain package
+==================
 
 .. automodule:: BrainDevice.blockchain.blockchain
    :members:

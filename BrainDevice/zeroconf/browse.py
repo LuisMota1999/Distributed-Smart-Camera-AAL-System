@@ -11,7 +11,7 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, 
     NonUniqueNameException
 
 from ..blockchain.blockchain import Blockchain
-from ..utils.constants import Network
+from ..utils.constants import Network, HOST_PORT
 from ..utils.helper import generate_unique_id
 
 
@@ -98,7 +98,7 @@ class Node(threading.Thread):
         self.id = generate_unique_id()
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
-        self.port = Network.HOST_PORT
+        self.port = HOST_PORT
         self.last_keep_alive = time.time()
         self.keep_alive_timeout = 10
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
@@ -108,15 +108,18 @@ class Node(threading.Thread):
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
         self.state = Network.FOLLOWER
+        self.coordinator = None
         self.running = True
+        self.neighbours = {}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
+        self.election_in_progress = False
         self.service_info = ServiceInfo(
-            type_=Network.SERVICE_TYPE,
+            type_=str(Network.SERVICE_TYPE),
             name=f"{self.name}._node._tcp.local.",
             addresses=[socket.inet_aton(self.ip)],
-            port=Network.HOST_PORT,
+            port=HOST_PORT,
             weight=0,
             priority=0,
             properties={'IP': self.ip},
@@ -228,10 +231,10 @@ class Node(threading.Thread):
 
     def connect_to_peer(self, client_host, client_port):
         """
-        The `connect_to_peer` method is used to create a socket connection with the specified client. If the specified
-        client is already connected, it will not create a new connection. It adds a new node by creating a socket connection
-        to the specified client and adds it to the node list. Additionally, it starts threads to handle incoming messages and
-        to send keep-alive messages.
+        The `connect_to_peer` method is used to create a socket connection with the specified client. If the
+        specified client is already connected, it will not create a new connection. It adds a new node by creating a
+        socket connection to the specified client and adds it to the node list. Additionally, it starts threads to
+        handle incoming messages and to send keep-alive messages.
 
         :param client_host: The host address of the client to connect to, e.g. [192.168.X.X].
         :param client_port: The port number of the client to connect to, e.g. [5000].
@@ -275,7 +278,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                conn.send(b"ping")
+                conn.send(b"PING")
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -284,6 +287,29 @@ class Node(threading.Thread):
         if conn in self.connections:
             self.remove_node(conn, "KAlive")
             conn.close()
+
+    def start_election(self):
+        """
+        The ``start_election`` method start the election among the nodes in the network. Sets the node with higher uid
+        the coordinator.
+
+        :return: None
+        """
+        self.election_in_progress = True
+        higher_nodes = []
+        for id, neighbour in self.neighbours.items():
+            if id > self.id:
+                higher_nodes.append(neighbour)
+
+        if higher_nodes:
+            for node in higher_nodes:
+                self.broadcast_message("ELECTION")
+                print(f"Node {self.id} sent ELECTION message to {node.id}")
+        else:
+            self.coordinator = self.id
+            self.broadcast_message(f"COORDINATOR {self.coordinator}")
+            print(f"Node {self.id} is the new coordinator")
+            self.election_in_progress = False
 
     def handle_messages(self, conn):
         """
@@ -301,8 +327,12 @@ class Node(threading.Thread):
         while self.running:
             try:
                 message = conn.recv(1024).decode()
-                if message == "ping":
-                    conn.send(b"pong")
+                if message == "PING":
+                    conn.send(b"PONG")
+
+                if message == "ELECTION":
+                    continue
+
                 if not message:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)

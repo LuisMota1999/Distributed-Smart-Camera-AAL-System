@@ -1,11 +1,5 @@
-BrainDevice.zeroconf package
-============================
-
-Submodules
-----------
-
-BrainDevice.zeroconf.browse module
-----------------------------------
+Network package
+===============
 
 .. automodule:: BrainDevice.zeroconf.browse
    :members:
