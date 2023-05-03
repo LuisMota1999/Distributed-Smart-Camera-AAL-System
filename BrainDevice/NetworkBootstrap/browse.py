@@ -299,7 +299,7 @@ class Node(threading.Thread):
         """
         self.election_in_progress = True
         higher_nodes = []
-        for id, neighbour in self.neighbours.keys():
+        for id, neighbour in self.neighbours.items():
             if id > self.id:
                 higher_nodes.append(neighbour)
         if higher_nodes:
