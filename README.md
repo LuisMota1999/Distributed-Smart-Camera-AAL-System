@@ -6,7 +6,7 @@ O objetivo principal desta investigação é desenvolver um sistema distribuído
 
 
 ![Arquitetura do sistema](assets/images/gns3_architecture.png)
-#####Arquitetura do sistema
+###Arquitetura do sistema
 
 ## Como utilizar?
 
