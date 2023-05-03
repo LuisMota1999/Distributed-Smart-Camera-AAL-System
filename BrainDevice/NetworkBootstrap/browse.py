@@ -167,7 +167,6 @@ class Node(threading.Thread):
         try:
             print("Searching new nodes on local network..")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-            browser.start()
             threading.Thread(target=self.accept_connections).start()
         except KeyboardInterrupt:
             self.broadcast_message("Shutting down")
