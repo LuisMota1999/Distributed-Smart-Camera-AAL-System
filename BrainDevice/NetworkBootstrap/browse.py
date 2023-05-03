@@ -226,9 +226,8 @@ class Node(threading.Thread):
                 # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
                 # and wait for a short amount of time before continuing
                 self.start_election()
-                self.recon_state = False
                 self.broadcast_message("BC")
-                time.sleep(2)
+                self.recon_state = False
                 continue
 
     def connect_to_peer(self, client_host, client_port, client_id):
@@ -270,7 +269,7 @@ class Node(threading.Thread):
 
                 time.sleep(1)
 
-                send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn,))
+                send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn, client_id))
                 send_keep_alive_msg.start()
 
                 break
@@ -278,11 +277,13 @@ class Node(threading.Thread):
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
 
-    def send_keep_alive_messages(self, conn):
+    def send_keep_alive_messages(self, conn, client_id):
         """
         The ``send_keep_alive_messages`` method sends a "ping" message to the specified connection periodically
         to maintain the connection. If the connection fails or is closed, it will remove the node from the list.
 
+        :param client_id:
+        :type
         :param conn: The connection object to send the keep-alive messages to.
         :type conn: socket.socket
         :return: None
@@ -298,7 +299,10 @@ class Node(threading.Thread):
 
         # close connection and remove node from list
         if conn in self.connections:
+            self.recon_state = True
             self.remove_node(conn, "KAlive")
+            client_id = client_id.decode('utf-8')
+            self.neighbours.pop(uuid.UUID(client_id))
             conn.close()
 
     def start_election(self):
