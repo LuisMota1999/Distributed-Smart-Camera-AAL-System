@@ -95,7 +95,7 @@ class Node(threading.Thread):
         :raises socket.gaierror: If the IP address of the current machine cannot be determined.
         """
         super().__init__()
-        self.id = generate_unique_id()
+        self.id = uuid.uuid4()
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
@@ -421,12 +421,12 @@ class Node(threading.Thread):
         for connections in self.connections:
             if connections.getpeername()[0] == conn.getpeername()[0]:
                 return
-        client_id = uuid.UUID(client_id.decode('utf-8'))
+        client_id = client_id.decode('utf-8')
         # If the node is not in the list of connections, add it
         if conn not in self.connections:
             self.connections.append(conn)
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
-            self.neighbours.update({client_id: conn.getpeername()[0]})
+            self.neighbours.update({uuid.UUID(client_id): conn.getpeername()[0]})
             print(f"Node {conn.getpeername()[0]} added to the network")
             print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
