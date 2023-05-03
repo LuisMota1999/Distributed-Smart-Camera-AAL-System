@@ -195,7 +195,9 @@ class Node(threading.Thread):
         Otherwise, it returns False.
 
         :param ip: The IP address to validate.
+        :type ip: str
         :param port: The port number to validate.
+        :type port: int
         :return: True if the IP address and port number are unique, False otherwise.
         """
         flag = True
@@ -223,6 +225,7 @@ class Node(threading.Thread):
             elif len(self.connections) > 0 and self.recon_state is True:
                 # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
                 # and wait for a short amount of time before continuing
+                self.start_election()
                 self.recon_state = False
                 self.broadcast_message("BC")
                 time.sleep(2)
@@ -235,9 +238,12 @@ class Node(threading.Thread):
         socket connection to the specified client and adds it to the node list. Additionally, it starts threads to
         handle incoming messages and to send keep-alive messages.
 
-        :param client_id:
+        :param client_id:The ID of the new node.
+        :type client_id: bytes
         :param client_host: The host address of the client to connect to, e.g. [192.168.X.X].
+        :type client_host: str
         :param client_port: The port number of the client to connect to, e.g. [5000].
+        :type client_port: int
         :return: None
         """
         if self.validate(client_host, client_port) is not True or self.ip == client_host:
@@ -258,7 +264,11 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
+                time.sleep(1)
+
                 self.start_election()
+
+                time.sleep(1)
 
                 send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn,))
                 send_keep_alive_msg.start()
@@ -274,6 +284,7 @@ class Node(threading.Thread):
         to maintain the connection. If the connection fails or is closed, it will remove the node from the list.
 
         :param conn: The connection object to send the keep-alive messages to.
+        :type conn: socket.socket
         :return: None
         """
 
@@ -337,7 +348,7 @@ class Node(threading.Thread):
                 if election_service == "COORDINATOR":
                     coordinator_id = message[12:]
                     self.coordinator = coordinator_id
-                    print(f"Election end. New coordinator is {self.coordinator}")
+                    print(f"\nCoordinator is {self.coordinator}\n")
                     self.election_in_progress = False
                     continue
 
@@ -345,6 +356,7 @@ class Node(threading.Thread):
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
+
                 if message == "BC":
                     print("BC")
             except socket.timeout:
@@ -381,7 +393,8 @@ class Node(threading.Thread):
         The ``broadcast_message`` method broadcasts a message to all connected peers. The message is encoded and sent to
         each peer using the ``sendall`` method of the socket object.
 
-        :param message: str, the message to be broadcast
+        :param message: The message to be broadcast
+        :type message: str
         :return: None
         """
         for peer in self.connections:
@@ -413,7 +426,8 @@ class Node(threading.Thread):
         The ``add_node`` method checks if the node is already in the list of connections, if the node is not in the list
         of connections add the new node to the BlockchainService network and to the list of node peer connections.
 
-        :param client_id:
+        :param client_id:The ID of the new node.
+        :type client_id: bytes
         :param conn: A socket connection object representing the new node to be added.
         :type conn: socket.socket
         :return: None
@@ -426,9 +440,16 @@ class Node(threading.Thread):
         # If the node is not in the list of connections, add it
         if conn not in self.connections:
             self.connections.append(conn)
+            # Register the new node with the blockchain service
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
+
+            # Add the new node to the dictionary of neighbors
             self.neighbours.update({uuid.UUID(client_id): conn.getpeername()[0]})
+
+            # Print a message indicating that the new node has been added to the network
             print(f"Node {conn.getpeername()[0]} added to the network")
+
+            # Print the list of nodes in the blockchain
             print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
     def remove_node(self, conn, function):
