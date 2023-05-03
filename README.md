@@ -6,7 +6,6 @@ O objetivo principal desta investigação é desenvolver um sistema distribuído
 
 ![Arquitetura do sistema](assets/images/gns3_architecture.png)
 
-
 ## Como utilizar?
 
 ### · NVIDIA® Jetson Nano™ 2GB Developer Kit
