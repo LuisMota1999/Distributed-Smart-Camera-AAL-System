@@ -224,7 +224,6 @@ class Node(threading.Thread):
                 # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
                 # and wait for a short amount of time before continuing
                 self.recon_state = False
-                self.start_election()
                 self.broadcast_message("BC")
                 time.sleep(2)
                 continue
@@ -304,9 +303,9 @@ class Node(threading.Thread):
             if id > self.id:
                 higher_nodes.append(neighbour)
         if higher_nodes:
-            for i, node in enumerate(self.connections):
-                if higher_nodes[i] in node.getpeername()[0]:
-                    print(f"Node {self.id} sent ELECTION message to {higher_nodes[i]}")
+            for node in self.connections:
+                if node.getpeername()[0] in [neighbour.ip_address for neighbour in higher_nodes]:
+                    print(f"Node {self.id} sent ELECTION message to {node.getpeername()[0]}")
         else:
             self.coordinator = self.id
             self.broadcast_message(f"COORDINATOR {self.coordinator}")
@@ -426,7 +425,7 @@ class Node(threading.Thread):
         if conn not in self.connections:
             self.connections.append(conn)
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
-            self.neighbours.update({uuid.UUID(client_id): conn.getpeername()[0]})
+            self.neighbours.update({conn.getpeername()[0]: uuid.UUID(client_id)})
             print(f"Node {conn.getpeername()[0]} added to the network")
             print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
