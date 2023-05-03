@@ -19,8 +19,8 @@ class Blockchain:
 
     def valid_chain(self, chain):
         """
-        Determine if a given blockchain is valid
-        :param chain: A blockchain
+        Determine if a given BlockchainService is valid
+        :param chain: A BlockchainService
         :return: True if valid, False if not
         """
 

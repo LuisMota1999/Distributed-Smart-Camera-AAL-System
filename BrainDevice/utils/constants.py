@@ -7,6 +7,6 @@ class Network(Enum):
     HOST_NAME = socket.gethostname()
     SERVICE_TYPE = "_node._tcp.local."
     HOST_PORT_RECON = random.randint(7000, 8000)
-    LEADER = "LEADER"
+    COORDINATOR = "COORDINATOR"
     FOLLOWER = "FOLLOWER"
     CANDIDATE = "CANDIDATE"

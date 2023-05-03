@@ -5,8 +5,8 @@
 import sys
 import os
 sys.path.insert(0,os.path.abspath('..'))
-import BrainDevice.zeroconf
-import BrainDevice.blockchain
+import BrainDevice.NetworkBootstrap
+import BrainDevice.BlockchainService
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 

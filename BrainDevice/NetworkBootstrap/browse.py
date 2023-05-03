@@ -10,7 +10,7 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 
-from ..blockchain.blockchain import Blockchain
+from ..BlockchainService.blockchain import Blockchain
 from ..utils.constants import Network, HOST_PORT
 from ..utils.helper import generate_unique_id
 
@@ -110,7 +110,7 @@ class Node(threading.Thread):
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {}
+        self.neighbours = {{self.id: self.ip}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -143,7 +143,7 @@ class Node(threading.Thread):
         args = parser.parse_args()
 
         if args.debug:
-            logging.getLogger('zeroconf').setLevel(logging.DEBUG)
+            logging.getLogger('NetworkBootstrap').setLevel(logging.DEBUG)
 
         hostname = socket.gethostname()
         print(f"HOSTNAME - {hostname}")
@@ -302,9 +302,10 @@ class Node(threading.Thread):
                 higher_nodes.append(neighbour)
 
         if higher_nodes:
-            for node in higher_nodes:
-                self.broadcast_message("ELECTION")
-                print(f"Node {self.id} sent ELECTION message to {node.id}")
+            for node in self.connections:
+                if higher_nodes in node.getpeername()[0]:
+                    node.sendall("ELECTION")
+                    print(f"Node {self.id} sent ELECTION message to {node.id}")
         else:
             self.coordinator = self.id
             self.broadcast_message(f"COORDINATOR {self.coordinator}")
@@ -394,7 +395,7 @@ class Node(threading.Thread):
 
     def stop(self):
         """
-        The ``stop`` method stop the server and close the zeroconf connection.
+        The ``stop`` method stop the server and close the NetworkBootstrap connection.
         :return: None
         """
         self.running = False
@@ -403,7 +404,7 @@ class Node(threading.Thread):
     def add_node(self, conn):
         """
         The ``add_node`` method checks if the node is already in the list of connections, if the node is not in the list
-        of connections add the new node to the blockchain network and to the list of node peer connections.
+        of connections add the new node to the BlockchainService network and to the list of node peer connections.
 
         :param conn: A socket connection object representing the new node to be added.
         :type conn: socket.socket
@@ -418,6 +419,7 @@ class Node(threading.Thread):
         if conn not in self.connections:
             self.connections.append(conn)
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
+            self.neighbours.update({self.id: conn.getpeername()[0]})
             print(f"Node {conn.getpeername()[0]} added to the network")
             print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 

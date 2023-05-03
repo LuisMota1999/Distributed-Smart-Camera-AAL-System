@@ -1,7 +1,11 @@
 FROM ubuntu:22.04
-RUN apt update && apt install -y nmap nano ssh tcpdump iperf3 netcat net-tools traceroute iproute2 iputils-arping iputils-ping iputils-tracepath inetutils-telnet telnet-ssl telnet lynx python3 python3-pip
+RUN apt update && apt install -y curl nmap nano ssh tcpdump iperf3 netcat net-tools traceroute iproute2 iputils-arping iputils-ping iputils-tracepath inetutils-telnet telnet-ssl telnet lynx
 
-RUN ln -fs /usr/share/zoneinfo/Europe/Brussels /etc/localtime && apt-get install -y software-properties-common && add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.9 git openssh-client
+RUN ln -fs /usr/share/zoneinfo/Europe/Brussels /etc/localtime && apt-get install -y software-properties-common && add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.9 python3.9-distutils git openssh-client
+
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.9 get-pip.py && \
+    rm get-pip.py
 
 ARG GITHUB_TOKEN
 # Configure SSH and Git with the token
@@ -15,5 +19,12 @@ RUN mkdir -p /root/.ssh && \
 RUN git clone https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System/ /app
 WORKDIR /app
 
-RUN pip3 install sockets zeroconf thread6 argparse python-time netifaces sphinx flask requests pyOpenSSL
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --ignore-installed sockets NetworkBootstrap thread6 python-time argparse netifaces sphinx flask requests pyOpenSSL tensorflow-intel tflite-runtime
+
+COPY . .
+
+ENV PYTHONPATH "${PYTHONPATH}:/app"
 
