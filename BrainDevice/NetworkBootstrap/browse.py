@@ -110,13 +110,13 @@ class Node(threading.Thread):
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {{self.id: self.ip}}
+        self.neighbours = {self.id: self.ip}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
         self.election_in_progress = False
         self.service_info = ServiceInfo(
-            type_=str(Network.SERVICE_TYPE),
+            type_="_node._tcp.local.",
             name=f"{self.name}._node._tcp.local.",
             addresses=[socket.inet_aton(self.ip)],
             port=HOST_PORT,
