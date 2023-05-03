@@ -9,10 +9,8 @@ import uuid
 import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
-
 from ..BlockchainService.blockchain import Blockchain
 from ..utils.constants import Network, HOST_PORT
-from ..utils.helper import generate_unique_id
 
 
 class NodeListener:
@@ -282,8 +280,8 @@ class Node(threading.Thread):
         The ``send_keep_alive_messages`` method sends a "ping" message to the specified connection periodically
         to maintain the connection. If the connection fails or is closed, it will remove the node from the list.
 
-        :param client_id:
-        :type
+        :param client_id: The ID of the new node.
+        :type client_id: bytes
         :param conn: The connection object to send the keep-alive messages to.
         :type conn: socket.socket
         :return: None
