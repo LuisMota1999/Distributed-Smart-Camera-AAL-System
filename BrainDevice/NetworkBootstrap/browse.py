@@ -299,13 +299,15 @@ class Node(threading.Thread):
         """
         self.election_in_progress = True
         higher_nodes = []
-        for neighbour, id in self.neighbours.items():
+        for id, neighbour in self.neighbours.keys():
             if id > self.id:
                 higher_nodes.append(neighbour)
         if higher_nodes:
-            for node in self.connections:
-                if node.getpeername()[0] in [neighbour.ip_address for neighbour in higher_nodes]:
-                    print(f"Node {self.id} sent ELECTION message to {node.getpeername()[0]}")
+            for ip in higher_nodes:
+                for node in self.connections:
+                    if node.getpeername()[0] == ip:
+                        print(f"Node {self.ip} sent ELECTION message to {ip}")
+
         else:
             self.coordinator = self.id
             self.broadcast_message(f"COORDINATOR {self.coordinator}")
@@ -425,7 +427,7 @@ class Node(threading.Thread):
         if conn not in self.connections:
             self.connections.append(conn)
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
-            self.neighbours.update({conn.getpeername()[0]: uuid.UUID(client_id)})
+            self.neighbours.update({uuid.UUID(client_id): conn.getpeername()[0]})
             print(f"Node {conn.getpeername()[0]} added to the network")
             print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
