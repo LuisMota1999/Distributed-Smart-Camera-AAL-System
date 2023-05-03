@@ -22,9 +22,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --ignore-installed sockets NetworkBootstrap thread6 python-time argparse netifaces sphinx flask requests pyOpenSSL tensorflow-intel tflite-runtime
-
-COPY . .
+RUN pip install --ignore-installed sockets zeroconf thread6 python-time argparse netifaces sphinx flask requests pyOpenSSL tensorflow-intel tflite-runtime
 
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 

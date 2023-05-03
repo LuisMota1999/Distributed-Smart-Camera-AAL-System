@@ -9,10 +9,178 @@ import uuid
 import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
+import requests
+import json
+import hashlib
 
-from ..BlockchainService.blockchain import Blockchain
-from ..utils.constants import Network, HOST_PORT
-from ..utils.helper import generate_unique_id
+class Blockchain:
+    def __init__(self):
+        self.current_transactions = []
+        self.chain = []
+        self.nodes = {}
+        self.new_block(previous_hash='1', proof=100)
+
+    def register_node(self, connection_peer):
+        """
+        Add a new node to the list of nodes
+        :param connection_peer: Address of node. Eg. 'http://192.168.0.5:5000'
+        """
+        self.nodes.update(connection_peer)
+
+    def valid_chain(self, chain):
+        """
+        Determine if a given BlockchainService is valid
+        :param chain: A BlockchainService
+        :return: True if valid, False if not
+        """
+
+        last_block = chain[0]
+        current_index = 1
+
+        while current_index < len(chain):
+            block = chain[current_index]
+            print(f'{last_block}')
+            print(f'{block}')
+            print("\n-----------\n")
+            # Check that the hash of the block is correct
+            if block['previous_hash'] != self.hash(last_block):
+                return False
+
+            # Check that the Proof of Work is correct
+            if not self.valid_proof(last_block['proof'], block['proof']):
+                return False
+
+            last_block = block
+            current_index += 1
+
+        return True
+
+    def resolve_conflicts(self):
+        """
+        This is our consensus algorithm, it resolves conflicts
+        by replacing our chain with the longest one in the network.
+        :return: True if our chain was replaced, False if not
+        """
+
+        neighbours = self.nodes
+        new_chain = None
+
+        # We're only looking for chains longer than ours
+        max_length = len(self.chain)
+
+        # Grab and verify the chains from all the nodes in our network
+        for node in neighbours:
+            response = requests.get(f'http://{node}/chain')
+
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+
+                # Check if the length is longer and the chain is valid
+                if length > max_length and self.valid_chain(chain):
+                    max_length = length
+                    new_chain = chain
+
+        # Replace our chain if we discovered a new, valid chain longer than ours
+        if new_chain:
+            self.chain = new_chain
+            return True
+
+        return False
+
+    def new_block(self, proof, previous_hash):
+        """
+        Create a new Block in the Blockchain
+        :param proof: The proof given by the Proof of Work algorithm
+        :param previous_hash: Hash of previous Block
+        :return: New Block
+        """
+
+        block = {
+            'index': len(self.chain) + 1,
+            'timestamp': time.time(),
+            'transactions': self.current_transactions,
+            'proof': proof,
+            'previous_hash': previous_hash or self.hash(self.chain[-1]),
+        }
+
+        # Reset the current list of transactions
+        self.current_transactions = []
+
+        self.chain.append(block)
+        return block
+
+    def new_transaction(self, sender, recipient, amount):
+        """
+        Creates a new transaction to go into the next mined Block
+        :param sender: Address of the Sender
+        :param recipient: Address of the Recipient
+        :param amount: Amount
+        :return: The index of the Block that will hold this transaction
+        """
+        self.current_transactions.append({
+            'sender': sender,
+            'recipient': recipient,
+            'amount': amount,
+        })
+
+        return self.last_block['index'] + 1
+
+    @property
+    def last_block(self):
+        return self.chain[-1]
+
+    @staticmethod
+    def hash(block):
+        """
+        Creates a SHA-256 hash of a Block
+        :param block: Block
+        """
+
+        # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
+        block_string = json.dumps(block, sort_keys=True).encode()
+        return hashlib.sha256(block_string).hexdigest()
+
+    def proof_of_work(self, last_proof):
+        """
+        Simple Proof of Work Algorithm:
+         - Find a number p' such that hash(pp') contains leading 4 zeroes, where p is the previous p'
+         - p is the previous proof, and p' is the new proof
+        """
+
+        proof = 0
+        while self.valid_proof(last_proof, proof) is False:
+            proof += 1
+
+        return proof
+
+    @staticmethod
+    def valid_proof(last_proof, proof):
+        """
+        Validates the Proof
+        :param last_proof: Previous Proof
+        :param proof: Current Proof
+        :return: True if correct, False if not.
+        """
+
+        guess = f'{last_proof}{proof}'.encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:4] == "0000"
+
+HOST_NAME= socket.gethostname()
+def generate_unique_id() -> str:
+    """
+    Generate a unique identifier by generating a UUID and selecting 10 random digits.
+
+    :return: An string representing the unique identifier.
+    """
+    # Generate a UUID and convert it to a string
+    uuid_str = str(uuid.uuid4())
+
+    # Remove the hyphens and select 10 random digits
+    digits = ''.join(random.choice(uuid_str.replace('-', '')) for _ in range(10))
+
+    return digits
 
 
 class NodeListener:
@@ -43,7 +211,7 @@ class NodeListener:
             ip_list = info.parsed_addresses()
             for ip in ip_list:
                 if ip != self.node.ip:
-                    self.node.connect_to_peer(ip, info.port)
+                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -84,7 +252,7 @@ class NodeListener:
                 print("  No info")
             print('\n')
 
-
+HOST_PORT = random.randint(5000, 6000)
 class Node(threading.Thread):
     def __init__(self, name):
         """
@@ -95,7 +263,7 @@ class Node(threading.Thread):
         :raises socket.gaierror: If the IP address of the current machine cannot be determined.
         """
         super().__init__()
-        self.id = generate_unique_id()
+        self.id = uuid.uuid4()
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
@@ -107,10 +275,10 @@ class Node(threading.Thread):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
-        self.state = Network.FOLLOWER
+        self.state = "FOLLOWER"
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: self.ip}
+        self.neighbours = {}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -229,7 +397,7 @@ class Node(threading.Thread):
                 time.sleep(2)
                 continue
 
-    def connect_to_peer(self, client_host, client_port):
+    def connect_to_peer(self, client_host, client_port, client_id):
         """
         The `connect_to_peer` method is used to create a socket connection with the specified client. If the
         specified client is already connected, it will not create a new connection. It adds a new node by creating a
@@ -241,7 +409,7 @@ class Node(threading.Thread):
         :return: None
         """
         if self.validate(client_host, client_port) is not True or self.ip == client_host:
-            print(f"Already connected to {client_host, client_port}")
+            print(f"Already connected to {client_host, client_port, client_id}")
             return
 
         while self.running:
@@ -252,7 +420,7 @@ class Node(threading.Thread):
                 conn.connect((client_host, client_port))
                 conn.settimeout(20.0)
 
-                self.add_node(conn)
+                self.add_node(conn, client_id)
                 self.list_peers()
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
@@ -333,7 +501,7 @@ class Node(threading.Thread):
                     conn.send(b"PONG")
 
                 if election_service == "COORDINATOR":
-                    coordinator_id = message[12:]
+                    coordinator_id= message[12:]
                     self.coordinator = coordinator_id
                     print(f"Election end. New coordinator is {self.coordinator}")
                     self.election_in_progress = False
@@ -445,3 +613,15 @@ class Node(threading.Thread):
             self.connections.remove(conn)
         print(f"Nodes still available:")
         self.list_peers()
+
+def main():
+    node = Node(HOST_NAME)
+    print(f"Listening on {node.ip}:{node.port}...")
+    node.start()
+    time.sleep(2)
+    node_thread = threading.Thread(target=node.starter)
+    node_thread.start()
+
+
+if __name__ == "__main__":
+    main()

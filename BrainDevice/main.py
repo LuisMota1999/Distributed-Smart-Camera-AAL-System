@@ -2,7 +2,6 @@ import threading
 import time
 from BrainDevice.NetworkBootstrap.browse import Node
 from BrainDevice.utils import HOST_NAME
-import socket
 
 def main():
     node = Node(HOST_NAME)
