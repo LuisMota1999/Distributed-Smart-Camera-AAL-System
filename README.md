@@ -4,9 +4,8 @@
 
 O objetivo principal desta investigação é desenvolver um sistema distribuído de deteção e classificação de padrões de atividades através da captura de imagens em tempo real que sejam relevantes para o contexto do utilizador, estabelecendo a privacidade como um dos requisitos fundamentais.  
 
-
 ![Arquitetura do sistema](assets/images/gns3_architecture.png)
-#####Arquitetura do sistema
+
 
 ## Como utilizar?
 
