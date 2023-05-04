@@ -1,3 +1,6 @@
+# This code was adapted from the original code by Daniel van Flymen
+# Source: https://github.com/dvf/blockchain-book
+
 import hashlib
 import json
 import time
