@@ -10,7 +10,12 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.CaptureService.audio import MicrophoneAudioStream
+from EdgeDevice.CaptureService.video import WebcamVideoStream
+from EdgeDevice.utils.helper import data_processing_worker, inference_worker, network_worker
 from EdgeDevice.utils.constants import Network, HOST_PORT
+from multiprocessing import Queue, Pool
+import datetime
 
 
 class NodeListener:
@@ -135,6 +140,16 @@ class Node(threading.Thread):
         parser = argparse.ArgumentParser()
         parser.add_argument('--debug', action='store_true')
         parser.add_argument('--find', action='store_true', help='Browse all available services')
+        parser.add_argument('-src', '--source', dest='video_source', type=int,
+                            default=0, help='Device index of the camera.')
+        parser.add_argument('-wd', '--width', dest='width', type=int,
+                            default=480, help='Width of the frames in the video stream.')
+        parser.add_argument('-ht', '--height', dest='height', type=int,
+                            default=360, help='Height of the frames in the video stream.')
+        parser.add_argument('-num-w', '--num-workers', dest='num_workers', type=int,
+                            default=4, help='Number of workers.')
+        parser.add_argument('-q-size', '--queue-size', dest='queue_size', type=int,
+                            default=5, help='Size of the queue.')
         version_group = parser.add_mutually_exclusive_group()
         version_group.add_argument('--v6', action='store_true')
         version_group.add_argument('--v6-only', action='store_true')
@@ -152,6 +167,47 @@ class Node(threading.Thread):
 
         # threading.Thread(target=self.handle_reconnects).start()
         threading.Thread(target=self.handle_reconnects).start()
+
+        # logger = multiprocessing.log_to_stderr()
+        # logger.setLevel(multiprocessing.SUBDEBUG)
+
+        data_captured_q = Queue(maxsize=args.queue_size)
+        data_processed_q = Queue(maxsize=args.queue_size)
+        prediction_q = Queue(maxsize=args.queue_size)
+
+        processing_pool = Pool(2, data_processing_worker, (data_captured_q, data_processed_q))
+        inference_pool = Pool(args.num_workers, inference_worker, (data_processed_q, prediction_q))
+        network_pool = Pool(2, network_worker, (prediction_q,))
+
+        # Disabled for compatibility with RPI
+        video_capture = WebcamVideoStream(src=args.video_source, width=args.width, height=args.height,
+                                          in_q=data_captured_q)
+
+        if video_capture.found:
+            video_capture.start()
+
+        audio_capture = MicrophoneAudioStream(src=0, in_q=data_captured_q).start()
+
+        # start the timer
+        start = datetime.datetime.now()
+
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:
+            pass
+
+        # stop the timer
+        end = datetime.datetime.now()
+
+        network_pool.terminate()
+        inference_pool.terminate()
+        processing_pool.terminate()
+
+        audio_capture.stop()
+        # video_capture.stop()
+
+        print('[INFO] elapsed time (seconds): {:.2f}'.format((end - start).total_seconds()))
 
     def run(self):
         """
