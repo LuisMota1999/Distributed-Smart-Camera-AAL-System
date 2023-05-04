@@ -7,8 +7,10 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   EdgeDevice.capture
-   EdgeDevice.inference
+   EdgeDevice.BlockchainService
+   EdgeDevice.NetworkBootstrap
+   EdgeDevice.CaptureService
+   EdgeDevice.InferenceService
 
 Submodules
 ----------

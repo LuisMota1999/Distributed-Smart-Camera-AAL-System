@@ -1,7 +1,7 @@
-Blockchain package
-==================
+Network package
+===============
 
-.. automodule:: BrainDevice.blockchain.blockchain
+.. automodule:: EdgeDevice.NetworkService.Node
    :members:
    :undoc-members:
    :show-inheritance:
@@ -9,7 +9,7 @@ Blockchain package
 Module contents
 ---------------
 
-.. automodule:: BrainDevice.blockchain
+.. automodule:: EdgeDevice.import EdgeDevice.BlockchainService
    :members:
    :undoc-members:
    :show-inheritance:

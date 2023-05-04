@@ -1,7 +1,7 @@
-Network package
-===============
+Blockchain package
+==================
 
-.. automodule:: BrainDevice.zeroconf.browse
+.. automodule:: EdgeDevice.BlockchainService.Blockchain
    :members:
    :undoc-members:
    :show-inheritance:
@@ -9,7 +9,7 @@ Network package
 Module contents
 ---------------
 
-.. automodule:: BrainDevice.zeroconf
+.. automodule:: EdgeDevice.BlockchainService
    :members:
    :undoc-members:
    :show-inheritance:

@@ -6,7 +6,7 @@ import csv
 
 class AudioInference:
     """
-        A class for performing audio inference using TensorFlow Lite models.
+        A class for performing audio InferenceService using TensorFlow Lite models.
         :arg fs (int): Sample rate in Hz.
         :arg samples (int): Number of audio samples in each input signal.
         :arg model_name (str): Name of the loaded model.
@@ -61,11 +61,11 @@ class AudioInference:
 
     def inference(self, waveform):
         """
-        This method inference is responsible for performing audio inference on a given waveform using a pre-trained
+        This method InferenceService is responsible for performing audio InferenceService on a given waveform using a pre-trained
         TFLite model. The method first reshapes the waveform array to the appropriate length self.samples and
         converts it to a float32 data type. Then, the method resizes the tensor input of the interpreter to match the
         length of the waveform and sets the tensor to the given waveform. The interpreter is then invoked to perform
-        inference and return the scores. If the model is a YAMNet model, then the scores are averaged along the first
+        InferenceService and return the scores. If the model is a YAMNet model, then the scores are averaged along the first
         axis, otherwise the softmax function is simulated to compute the class probabilities. The method then
         determines the top class label and its corresponding score, and retrieves the inferred class label from the
         pre-loaded class names. If the top score is below a certain threshold, the inferred class label is set to

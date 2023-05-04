@@ -1,6 +1,7 @@
 import hashlib
 import json
 import time
+import requests
 
 
 class Blockchain:
@@ -9,6 +10,20 @@ class Blockchain:
         self.chain = []
         self.nodes = {}
         self.new_block(previous_hash='1', proof=100)
+
+    def create_genesis_block(self):
+        """
+        A function to generate genesis block and appends it to
+        the chain. The block has a previous_hash as 0, and
+        a valid hash.
+        """
+        genesis_block = self.new_block
+        # proof of work to init
+        self.proof_of_work(genesis_block)
+
+        genesis_block.hash = genesis_block.compute_hash()
+
+        self.chain.append(genesis_block)
 
     def register_node(self, connection_peer):
         """

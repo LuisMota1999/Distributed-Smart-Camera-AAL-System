@@ -9,8 +9,8 @@ import uuid
 import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
-from ..BlockchainService.blockchain import Blockchain
-from ..utils.constants import Network, HOST_PORT
+from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.utils.constants import Network, HOST_PORT
 
 
 class NodeListener:
@@ -141,7 +141,7 @@ class Node(threading.Thread):
         args = parser.parse_args()
 
         if args.debug:
-            logging.getLogger('NetworkBootstrap').setLevel(logging.DEBUG)
+            logging.getLogger('NetworkService').setLevel(logging.DEBUG)
 
         hostname = socket.gethostname()
         print(f"HOSTNAME - {hostname}")
@@ -417,7 +417,7 @@ class Node(threading.Thread):
 
     def stop(self):
         """
-        The ``stop`` method stop the server and close the NetworkBootstrap connection.
+        The ``stop`` method stop the server and close the NetworkService connection.
         :return: None
         """
         self.running = False

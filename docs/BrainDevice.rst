@@ -1,15 +1,6 @@
 Brain Device package
 ====================
 
-Subpackages
------------
-
-.. toctree::
-   :maxdepth: 4
-
-   BrainDevice.blockchain
-   BrainDevice.zeroconf
-
 Brain Device: Main.py
 ---------------------
 

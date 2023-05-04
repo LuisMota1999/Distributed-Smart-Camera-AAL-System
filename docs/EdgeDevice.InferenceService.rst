@@ -7,7 +7,7 @@ Submodules
 EdgeDevice.inference.audio module
 ---------------------------------
 
-.. automodule:: EdgeDevice.inference.audio
+.. automodule:: EdgeDevice.InferenceService.audio
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ EdgeDevice.inference.audio module
 EdgeDevice.inference.video module
 ---------------------------------
 
-.. automodule:: EdgeDevice.inference.video
+.. automodule:: EdgeDevice.InferenceService.video
    :members:
    :undoc-members:
    :show-inheritance:
@@ -23,7 +23,7 @@ EdgeDevice.inference.video module
 Module contents
 ---------------
 
-.. automodule:: EdgeDevice.inference
+.. automodule:: EdgeDevice.InferenceService
    :members:
    :undoc-members:
    :show-inheritance:

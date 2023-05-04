@@ -7,7 +7,7 @@ Submodules
 EdgeDevice.capture.audio module
 -------------------------------
 
-.. automodule:: EdgeDevice.capture.audio
+.. automodule:: EdgeDevice.CaptureService.audio
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ EdgeDevice.capture.audio module
 EdgeDevice.capture.video module
 -------------------------------
 
-.. automodule:: EdgeDevice.capture.video
+.. automodule:: EdgeDevice.CaptureService.video
    :members:
    :undoc-members:
    :show-inheritance:
@@ -23,7 +23,7 @@ EdgeDevice.capture.video module
 Module contents
 ---------------
 
-.. automodule:: EdgeDevice.capture
+.. automodule:: EdgeDevice.CaptureService
    :members:
    :undoc-members:
    :show-inheritance:
