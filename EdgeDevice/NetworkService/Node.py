@@ -282,7 +282,7 @@ class Node(threading.Thread):
                 self.list_peers()
 
                 if self.coordinator == self.id:
-                    peer_info = { "ip":self.ip,"port":self.port, "id": self.id}
+                    peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id)}
                     peer_info = json.dumps(peer_info)
                     self.broadcast_message(peer_info)
 
