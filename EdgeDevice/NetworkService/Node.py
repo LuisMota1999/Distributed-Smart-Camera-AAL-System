@@ -176,7 +176,7 @@ class Node(threading.Thread):
 
     def discovery_service(self):
         while self.running:
-            if self.connections == self.id:
+            if self.coordinator == self.id:
                 try:
                     print("[COORDINATOR]Starting the discovery service...")
                     browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
