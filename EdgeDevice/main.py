@@ -15,14 +15,6 @@ def main():
     node = Node(HOST_NAME)
     print(f"Listening on {node.ip}:{node.port}...")
     node.start()
-    time.sleep(1)
-
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        pass
-
     node.stop()
     node.join()
 
