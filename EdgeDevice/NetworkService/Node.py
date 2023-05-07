@@ -10,12 +10,7 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
-from EdgeDevice.CaptureService.audio import MicrophoneAudioStream
-from EdgeDevice.CaptureService.video import WebcamVideoStream
-from EdgeDevice.utils.helper import data_processing_worker, inference_worker, network_worker
 from EdgeDevice.utils.constants import Network, HOST_PORT
-from multiprocessing import Queue, Pool
-import datetime
 
 
 class NodeListener:

@@ -15,8 +15,7 @@ def main():
     node = Node(HOST_NAME)
     print(f"Listening on {node.ip}:{node.port}...")
     node.start()
-    node.stop()
-    node.join()
+
 
 
 if __name__ == '__main__':
