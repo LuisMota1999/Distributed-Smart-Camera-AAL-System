@@ -11,6 +11,7 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, 
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.utils.constants import Network, HOST_PORT
+import json
 
 
 class NodeListener:
@@ -130,9 +131,7 @@ class Node(threading.Thread):
         Start the node
 
         The ``run`` method starts the node by parsing command line arguments, registering the node service with
-        Zeroconf, and starting a thread to handle reconnections. It initializes a ``ServiceBrowser`` to search for
-        available nodes on the local network and starts a thread to accept incoming connections. If the program
-        receives a keyboard interrupt signal, it will stop and exit gracefully.
+        Zeroconf, and starting a thread to handle reconnections.
 
         :return: None
         """
@@ -175,12 +174,18 @@ class Node(threading.Thread):
         threading.Thread(target=self.handle_reconnects).start()
 
     def discovery_service(self):
+        """
+        The method ``discovery_service`` initializes a ``ServiceBrowser`` to search for
+        available nodes on the local network if the node is the coordinator. If the program
+        receives a keyboard interrupt signal, it will stop and exit gracefully.
+        :return: None
+        """
         while self.running:
             if self.coordinator == self.id:
                 break
 
         try:
-            print("[COORDINATOR]Starting the discovery service...")
+            print("[COORDINATOR] Starting the discovery service...")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
             print(f"Machine {Network.HOST_NAME} is shutting down...")
@@ -276,6 +281,11 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id)
                 self.list_peers()
 
+                if self.coordinator == self.id:
+                    peer_info = { "ip":self.ip,"port":self.port, "id": self.id}
+                    peer_info = json.dumps(peer_info)
+                    self.broadcast_message(peer_info)
+
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
@@ -368,6 +378,8 @@ class Node(threading.Thread):
                         self.coordinator = message[4:]
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     conn.send(b"PONG")
+
+                print(message)
 
                 if message[:11] == "COORDINATOR":
                     coordinator_id = message[12:]
