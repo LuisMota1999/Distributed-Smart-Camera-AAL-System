@@ -302,7 +302,8 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                conn.send(b"PING")
+                message = f"PING{self.coordinator}"
+                conn.send(message.encode())
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -358,11 +359,13 @@ class Node(threading.Thread):
         while self.running:
             try:
                 message = conn.recv(1024).decode()
-                election_service = message[:11]
-                if message == "PING":
+
+                if message[:4] == "PING":
+                    if self.coordinator is None:
+                        self.coordinator = message[4:]
                     conn.send(b"PONG")
 
-                if election_service == "COORDINATOR":
+                if message[:11] == "COORDINATOR":
                     coordinator_id = message[12:]
                     self.coordinator = coordinator_id
                     print(f"\nCoordinator is {self.coordinator}\n")
