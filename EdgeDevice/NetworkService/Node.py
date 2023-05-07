@@ -163,19 +163,26 @@ class Node(threading.Thread):
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
-        try:
-            print("Searching new nodes on local network..")
-            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-            threading.Thread(target=self.accept_connections).start()
-        except KeyboardInterrupt:
-            self.broadcast_message("Shutting down")
-            self.stop()
+        threading.Thread(target=self.discovery_service).start()
+        time.sleep(2)
 
-        time.sleep(5)
+        threading.Thread(target=self.accept_connections).start()
+
+        time.sleep(2)
 
         self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
+
+    def discovery_service(self):
+        while self.running:
+            if self.connections == self.id:
+                try:
+                    print("[COORDINATOR]Starting the discovery service...")
+                    browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+                except KeyboardInterrupt:
+                    print(f"Machine {Network.HOST_NAME} is shutting down...")
+                    self.stop()
 
     def accept_connections(self):
         """
