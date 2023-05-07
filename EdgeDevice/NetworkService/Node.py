@@ -162,11 +162,15 @@ class Node(threading.Thread):
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
-        threading.Thread(target=self.discovery_service).start()
+        try:
+            print("[COORDINATOR] Starting the discovery service...")
+            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+            threading.Thread(target=self.accept_connections).start()
+        except KeyboardInterrupt:
+            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            self.stop()
 
-        threading.Thread(target=self.accept_connections).start()
-
-        time.sleep(10)
+        time.sleep(1)
 
         self.start_election()
 
@@ -280,11 +284,11 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id)
                 self.list_peers()
 
-                if self.coordinator == self.id:
-                    peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
-                    peer_info = json.dumps(peer_info)
-                    peer_info = f"CONNECT{peer_info}"
-                    conn.sendto(peer_info.encode(), (client_host, client_port))
+                # if self.coordinator == self.id:
+                #     peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
+                #     peer_info = json.dumps(peer_info)
+                #     peer_info = f"CONNECT{peer_info}"
+                #     conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
@@ -378,8 +382,6 @@ class Node(threading.Thread):
                         self.coordinator = message[4:]
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     conn.send(b"PONG")
-
-                print(message)
 
                 if message[:11] == "COORDINATOR":
                     coordinator_id = message[12:]
