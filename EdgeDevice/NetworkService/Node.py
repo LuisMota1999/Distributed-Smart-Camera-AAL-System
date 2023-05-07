@@ -177,12 +177,14 @@ class Node(threading.Thread):
     def discovery_service(self):
         while self.running:
             if self.coordinator == self.id:
-                try:
-                    print("[COORDINATOR]Starting the discovery service...")
-                    browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-                except KeyboardInterrupt:
-                    print(f"Machine {Network.HOST_NAME} is shutting down...")
-                    self.stop()
+                break
+
+        try:
+            print("[COORDINATOR]Starting the discovery service...")
+            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+        except KeyboardInterrupt:
+            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            self.stop()
 
     def accept_connections(self):
         """
