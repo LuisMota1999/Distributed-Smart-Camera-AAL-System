@@ -230,6 +230,8 @@ class Node(threading.Thread):
             elif len(self.connections) > 0 and self.recon_state is True:
                 # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
                 # and wait for a short amount of time before continuing
+                print("Coordinator not seen for a while. Starting new election...")
+                self.coordinator = None
                 self.start_election()
                 self.broadcast_message("BC")
                 self.recon_state = False
@@ -355,6 +357,7 @@ class Node(threading.Thread):
                 if message[:4] == "PING":
                     if self.coordinator is None:
                         self.coordinator = message[4:]
+                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     conn.send(b"PONG")
 
                 if message[:11] == "COORDINATOR":
