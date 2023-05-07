@@ -163,11 +163,10 @@ class Node(threading.Thread):
             self.zeroconf.update_service(self.service_info)
 
         threading.Thread(target=self.discovery_service).start()
-        time.sleep(2)
 
         threading.Thread(target=self.accept_connections).start()
 
-        time.sleep(2)
+        time.sleep(10)
 
         self.start_election()
 
@@ -282,9 +281,10 @@ class Node(threading.Thread):
                 self.list_peers()
 
                 if self.coordinator == self.id:
-                    peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id)}
+                    peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
                     peer_info = json.dumps(peer_info)
-                    self.broadcast_message(peer_info)
+                    peer_info = f"CONNECT{peer_info}"
+                    conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
