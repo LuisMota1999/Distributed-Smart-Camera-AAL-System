@@ -171,7 +171,7 @@ class Node(threading.Thread):
             self.broadcast_message("Shutting down")
             self.stop()
 
-        time.sleep(10)
+        time.sleep(5)
 
         self.start_election()
 
@@ -270,10 +270,6 @@ class Node(threading.Thread):
 
                 time.sleep(1)
 
-                self.start_election()
-
-                time.sleep(1)
-
                 send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn, client_id))
                 send_keep_alive_msg.start()
 
@@ -337,6 +333,7 @@ class Node(threading.Thread):
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
             self.coordinator = self.id
+            print(f"Node {self.id} is the coordinator")
 
     def handle_messages(self, conn):
         """
