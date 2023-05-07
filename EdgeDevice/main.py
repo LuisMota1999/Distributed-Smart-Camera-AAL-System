@@ -16,8 +16,6 @@ def main():
     print(f"Listening on {node.ip}:{node.port}...")
     node.start()
     time.sleep(1)
-    node_thread = threading.Thread(target=node.starter)
-    node_thread.start()
 
     try:
         while True:
@@ -26,7 +24,7 @@ def main():
         pass
 
     node.stop()
-    node_thread.join()
+    node.join()
 
 
 if __name__ == '__main__':

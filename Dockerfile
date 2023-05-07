@@ -1,5 +1,5 @@
 FROM ubuntu:22.04
-RUN apt update && apt install -y curl nmap nano ssh tcpdump iperf3 netcat net-tools traceroute iproute2 iputils-arping iputils-ping iputils-tracepath inetutils-telnet telnet-ssl telnet lynx
+RUN apt update && apt install -y curl nmap nano ssh tcpdump iperf3 netcat net-tools traceroute iproute2 iputils-arping iputils-ping iputils-tracepath inetutils-telnet telnet-ssl telnet lynx libportaudio2 libgl1
 
 RUN ln -fs /usr/share/zoneinfo/Europe/Brussels /etc/localtime && apt-get install -y software-properties-common && add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.9 python3.9-distutils git openssh-client
 

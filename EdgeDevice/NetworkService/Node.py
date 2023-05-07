@@ -130,13 +130,18 @@ class Node(threading.Thread):
 
         self.blockchain.register_node({self.ip: time.time()})
 
-    def starter(self):
+    def run(self):
         """
-        Start the node by parsing command line arguments, registering the node service with Zeroconf, and starting a
-        thread to handle reconnections.
+        Start the node
+
+        The ``run`` method starts the node by parsing command line arguments, registering the node service with
+        Zeroconf, and starting a thread to handle reconnections. It initializes a ``ServiceBrowser`` to search for
+        available nodes on the local network and starts a thread to accept incoming connections. If the program
+        receives a keyboard interrupt signal, it will stop and exit gracefully.
 
         :return: None
         """
+
         parser = argparse.ArgumentParser()
         parser.add_argument('--debug', action='store_true')
         parser.add_argument('--find', action='store_true', help='Browse all available services')
@@ -158,65 +163,10 @@ class Node(threading.Thread):
         if args.debug:
             logging.getLogger('NetworkService').setLevel(logging.DEBUG)
 
-        hostname = socket.gethostname()
-        print(f"HOSTNAME - {hostname}")
         try:
             self.zeroconf.register_service(self.service_info)
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
-
-        # threading.Thread(target=self.handle_reconnects).start()
-        threading.Thread(target=self.handle_reconnects).start()
-
-        # logger = multiprocessing.log_to_stderr()
-        # logger.setLevel(multiprocessing.SUBDEBUG)
-
-        data_captured_q = Queue(maxsize=args.queue_size)
-        data_processed_q = Queue(maxsize=args.queue_size)
-        prediction_q = Queue(maxsize=args.queue_size)
-
-        processing_pool = Pool(2, data_processing_worker, (data_captured_q, data_processed_q))
-        inference_pool = Pool(args.num_workers, inference_worker, (data_processed_q, prediction_q))
-        network_pool = Pool(2, network_worker, (prediction_q,))
-
-        # Disabled for compatibility with RPI
-        video_capture = WebcamVideoStream(src=args.video_source, width=args.width, height=args.height,
-                                          in_q=data_captured_q)
-
-        if video_capture.found:
-            video_capture.start()
-
-        audio_capture = MicrophoneAudioStream(src=0, in_q=data_captured_q).start()
-
-        # start the timer
-        start = datetime.datetime.now()
-
-        try:
-            while True:
-                pass
-        except KeyboardInterrupt:
-            pass
-
-        # stop the timer
-        end = datetime.datetime.now()
-
-        network_pool.terminate()
-        inference_pool.terminate()
-        processing_pool.terminate()
-
-        audio_capture.stop()
-        # video_capture.stop()
-
-        print('[INFO] elapsed time (seconds): {:.2f}'.format((end - start).total_seconds()))
-
-    def run(self):
-        """
-        The ``run`` method starts the node and its services. It initializes a ``ServiceBrowser`` to search for available
-        nodes on the local network and starts a thread to accept incoming connections. If the program receives a
-        keyboard interrupt signal, it will stop and exit gracefully.
-
-        :return: None
-        """
 
         try:
             print("Searching new nodes on local network..")
@@ -225,6 +175,12 @@ class Node(threading.Thread):
         except KeyboardInterrupt:
             self.broadcast_message("Shutting down")
             self.stop()
+
+        time.sleep(10)
+
+        self.start_election()
+
+        threading.Thread(target=self.handle_reconnects).start()
 
     def accept_connections(self):
         """
@@ -366,22 +322,25 @@ class Node(threading.Thread):
 
         :return: None
         """
-        self.election_in_progress = True
-        higher_nodes = []
-        for id, neighbour in self.neighbours.items():
-            if id > self.id:
-                higher_nodes.append(neighbour)
-        if higher_nodes:
-            for ip in higher_nodes:
-                for node in self.connections:
-                    if node.getpeername()[0] == ip:
-                        print(f"Node {self.ip} sent ELECTION message to {ip}")
+        if self.coordinator is None and len(self.connections) > 0:
+            self.election_in_progress = True
+            higher_nodes = []
+            for id, neighbour in self.neighbours.items():
+                if id > self.id:
+                    higher_nodes.append(neighbour)
+            if higher_nodes:
+                for ip in higher_nodes:
+                    for node in self.connections:
+                        if node.getpeername()[0] == ip:
+                            print(f"Node {self.ip} sent ELECTION message to {ip}")
 
-        else:
+            else:
+                self.coordinator = self.id
+                self.broadcast_message(f"COORDINATOR {self.coordinator}")
+                print(f"Node {self.id} is the new coordinator")
+                self.election_in_progress = False
+        elif self.coordinator is None and len(self.connections) <= 0:
             self.coordinator = self.id
-            self.broadcast_message(f"COORDINATOR {self.coordinator}")
-            print(f"Node {self.id} is the new coordinator")
-            self.election_in_progress = False
 
     def handle_messages(self, conn):
         """
