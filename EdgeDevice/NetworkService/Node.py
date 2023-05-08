@@ -9,7 +9,7 @@ import uuid
 import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
-from EdgeDevice.BlockchainService.Blockchain import Blockchain, Block
+from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 
