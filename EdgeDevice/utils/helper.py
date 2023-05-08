@@ -2,6 +2,7 @@ import uuid
 import random
 import datetime
 from EdgeDevice.InferenceService.audio import AudioInference
+from Crypto.Hash import SHA256
 
 models = {
     'audio': [

@@ -9,7 +9,7 @@ import uuid
 import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
-from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.BlockchainService.Blockchain import Blockchain, Block
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 
@@ -342,8 +342,8 @@ class Node(threading.Thread):
         if self.coordinator is None and len(self.connections) > 0:
             self.election_in_progress = True
             higher_nodes = []
-            for id, neighbour in self.neighbours.items():
-                if id > self.id:
+            for neighbour_id, neighbour in self.neighbours.items():
+                if neighbour_id > self.id:
                     higher_nodes.append(neighbour)
             if higher_nodes:
                 for ip in higher_nodes:
@@ -389,14 +389,28 @@ class Node(threading.Thread):
                     print(f"\nCoordinator is {self.coordinator}\n")
                     self.election_in_progress = False
                     continue
+                if message[:9] == 'GET_CHAIN':
+                    chain_json = self.blockchain.to_json()
+                    conn.sendall(chain_json.encode('utf-8'))
+
+                    # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
+                elif message[:9] == 'ADD_BLOCK':
+                    block_data = conn.recv(1024)
+                    block_json = json.loads(block_data.decode('utf-8'))
+                    new_block = Block(block_json['index'], block_json['timestamp'], block_json['data'],
+                                      block_json['previous_hash'])
+                    self.blockchain.from_json(new_block)
+
+                    # if the received message is 'IS_VALID', check if the blockchain is valid and send the result
+                elif message[:8] == 'IS_VALID':
+                    is_valid = self.blockchain.valid_chain(self.blockchain.chain)
+                    conn.sendall(str(is_valid).encode('utf-8'))
 
                 if not message:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
 
-                if message == "BC":
-                    print("BC")
             except socket.timeout:
                 print("Timeout")
                 self.recon_state = True

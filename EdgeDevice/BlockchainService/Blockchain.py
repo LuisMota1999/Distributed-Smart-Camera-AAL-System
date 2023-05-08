@@ -12,21 +12,9 @@ class Blockchain:
         self.current_transactions = []
         self.chain = []
         self.nodes = {}
-        self.new_block(previous_hash='1', proof=100)
 
     def create_genesis_block(self):
-        """
-        A function to generate genesis block and appends it to
-        the chain. The block has a previous_hash as 0, and
-        a valid hash.
-        """
-        genesis_block = self.new_block
-        # proof of work to init
-        self.proof_of_work(genesis_block)
-
-        genesis_block.hash = genesis_block.compute_hash()
-
-        self.chain.append(genesis_block)
+        return self.new_block(previous_hash='1', proof=100)
 
     def register_node(self, connection_peer):
         """
@@ -34,6 +22,34 @@ class Blockchain:
         :param connection_peer: Address of node. Eg. 'http://192.168.0.5:5000'
         """
         self.nodes.update(connection_peer)
+
+    def get_latest_block(self):
+        return self.chain[-1]
+
+    def to_json(self):
+        blocks = []
+        for block in self.chain:
+            blocks.append({'index': block.index, 'timestamp': block.timestamp,
+                           'data': block.data, 'previous_hash': block.previous_hash, 'hash': block.hash})
+        print(f"{blocks}\n")
+
+        return json.dumps(blocks, sort_keys=True)
+
+    def from_json(self, json_chain):
+        self.chain = []
+        for block_json in json.loads(json_chain):
+            block = {
+                'index': block_json['index'],
+                'timestamp': block_json['timestamp'],
+                'transactions': block_json['data'],
+                'proof': 100,
+                'previous_hash': block_json['previous_hash'],
+            }
+            self.chain.append(block)
+
+        # Reset the current list of transactions
+        self.current_transactions = []
+        return self
 
     def valid_chain(self, chain):
         """
@@ -96,7 +112,7 @@ class Blockchain:
 
         return False
 
-    def new_block(self, proof, previous_hash):
+    def add_block(self, proof, previous_hash):
         """
         Create a new Block in the Blockchain
         :param proof: The proof given by the Proof of Work algorithm
@@ -111,9 +127,6 @@ class Blockchain:
             'proof': proof,
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
         }
-
-        # Reset the current list of transactions
-        self.current_transactions = []
 
         self.chain.append(block)
         return block
