@@ -395,10 +395,15 @@ class Node(threading.Thread):
 
                     # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
                 elif message[:9] == 'ADD_BLOCK':
-                    block_data = conn.recv(1024)
-                    block_json = json.loads(block_data.decode('utf-8'))
-                    new_block = Block(block_json['index'], block_json['timestamp'], block_json['data'],
-                                      block_json['previous_hash'])
+                    block_data = message[9:]
+                    block_json = json.loads(block_data)
+                    new_block = {
+                        'index': block_json['index'],
+                        'timestamp': block_json['timestamp'],
+                        'transactions': block_json['data'],
+                        'proof': 100,
+                        'previous_hash': block_json['previous_hash'],
+                    }
                     self.blockchain.from_json(new_block)
 
                     # if the received message is 'IS_VALID', check if the blockchain is valid and send the result
