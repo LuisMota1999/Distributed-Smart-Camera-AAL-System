@@ -385,9 +385,11 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
+
                 data = conn.recv(1024).decode()
                 message = json.loads(data)
                 message_type = message.get("TYPE")
+
 
                 if message_type == 'PING':
                     if self.coordinator is None:
