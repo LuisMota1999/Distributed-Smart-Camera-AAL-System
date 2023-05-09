@@ -98,7 +98,7 @@ class Node(threading.Thread):
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
-        self.last_keep_alive = time.time()
+        self.last_seen = time.time()
         self.keep_alive_timeout = 10
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
@@ -368,11 +368,12 @@ class Node(threading.Thread):
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
 
-    def handle_blockchain(self, json_object):
+    def handle_blockchain(self, json_object, conn):
         # if the received message is 'GET_CHAIN', send the blockchain
         message_type = json_object.get('SUBTYPE')
         if message_type == 'GET_CHAIN':
-            print("==========>",self.blockchain.chain)
+            chain_json = self.blockchain.chain
+            conn.send(chain_json.encode())
         # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
         elif message_type == 'ADD_BLOCK':
             block_json = json.loads(json_object)
@@ -432,7 +433,15 @@ class Node(threading.Thread):
                     conn.send(message.encode())
 
                 if message_type == 'BLOCKCHAIN':
-                    self.handle_blockchain(message)
+                    message_handlers = {
+                        "ADD_BLOCK": self.handle_block,
+                        "ping": self.handle_ping,
+                        "peers": self.handle_peers,
+                        "transaction": self.handle_transaction,
+                    }
+
+                    handler = message_handlers.get(message["name"])
+                    self.handle_blockchain(message,conn)
                     continue
 
                 if not data:

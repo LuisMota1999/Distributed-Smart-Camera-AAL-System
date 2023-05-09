@@ -1,21 +1,55 @@
 # This code was adapted from the original code by Daniel van Flymen
 # Source: https://github.com/dvf/blockchain-book
-
+import asyncio
 import hashlib
 import json
+import math
 import time
-import requests
+import random
+from asyncio.log import logger
+from hashlib import sha256
 
 
 class Blockchain:
     def __init__(self):
-        self.current_transactions = []
+        self.pending_transactions = []
+        self.target = "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         self.chain = []
         self.nodes = {}
-        self.create_genesis_block()
+        self.chain.append(self.new_block())
 
-    def create_genesis_block(self):
-        return self.add_block(previous_hash='1', proof=100)
+    def new_block(self):
+        block = self.create_block(
+            height=len(self.chain),
+            transactions=self.pending_transactions,
+            previous_hash=self.last_block["hash"] if self.last_block else None,
+            nonce=format(random.getrandbits(64), "x"),
+            target=self.target,
+            timestamp=time.time(),
+        )
+
+        # Reset the list of pending transactions
+        self.pending_transactions = []
+
+        return block
+
+    @staticmethod
+    def create_block(
+            height, transactions, previous_hash, nonce, target, timestamp=None
+    ):
+        block = {
+            "height": height,
+            "transactions": transactions,
+            "previous_hash": previous_hash,
+            "nonce": nonce,
+            "target": target,
+            "timestamp": timestamp or time.time(),
+        }
+
+        # Get the hash of this new block, and add it to the block
+        block_string = json.dumps(block, sort_keys=True).encode()
+        block["hash"] = sha256(block_string).hexdigest()
+        return block
 
     def register_node(self, connection_peer):
         """
@@ -31,7 +65,7 @@ class Blockchain:
         blocks = []
         if len(self.chain) > 0:
             for block in self.chain:
-                blocks.append({'index': block.index, 'timestamp': block.timestamp,
+                blocks.append({'height': block.height, 'timestamp': block.timestamp,
                                'data': block.data, 'previous_hash': block.previous_hash, 'hash': block.hash})
         return json.dumps(blocks, sort_keys=True)
 
@@ -39,16 +73,16 @@ class Blockchain:
         self.chain = []
         for block_json in json.loads(json_chain):
             block = {
-                'index': block_json['index'],
+                'height': block_json['height'],
                 'timestamp': block_json['timestamp'],
                 'transactions': block_json['data'],
-                'proof': 100,
+                'nonce': block_json['nonce'],
                 'previous_hash': block_json['previous_hash'],
             }
             self.chain.append(block)
 
         # Reset the current list of transactions
-        self.current_transactions = []
+        self.pending_transactions = []
         return self
 
     def valid_chain(self, chain):
@@ -106,7 +140,7 @@ class Blockchain:
         :param amount: Amount
         :return: The index of the Block that will hold this transaction
         """
-        self.current_transactions.append({
+        self.pending_transactions.append({
             'sender': sender,
             'recipient': recipient,
             'amount': amount,
@@ -116,7 +150,16 @@ class Blockchain:
 
     @property
     def last_block(self):
-        return self.chain[-1]
+        # Returns the last block in the chain (if there are blocks)
+        return self.chain[-1] if self.chain else None
+
+    def valid_block(self, block):
+        # Check if a block's hash is less than the target...
+        return block["hash"] < self.target
+
+    def add_block(self, block):
+        # TODO: Add proper validation logic here!
+        self.chain.append(block)
 
     @staticmethod
     def hash(block):
@@ -154,3 +197,47 @@ class Blockchain:
         guess = f'{last_proof}{proof}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         return guess_hash[:4] == "0000"
+
+    def recalculate_target(self, block_index):
+        """
+        Returns the number we need to get below to mine a block
+        """
+        # Check if we need to recalculate the target
+        if block_index % 10 == 0:
+            # Expected time span of 10 blocks
+            expected_timespan = 10 * 10
+
+            # Calculate the actual time span
+            actual_timespan = self.chain[-1]["timestamp"] - self.chain[-10]["timestamp"]
+
+            # Figure out what the offset is
+            ratio = actual_timespan / expected_timespan
+
+            # Now let's adjust the ratio to not be too extreme
+            ratio = max(0.25, ratio)
+            ratio = min(4.00, ratio)
+
+            # Calculate the new target by multiplying the current one by the ratio
+            new_target = int(self.target, 16) * ratio
+
+            self.target = format(math.floor(new_target), "x").zfill(64)
+            logger.info(f"Calculated new mining target: {self.target}")
+
+        return self.target
+
+    async def get_blocks_after_timestamp(self, timestamp):
+        for index, block in enumerate(self.chain):
+            if timestamp < block["timestamp"]:
+                return self.chain[index:]
+
+    async def mine_new_block(self):
+        self.recalculate_target(self.last_block["index"] + 1)
+        while True:
+            new_block = self.new_block()
+            if self.valid_block(new_block):
+                break
+
+            await asyncio.sleep(0)
+
+        self.chain.append(new_block)
+        logger.info("Found a new block: ", new_block)
