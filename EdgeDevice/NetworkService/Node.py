@@ -417,21 +417,17 @@ class Node(threading.Thread):
                 if message_type == 'PING':
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message.get("COORDINATOR"))
-                        self.blockchain.to_json()
+                        self.election_in_progress = False
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
+                        self.blockchain.to_json()
 
                     # ACK message
-                    data = {"TYPE": "ACK", "COORDINATOR": str(self.coordinator)}
+                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
                     # Convert JSON data to string
                     message = json.dumps(data)
                     conn.send(message.encode())
 
-                if message_type == 'COORDINATOR':
-                    coordinator_id = message[12:]
-                    self.coordinator = coordinator_id
-                    print(f"\nCoordinator is {self.coordinator}\n")
-                    self.election_in_progress = False
-                    continue
+
 
                 if message_type == 'BLOCKCHAIN':
                     self.handle_blockchain(message)

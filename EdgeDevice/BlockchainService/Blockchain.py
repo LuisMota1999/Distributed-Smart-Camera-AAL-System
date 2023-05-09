@@ -38,8 +38,6 @@ class Blockchain:
         for keys, value in blocks.items():
             print(f"{keys}:{value}\n")
 
-        return json.dumps(blocks, sort_keys=True)
-
     def from_json(self, json_chain):
         self.chain = []
         for block_json in json.loads(json_chain):
