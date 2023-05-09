@@ -322,7 +322,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"TYPE": "PING", "COORDINATOR": self.coordinator}
+                data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
                 # Convert JSON data to string
                 message = json.dumps(data)
                 conn.send(message.encode())
@@ -355,12 +355,12 @@ class Node(threading.Thread):
                 for ip in higher_nodes:
                     for node in self.connections:
                         if node.getpeername()[0] == ip:
-                            print(f"Node {self.ip} sent ELECTION message to {ip}")
+                            print(f"Node {self.ip} sent election message to {ip}")
 
             else:
                 self.coordinator = self.id
                 # Info message
-                data = {"TYPE": "INFO", "DATA": f"The network coordinator is {self.coordinator}"}
+                data = {"TYPE": "INFO", "DATA": f"The network coordinator is {str(self.coordinator)}"}
                 # Convert JSON data to string
                 message = json.dumps(data)
                 self.broadcast_message(message)
@@ -390,14 +390,13 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
-
                 if message_type == 'PING':
                     if self.coordinator is None:
-                        self.coordinator = message.get("COORDINATOR")
+                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                     # ACK message
-                    data = {"TYPE": "ACK", "COORDINATOR": self.coordinator}
+                    data = {"TYPE": "ACK", "COORDINATOR": str(self.coordinator)}
                     # Convert JSON data to string
                     message = json.dumps(data)
                     conn.send(message.encode())
