@@ -250,7 +250,11 @@ class Node(threading.Thread):
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
                 self.start_election()
-                self.broadcast_message("BC")
+                # Blockchain message
+                data = {"TYPE": "BLOCKCHAIN", "DATA": self.blockchain.to_json()}
+                # Convert JSON data to string
+                message = json.dumps(data)
+                self.broadcast_message(message)
                 self.recon_state = False
                 continue
 
@@ -318,7 +322,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                message = f"PING{self.coordinator}"
+                data = {"TYPE": "PING", "COORDINATOR": self.coordinator}
+                # Convert JSON data to string
+                message = json.dumps(data)
                 conn.send(message.encode())
                 time.sleep(self.keep_alive_timeout)
             except:
@@ -327,7 +333,7 @@ class Node(threading.Thread):
         # close connection and remove node from list
         if conn in self.connections:
             self.recon_state = True
-            self.remove_node(conn, "KAlive")
+            self.remove_node(conn, "KeepAlive")
             client_id = client_id.decode('utf-8')
             self.neighbours.pop(uuid.UUID(client_id))
             conn.close()
@@ -353,7 +359,11 @@ class Node(threading.Thread):
 
             else:
                 self.coordinator = self.id
-                self.broadcast_message(f"COORDINATOR {self.coordinator}")
+                # Info message
+                data = {"TYPE": "INFO", "DATA": f"The network coordinator is {self.coordinator}"}
+                # Convert JSON data to string
+                message = json.dumps(data)
+                self.broadcast_message(message)
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
@@ -375,43 +385,32 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                message = conn.recv(1024).decode()
+                data = conn.recv(1024).decode()
+                message = json.loads(data.decode())
+                message_type = message.get("TYPE")
 
-                if message[:4] == "PING":
+                if message_type == 'PING':
                     if self.coordinator is None:
-                        self.coordinator = message[4:]
+                        self.coordinator = message.get("COORDINATOR")
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                    conn.send(b"PONG")
 
-                if message[:11] == "COORDINATOR":
+                    # ACK message
+                    data = {"TYPE": "ACK", "COORDINATOR": self.coordinator}
+                    # Convert JSON data to string
+                    message = json.dumps(data)
+                    conn.send(message.encode())
+
+                if message_type == 'COORDINATOR':
                     coordinator_id = message[12:]
                     self.coordinator = coordinator_id
                     print(f"\nCoordinator is {self.coordinator}\n")
                     self.election_in_progress = False
                     continue
-                if message[:9] == 'GET_CHAIN':
-                    chain_json = self.blockchain.to_json()
-                    conn.sendall(chain_json.encode('utf-8'))
 
-                    # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
-                elif message[:9] == 'ADD_BLOCK':
-                    block_data = message[9:]
-                    block_json = json.loads(block_data)
-                    new_block = {
-                        'index': block_json['index'],
-                        'timestamp': block_json['timestamp'],
-                        'transactions': block_json['data'],
-                        'proof': 100,
-                        'previous_hash': block_json['previous_hash'],
-                    }
-                    self.blockchain.from_json(new_block)
+                if message_type == 'BLOCKCHAIN':
+                    pass
 
-                    # if the received message is 'IS_VALID', check if the blockchain is valid and send the result
-                elif message[:8] == 'IS_VALID':
-                    is_valid = self.blockchain.valid_chain(self.blockchain.chain)
-                    conn.sendall(str(is_valid).encode('utf-8'))
-
-                if not message:
+                if not data:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
@@ -443,6 +442,10 @@ class Node(threading.Thread):
                 if conn in self.connections:
                     self.remove_node(conn, "ConnectionResetError")
                     conn.close()
+                break
+
+            except json.decoder.JSONDecodeError:
+                print("Invalid message format")
                 break
 
     def broadcast_message(self, message):
