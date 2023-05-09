@@ -29,8 +29,11 @@ class Blockchain:
 
     def to_json(self):
         blocks = []
-        print(self.chain)
-
+        if len(self.chain) > 0:
+            for block in self.chain:
+                blocks.append({'index': block.index, 'timestamp': block.timestamp,
+                               'data': block.data, 'previous_hash': block.previous_hash, 'hash': block.hash})
+        return json.dumps(blocks, sort_keys=True)
 
     def from_json(self, json_chain):
         self.chain = []

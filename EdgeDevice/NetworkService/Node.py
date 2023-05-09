@@ -419,8 +419,8 @@ class Node(threading.Thread):
                         self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         self.election_in_progress = False
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                        self.blockchain.to_json()
 
+                    print(self.blockchain.chain())
                     # ACK message
                     data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
                     # Convert JSON data to string
