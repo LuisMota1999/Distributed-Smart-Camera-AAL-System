@@ -36,8 +36,8 @@ class Blockchain:
                                'data': block.data, 'previous_hash': block.previous_hash, 'hash': block.hash})
 
         for block in blocks:
-            print(f"index: {block['index']}, timestamp: {block['timestamp']}, data: {block['data']}, "
-                  f"previous_hash: {block['previous_hash']}, hash: {block['hash']}")
+            print(
+                f"index: {block['index']}, timestamp: {block['timestamp']}, data: {block['data']}, previous_hash: {block['previous_hash']}, hash: {block['hash']}\n")
 
     def from_json(self, json_chain):
         self.chain = []
