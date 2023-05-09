@@ -419,6 +419,11 @@ class Node(threading.Thread):
                         self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         self.election_in_progress = False
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
+                        # ACK message
+                        data = {"TYPE": "BLOCKCHAIN", "SUBTYPE": "GET_CHAIN"}
+                        # Convert JSON data to string
+                        message = json.dumps(data)
+                        conn.send(message.encode())
 
                     print(self.blockchain.chain)
                     # ACK message
@@ -426,8 +431,6 @@ class Node(threading.Thread):
                     # Convert JSON data to string
                     message = json.dumps(data)
                     conn.send(message.encode())
-
-
 
                 if message_type == 'BLOCKCHAIN':
                     self.handle_blockchain(message)
