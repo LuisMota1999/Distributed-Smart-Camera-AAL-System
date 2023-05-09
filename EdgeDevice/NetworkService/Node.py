@@ -370,6 +370,30 @@ class Node(threading.Thread):
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
 
+    def handle_blockchain(self, json_object):
+        # if the received message is 'GET_CHAIN', send the blockchain
+        message_type = json_object.get('SUBTYPE')
+        if message_type == 'GET_CHAIN':
+            chain_json = self.blockchain.to_json()
+            self.broadcast_message(chain_json.encode())
+        # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
+        elif message_type == 'ADD_BLOCK':
+            block_json = json.loads(json_object)
+            new_block = {
+                'index': block_json['index'],
+                'timestamp': block_json['timestamp'],
+                'transactions': self.current_transactions,
+                'proof': self.blockchain.proof,
+                'previous_hash': block_json['previous_hash'],
+            }
+            self.blockchain.from_json(new_block)
+        # if the received message is 'IS_VALID', check if the blockchain is valid and send the result
+        elif message_type == 'IS_VALID':
+            is_valid = self.blockchain.is_chain_valid()
+            data = {"TYPE": "RESULT", "DATA": str(is_valid).encode('utf-8')}
+            self.broadcast_message(data)
+        pass
+
     def handle_messages(self, conn):
         """
         The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
@@ -393,6 +417,7 @@ class Node(threading.Thread):
                 if message_type == 'PING':
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+                        self.blockchain.to_json()
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                     # ACK message
@@ -409,7 +434,8 @@ class Node(threading.Thread):
                     continue
 
                 if message_type == 'BLOCKCHAIN':
-                    pass
+                    self.handle_blockchain(message)
+                    continue
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
