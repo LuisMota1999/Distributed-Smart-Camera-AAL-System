@@ -12,7 +12,6 @@ class Blockchain:
         self.current_transactions = []
         self.chain = []
         self.nodes = {}
-
         self.create_genesis_block()
 
     def create_genesis_block(self):
@@ -30,10 +29,14 @@ class Blockchain:
 
     def to_json(self):
         blocks = []
-        for block in self.chain:
-            blocks.append({'index': block.index, 'timestamp': block.timestamp,
-                           'data': block.data, 'previous_hash': block.previous_hash, 'hash': block.hash})
-        print(f"{blocks}\n")
+        print(self.chain)
+        if len(self.chain) > 0:
+            for block in self.chain:
+                blocks.append({'index': block.index, 'timestamp': block.timestamp,
+                               'data': block.data, 'previous_hash': block.previous_hash, 'hash': block.hash})
+
+        for keys, value in blocks.items():
+            print(f"{keys}:{value}\n")
 
         return json.dumps(blocks, sort_keys=True)
 

@@ -452,16 +452,10 @@ class Node(threading.Thread):
 
             except OSError as e:
                 print(f"System Error {e.strerror}")
-                if conn in self.connections:
-                    self.remove_node(conn, "OSError")
-                    conn.close()
                 break
 
             except Exception as ex:
                 print(f"Exception Error {ex.args}")
-                if conn in self.connections:
-                    self.remove_node(conn, "Exception")
-                    conn.close()
                 break
 
             except ConnectionResetError as c:
