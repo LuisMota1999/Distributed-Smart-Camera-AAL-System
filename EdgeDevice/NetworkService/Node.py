@@ -283,16 +283,14 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(20.0)
+                conn.settimeout(self.keep_alive_timeout*2)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
 
-                # if self.coordinator == self.id:
-                #     peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
-                #     peer_info = json.dumps(peer_info)
-                #     peer_info = f"CONNECT{peer_info}"
-                #     conn.sendto(peer_info.encode(), (client_host, client_port))
+                # if self.coordinator == self.id: peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id),
+                # "coordinator": self.coordinator} peer_info = json.dumps(peer_info) peer_info = f"CONNECT{
+                # peer_info}" conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
@@ -374,24 +372,24 @@ class Node(threading.Thread):
         # if the received message is 'GET_CHAIN', send the blockchain
         message_type = json_object.get('SUBTYPE')
         if message_type == 'GET_CHAIN':
-            chain_json = self.blockchain.to_json()
-            self.broadcast_message(chain_json.encode())
+            print("==========>",self.blockchain.chain)
         # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
         elif message_type == 'ADD_BLOCK':
             block_json = json.loads(json_object)
             new_block = {
                 'index': block_json['index'],
                 'timestamp': block_json['timestamp'],
-                'transactions': self.current_transactions,
-                'proof': self.blockchain.proof,
+                'transactions': self.blockchain.current_transactions,
+                'proof': 100,
                 'previous_hash': block_json['previous_hash'],
             }
             self.blockchain.from_json(new_block)
         # if the received message is 'IS_VALID', check if the blockchain is valid and send the result
         elif message_type == 'IS_VALID':
-            is_valid = self.blockchain.is_chain_valid()
+            is_valid = self.blockchain.valid_chain(self.blockchain.chain)
             data = {"TYPE": "RESULT", "DATA": str(is_valid).encode('utf-8')}
-            self.broadcast_message(data)
+
+            self.broadcast_message(json.dumps(data))
         pass
 
     def handle_messages(self, conn):
@@ -423,6 +421,7 @@ class Node(threading.Thread):
                         data = {"TYPE": "BLOCKCHAIN", "SUBTYPE": "GET_CHAIN"}
                         # Convert JSON data to string
                         message = json.dumps(data)
+                        print(message)
                         conn.send(message.encode())
 
                     print(self.blockchain.chain)
@@ -474,7 +473,6 @@ class Node(threading.Thread):
         each peer using the ``sendall`` method of the socket object.
 
         :param message: The message to be broadcast
-        :type message: str
         :return: None
         """
         for peer in self.connections:
