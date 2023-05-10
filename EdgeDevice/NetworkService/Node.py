@@ -487,7 +487,7 @@ class Node(threading.Thread):
             # Print a message indicating that the new node has been added to the network
             print(f"Node {conn.getpeername()[0]} added to the network")
 
-            # Print the list of nodes in the blockchain
+            # Print the list of nodes in the blockchain -
             print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
     def remove_node(self, conn, function):
