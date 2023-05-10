@@ -429,16 +429,18 @@ class Node(threading.Thread):
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
                     logger.info("Received unreadable message", peer=conn)
-                    break
+                    continue
 
+                print(message)
                 message_handlers = {
                     "BLOCK": self.handle_blockchain(message, conn),
                     "PING": self.handle_ping(message, conn),
                     "ELECTION": self.handle_election(message, conn),
                     "TRANSACTION": self.handle_transaction(message, conn),
                 }
-
+                print(message_handlers.get(message["NAME"]))
                 handler = message_handlers.get(message["NAME"])
+
                 if not handler:
                     raise Exception("Missing handler for message")
 
