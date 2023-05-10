@@ -375,9 +375,8 @@ class Node(threading.Thread):
 
     def handle_ping(self, message, conn):
         print("\n\n\nCHEGUEI HANDLE PING\n\n\n")
-        print(message["MESSAGE"]["PAYLOAD"]["COORDINATOR"])
         if self.coordinator is None:
-            self.coordinator = message["PAYLOAD"]["COORDINATOR"]
+            self.coordinator = message["MESSAGE"]["PAYLOAD"]["COORDINATOR"]
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
             # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
