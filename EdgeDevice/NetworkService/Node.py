@@ -236,7 +236,7 @@ class Node(threading.Thread):
                 flag = False
         return flag
 
-    async def handle_reconnects(self):
+    def handle_reconnects(self):
         """
         The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
         reconnect if there are no active connections. The method also broadcasts a message to all connected nodes if
