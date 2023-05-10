@@ -18,12 +18,12 @@ class Transaction(Schema):
 class Block(Schema):
     mined_by = fields.Str(required=False)
     transactions = fields.Nested(Transaction(), many=True)
-    height = fields.Int(required=True)
-    target = fields.Str(required=True)
-    hash = fields.Str(required=True)
-    previous_hash = fields.Str(required=True)
-    nonce = fields.Str(required=True)
-    timestamp = fields.Int(required=True)
+    height = fields.Int(required=False)
+    target = fields.Str(required=False)
+    hash = fields.Str(required=False)
+    previous_hash = fields.Str(required=False)
+    nonce = fields.Str(required=False)
+    timestamp = fields.Int(required=False)
 
     class Meta:
         ordered = True
@@ -44,7 +44,7 @@ class Node(Schema):
 
 
 class Ping(Schema):
-    block_height = fields.Int(required=True)
+    block_height = fields.Int(required=False)
     peer_count = fields.Int(required=False)
     is_miner = fields.Bool(required=False)
     SEND_MSG = fields.Str()
@@ -52,4 +52,4 @@ class Ping(Schema):
 
 
 class Election(Schema):
-    coordinator = fields.UUID(required=True)
+    coordinator = fields.UUID(required=False)
