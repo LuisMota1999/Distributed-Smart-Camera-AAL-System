@@ -424,6 +424,7 @@ class Node(threading.Thread):
 
                 data = conn.recv(1024).decode()
                 try:
+                    print(BaseSchema().loads(data))
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
                     logger.info("Received unreadable message", peer=conn)

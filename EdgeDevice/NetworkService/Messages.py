@@ -59,10 +59,6 @@ class BaseSchema(Schema):
 
 
 def meta(ip, port, version="0.0.1"):
-    print({
-        "CLIENT": version,
-        "ADDRESS": {"IP": ip, "PORT": port},
-    })
     return {
         "CLIENT": version,
         "ADDRESS": {"IP": ip, "PORT": port},
