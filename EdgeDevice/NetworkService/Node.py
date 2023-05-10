@@ -421,9 +421,9 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-
                 data = conn.recv(1024).decode()
                 print(data)
+
                 try:
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
@@ -432,15 +432,22 @@ class Node(threading.Thread):
                     continue
 
                 message_handlers = {
-                    "BLOCK": threading.Thread(self.handle_blockchain(message, conn)).start(),
-                    "PING": threading.Thread(self.handle_ping(message, conn)).start(),
-                    "ELECTION": threading.Thread(self.handle_election(message, conn)).start(),
-                    "TRANSACTION": threading.Thread(self.handle_transaction(message, conn)).start(),
+                    "BLOCK": self.handle_blockchain,
+                    "PING": self.handle_ping,
+                    "ELECTION": self.handle_election,
+                    "TRANSACTION": self.handle_transaction,
                 }
 
                 handler = message_handlers.get(message["NAME"])
 
                 if not handler:
+                    raise Exception("Missing handler for message")
+
+                if handler:
+                    thread = threading.Thread(target=handler, args=(message, conn))
+                    thread.start()
+                    thread.join()
+                else:
                     raise Exception("Missing handler for message")
 
                 if not data:
