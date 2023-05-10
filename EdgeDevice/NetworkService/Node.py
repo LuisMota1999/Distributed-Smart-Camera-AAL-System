@@ -476,6 +476,30 @@ class Node(threading.Thread):
                 print("Invalid message format")
                 break
 
+    async def handle_transaction(self, message, writer):
+        """
+        Executed when we receive a transaction that was broadcast by a peer
+        """
+        logger.info("Received transaction")
+
+        # Validate the transaction
+        tx = message["payload"]
+
+        if validate_transaction(tx) is True:
+            # Add the tx to our pool, and propagate it to our peers
+            if tx not in self.blockchain.pending_transactions:
+                self.blockchain.pending_transactions.append(tx)
+
+                for peer in self.connection_pool.get_alive_peers(20):
+                    await self.send_message(
+                        peer,
+                        create_transaction_message(
+                            self.server.external_ip, self.server.external_port, tx
+                        ),
+                    )
+        else:
+            logger.warning("Received invalid transaction")
+
     def broadcast_message(self, message):
         """
         The ``broadcast_message`` method broadcasts a message to all connected peers. The message is encoded and sent to
