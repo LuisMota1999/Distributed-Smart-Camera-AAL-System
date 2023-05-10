@@ -394,15 +394,15 @@ class Node(threading.Thread):
         Executed when we receive a transaction that was broadcast by a peer
         """
         logger.info("Received transaction")
-
+        print("Received transaction")
         # Validate the transaction
-        tx = message["PAYLOAD"]
+        tx = message["MESSAGE"]["PAYLOAD"]
 
         if validate_transaction(tx) is True:
             # Add the tx to our pool, and propagate it to our peers
             if tx not in self.blockchain.pending_transactions:
                 self.blockchain.pending_transactions.append(tx)
-                self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
+                #self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
         else:
             logger.warning("Received invalid transaction")
 
