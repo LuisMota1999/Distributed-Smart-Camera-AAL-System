@@ -375,11 +375,12 @@ class Node(threading.Thread):
         pass
 
     def handle_ping(self, message, conn):
+        print("\n\n\nCHEGUEI HANDLE PING\n\n\n")
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message.get("COORDINATOR"))
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
+            #conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
         conn.send(
             create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
