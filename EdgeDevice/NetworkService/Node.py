@@ -328,6 +328,8 @@ class Node(threading.Thread):
                 conn.send(
                     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
+                print(create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                          "PING", self.coordinator))
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -369,24 +371,24 @@ class Node(threading.Thread):
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
 
-    async def handle_blockchain(self, message, conn):
+    def handle_blockchain(self, message, conn):
         pass
 
-    async def handle_ping(self, message, conn):
+    def handle_ping(self, message, conn):
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message.get("COORDINATOR"))
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
             await conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
-        await conn.send(
+        conn.send(
             create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                 "PONG", self.coordinator).encode())
 
-    async def handle_election(self, message, conn):
+    def handle_election(self, message, conn):
         pass
 
-    async def handle_transaction(self, message, conn):
+    def handle_transaction(self, message, conn):
         """
         Executed when we receive a transaction that was broadcast by a peer
         """
@@ -399,8 +401,7 @@ class Node(threading.Thread):
             # Add the tx to our pool, and propagate it to our peers
             if tx not in self.blockchain.pending_transactions:
                 self.blockchain.pending_transactions.append(tx)
-
-                await self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
+                self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
         else:
             logger.warning("Received invalid transaction")
 
