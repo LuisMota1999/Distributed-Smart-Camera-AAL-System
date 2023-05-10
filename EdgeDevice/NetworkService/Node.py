@@ -289,7 +289,7 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout * 2)
+                conn.settimeout(self.keep_alive_timeout * 3)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
@@ -301,7 +301,7 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                time.sleep(1)
+                time.sleep(5)
 
                 send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn, client_id))
                 send_keep_alive_msg.start()
@@ -328,8 +328,7 @@ class Node(threading.Thread):
                 conn.send(
                     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
-                print(create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
-                                          "PING", self.coordinator))
+
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -377,16 +376,15 @@ class Node(threading.Thread):
     def handle_ping(self, message, conn):
         print("\n\n\nCHEGUEI HANDLE PING\n\n\n")
         print(message["MESSAGE"]["PAYLOAD"]["COORDINATOR"])
-        # if self.coordinator is None:
-        #     print(message["MESSAGE"]["PAYLOAD"]["COORDINATOR"])
-        #     self.coordinator = message["PAYLOAD"]["COORDINATOR"]
-        #     self.election_in_progress = False
-        #     print(f"\nNetwork Coordinator is {self.coordinator}\n")
-        #     # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
-        #
-        # conn.send(
-        #     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
-        #                         "PONG", self.coordinator).encode())
+        if self.coordinator is None:
+            self.coordinator = message["PAYLOAD"]["COORDINATOR"]
+            self.election_in_progress = False
+            print(f"\nNetwork Coordinator is {self.coordinator}\n")
+            # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
+
+        conn.send(
+            create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                "PONG", self.coordinator).encode())
 
     def handle_election(self, message, conn):
         pass
