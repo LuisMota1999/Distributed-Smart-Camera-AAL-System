@@ -4,7 +4,7 @@ from ..BlockchainService.Schema import Block, Transaction, Ping, Election, Node
 
 
 class BlockMessage(Schema):
-    payload = fields.Nested(Block())
+    PAYLOAD = fields.Nested(Block())
 
     @post_load
     def add_name(self, data, **kwargs):
@@ -13,7 +13,7 @@ class BlockMessage(Schema):
 
 
 class TransactionMessage(Schema):
-    payload = fields.Nested(Transaction())
+    PAYLOAD = fields.Nested(Transaction())
 
     @post_load
     def add_name(self, data, **kwargs):
@@ -22,7 +22,7 @@ class TransactionMessage(Schema):
 
 
 class PingMessage(Schema):
-    payload = fields.Nested(Ping())
+    PAYLOAD = fields.Nested(Ping())
 
     @post_load
     def add_name(self, data, **kwargs):
@@ -31,7 +31,7 @@ class PingMessage(Schema):
 
 
 class ElectionMessage(Schema):
-    payload = fields.Nested(Election())
+    PAYLOAD = fields.Nested(Election())
 
 
 class MessageDisambiguation(OneOfSchema):
@@ -59,6 +59,10 @@ class BaseSchema(Schema):
 
 
 def meta(ip, port, version="0.0.1"):
+    print({
+        "CLIENT": version,
+        "ADDRESS": {"IP": ip, "PORT": port},
+    })
     return {
         "CLIENT": version,
         "ADDRESS": {"IP": ip, "PORT": port},
@@ -90,11 +94,11 @@ def create_ping_message(external_ip, external_port, block_height, peer_count, is
             "MESSAGE": {
                 "NAME": "PING",
                 "PAYLOAD": {
+                    "COORDINATOR": coordinator,
                     "BLOCK_HEIGHT": block_height,
                     "PEER_COUNT": peer_count,
                     "IS_MINER": is_miner,
                     "SEND_MSG": msg,
-                    "COORDINATOR": coordinator,
                 },
             },
         }

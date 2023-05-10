@@ -1,29 +1,28 @@
 import json
 import time
-
 from marshmallow import Schema, fields, validates_schema, ValidationError
 
 
 class Transaction(Schema):
-    timestamp = fields.Int()
-    sender = fields.Str()
-    receiver = fields.Str()
-    amount = fields.Int()
-    signature = fields.Str()
+    TIMESTAMP = fields.Int()
+    SENDER = fields.Str()
+    RECEIVER = fields.Str()
+    AMOUNT = fields.Int()
+    SIGNATURE = fields.Str()
 
     class Meta:
         ordered = True
 
 
 class Block(Schema):
-    mined_by = fields.Str(required=False)
-    transactions = fields.Nested(Transaction(), many=True)
-    height = fields.Int(required=False)
-    target = fields.Str(required=False)
-    hash = fields.Str(required=False)
-    previous_hash = fields.Str(required=False)
-    nonce = fields.Str(required=False)
-    timestamp = fields.Int(required=False)
+    MINED_BY = fields.Str(required=False)
+    TRANSACTIONS = fields.Nested(Transaction(), many=True)
+    HEIGHT = fields.Int(required=True)
+    TARGET = fields.Str(required=True)
+    HASH = fields.Str(required=True)
+    PREVIOUS_HASH = fields.Str(required=True)
+    NONCE = fields.Str(required=True)
+    TIMESTAMP = fields.Int(required=True)
 
     class Meta:
         ordered = True
@@ -38,18 +37,21 @@ class Block(Schema):
 
 
 class Node(Schema):
-    ip = fields.Str(required=True)
-    port = fields.Int(required=True)
-    last_seen = fields.Int(missing=lambda: int(time.time()))
+    IP = fields.Str(required=True)
+    PORT = fields.Int(required=True)
+    LAST_SEEN = fields.Int(missing=lambda: int(time.time()))
 
 
 class Ping(Schema):
-    block_height = fields.Int(required=False)
-    peer_count = fields.Int(required=False)
-    is_miner = fields.Bool(required=False)
+    BLOCK_HEIGHT = fields.Int(required=False)
+    PEER_COUNT = fields.Int(required=False)
+    IS_MINER = fields.Bool(required=False)
     SEND_MSG = fields.Str()
     COORDINATOR = fields.UUID()
 
+    class Meta:
+        ordered = True
+
 
 class Election(Schema):
-    coordinator = fields.UUID(required=False)
+    COORDINATOR = fields.UUID(required=True)

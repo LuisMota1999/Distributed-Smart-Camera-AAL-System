@@ -326,7 +326,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 conn.send(
-                    create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
+                    create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
                 time.sleep(self.keep_alive_timeout)
             except:
@@ -380,10 +380,11 @@ class Node(threading.Thread):
             self.coordinator = uuid.UUID(message.get("COORDINATOR"))
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            await conn.send(create_block_message(conn.getpeername()[0], conn.getpeername()[1], message))
+            await conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
-        await conn.send(create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
-                                      "PONG", self.coordinator).encode())
+        await conn.send(
+            create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                "PONG", self.coordinator).encode())
 
     async def handle_election(self, message, conn):
         pass
@@ -423,6 +424,7 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
+                print(data)
                 try:
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
