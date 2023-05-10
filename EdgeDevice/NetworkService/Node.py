@@ -379,7 +379,7 @@ class Node(threading.Thread):
             self.coordinator = uuid.UUID(message.get("COORDINATOR"))
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            await conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
+            conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
         conn.send(
             create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
