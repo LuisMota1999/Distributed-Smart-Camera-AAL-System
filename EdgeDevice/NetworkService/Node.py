@@ -328,8 +328,9 @@ class Node(threading.Thread):
                 conn.send(
                     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
-
+                self.list_peers()
                 time.sleep(self.keep_alive_timeout)
+
             except:
                 break
 
@@ -363,7 +364,7 @@ class Node(threading.Thread):
             else:
                 self.coordinator = self.id
 
-                #self.broadcast_message(create_election_message(self.ip, self.port, self.coordinator))
+                # self.broadcast_message(create_election_message(self.ip, self.port, self.coordinator))
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
@@ -422,8 +423,8 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
+                print(data)
                 try:
-                    print(BaseSchema().loads(data))
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
                     logger.info("Received unreadable message", peer=conn)
