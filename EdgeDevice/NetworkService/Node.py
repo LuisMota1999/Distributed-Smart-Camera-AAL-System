@@ -325,11 +325,9 @@ class Node(threading.Thread):
 
         while self.running:
             try:
-                # send keep alive message
-                data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
-                # Convert JSON data to string
-                message = json.dumps(data)
-                conn.send(message.encode())
+                conn.send(
+                    create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
+                                        "PING", self.coordinator).encode())
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -385,7 +383,7 @@ class Node(threading.Thread):
             conn.send(create_block_message(conn.getpeername()[0], conn.getpeername()[1], message))
 
         conn.send(create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
-                                      "PONG").encode())
+                                      "PONG", self.coordinator).encode())
 
     async def handle_election(self, message, conn):
         pass

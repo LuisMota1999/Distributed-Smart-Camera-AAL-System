@@ -44,10 +44,11 @@ class Node(Schema):
 
 
 class Ping(Schema):
-    block_height = fields.Int()
-    peer_count = fields.Int()
-    is_miner = fields.Bool()
+    block_height = fields.Int(required=True)
+    peer_count = fields.Int(required=False)
+    is_miner = fields.Bool(required=False)
     SEND_MSG = fields.Str()
+    COORDINATOR = fields.UUID()
 
 
 class Election(Schema):

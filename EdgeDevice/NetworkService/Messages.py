@@ -82,7 +82,7 @@ def create_block_message(external_ip, external_port, block):
     )
 
 
-def create_ping_message(external_ip, external_port, block_height, peer_count, is_miner, msg):
+def create_ping_message(external_ip, external_port, block_height, peer_count, is_miner, msg, coordinator):
     return BaseSchema().dumps(
         {
             "META": meta(external_ip, external_port),
@@ -93,6 +93,7 @@ def create_ping_message(external_ip, external_port, block_height, peer_count, is
                     "PEER_COUNT": peer_count,
                     "IS_MINER": is_miner,
                     "SEND_MSG": msg,
+                    "COORDINATOR": coordinator,
                 },
             },
         }
