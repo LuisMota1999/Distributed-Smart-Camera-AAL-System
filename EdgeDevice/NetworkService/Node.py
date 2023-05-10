@@ -402,7 +402,7 @@ class Node(threading.Thread):
             # Add the tx to our pool, and propagate it to our peers
             if tx not in self.blockchain.pending_transactions:
                 self.blockchain.pending_transactions.append(tx)
-                #self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
+                # self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
         else:
             logger.warning("Received invalid transaction")
 
@@ -429,24 +429,16 @@ class Node(threading.Thread):
                 except MarshmallowError:
                     logger.info("Received unreadable message", peer=conn)
                     print("Received unreadable message")
-                    continue
+                    break
 
-                message_handlers = {
-                    "BLOCK": self.handle_blockchain,
-                    "PING": self.handle_ping,
-                    "ELECTION": self.handle_election,
-                    "TRANSACTION": self.handle_transaction,
-                }
-
-                handler = message_handlers.get(message["NAME"])
-
-                if not handler:
-                    raise Exception("Missing handler for message")
-
-                if handler:
-                    thread = threading.Thread(target=handler, args=(message, conn))
-                    thread.start()
-                    thread.join()
+                if message["MESSAGE"]["NAME"] == "PING":
+                    self.handle_ping(message, conn)
+                elif message["MESSAGE"]["NAME"] == "BLOCK":
+                    self.handle_blockchain(message, conn)
+                elif message["MESSAGE"]["NAME"] == "ELECTION":
+                    self.handle_election(message, conn)
+                elif message["MESSAGE"]["NAME"] == "TRANSACTION":
+                    self.handle_transaction(message, conn)
                 else:
                     raise Exception("Missing handler for message")
 
