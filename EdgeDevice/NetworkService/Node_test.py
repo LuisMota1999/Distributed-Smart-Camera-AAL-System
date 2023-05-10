@@ -4,14 +4,20 @@ import random
 import socket
 import threading
 import time
+from asyncio.log import logger
 from typing import cast
 import uuid
 import netifaces as ni
+from marshmallow.exceptions import MarshmallowError
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.BlockchainService.Transaction import validate_transaction
+from EdgeDevice.NetworkService.Messages import create_transaction_message, create_block_message, BaseSchema, \
+    create_ping_message, create_election_message
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
+import asyncio
 
 
 class NodeListener:
@@ -98,7 +104,7 @@ class Node(threading.Thread):
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
-        self.last_keep_alive = time.time()
+        self.last_seen = time.time()
         self.keep_alive_timeout = 10
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
@@ -250,7 +256,11 @@ class Node(threading.Thread):
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
                 self.start_election()
-                self.broadcast_message("BC")
+                # Blockchain message
+                data = {"TYPE": "BLOCKCHAIN", "DATA": self.blockchain.to_json()}
+                # Convert JSON data to string
+                message = json.dumps(data)
+                self.broadcast_message(message)
                 self.recon_state = False
                 continue
 
@@ -279,21 +289,19 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(20.0)
+                conn.settimeout(self.keep_alive_timeout * 3)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
 
-                # if self.coordinator == self.id:
-                #     peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
-                #     peer_info = json.dumps(peer_info)
-                #     peer_info = f"CONNECT{peer_info}"
-                #     conn.sendto(peer_info.encode(), (client_host, client_port))
+                # if self.coordinator == self.id: peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id),
+                # "coordinator": self.coordinator} peer_info = json.dumps(peer_info) peer_info = f"CONNECT{
+                # peer_info}" conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                time.sleep(1)
+                time.sleep(5)
 
                 send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn, client_id))
                 send_keep_alive_msg.start()
@@ -317,17 +325,19 @@ class Node(threading.Thread):
 
         while self.running:
             try:
-                # send keep alive message
-                message = f"PING{self.coordinator}"
-                conn.send(message.encode())
+                conn.send(
+                    create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                        "PING", self.coordinator).encode())
+                self.list_peers()
                 time.sleep(self.keep_alive_timeout)
+
             except:
                 break
 
         # close connection and remove node from list
         if conn in self.connections:
             self.recon_state = True
-            self.remove_node(conn, "KAlive")
+            self.remove_node(conn, "KeepAlive")
             client_id = client_id.decode('utf-8')
             self.neighbours.pop(uuid.UUID(client_id))
             conn.close()
@@ -342,23 +352,59 @@ class Node(threading.Thread):
         if self.coordinator is None and len(self.connections) > 0:
             self.election_in_progress = True
             higher_nodes = []
-            for id, neighbour in self.neighbours.items():
-                if id > self.id:
+            for neighbour_id, neighbour in self.neighbours.items():
+                if neighbour_id > self.id:
                     higher_nodes.append(neighbour)
             if higher_nodes:
                 for ip in higher_nodes:
                     for node in self.connections:
                         if node.getpeername()[0] == ip:
-                            print(f"Node {self.ip} sent ELECTION message to {ip}")
+                            print(f"Node {self.ip} sent election message to {ip}")
 
             else:
                 self.coordinator = self.id
-                self.broadcast_message(f"COORDINATOR {self.coordinator}")
+
+                # self.broadcast_message(create_election_message(self.ip, self.port, self.coordinator))
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
+
+    def handle_blockchain(self, message, conn):
+        pass
+
+    def handle_ping(self, message, conn):
+        print("\n\n\nCHEGUEI HANDLE PING\n\n\n")
+        if self.coordinator is None:
+            self.coordinator = message["MESSAGE"]["PAYLOAD"]["COORDINATOR"]
+            self.election_in_progress = False
+            print(f"\nNetwork Coordinator is {self.coordinator}\n")
+            # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
+
+        conn.send(
+            create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                "PONG", self.coordinator).encode())
+
+    def handle_election(self, message, conn):
+        pass
+
+    def handle_transaction(self, message, conn):
+        """
+        Executed when we receive a transaction that was broadcast by a peer
+        """
+        logger.info("Received transaction")
+        print("Received transaction")
+        # Validate the transaction
+        tx = message["MESSAGE"]["PAYLOAD"]
+
+        if validate_transaction(tx) is True:
+            # Add the tx to our pool, and propagate it to our peers
+            if tx not in self.blockchain.pending_transactions:
+                self.blockchain.pending_transactions.append(tx)
+                # self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
+        else:
+            logger.warning("Received invalid transaction")
 
     def handle_messages(self, conn):
         """
@@ -375,28 +421,32 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                message = conn.recv(1024).decode()
+                data = conn.recv(1024).decode()
+                print(data)
 
-                if message[:4] == "PING":
-                    if self.coordinator is None:
-                        self.coordinator = message[4:]
-                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                    conn.send(b"PONG")
+                try:
+                    message = BaseSchema().loads(data)
+                except MarshmallowError:
+                    logger.info("Received unreadable message", peer=conn)
+                    print("Received unreadable message")
+                    break
 
-                if message[:11] == "COORDINATOR":
-                    coordinator_id = message[12:]
-                    self.coordinator = coordinator_id
-                    print(f"\nCoordinator is {self.coordinator}\n")
-                    self.election_in_progress = False
-                    continue
+                if message["MESSAGE"]["NAME"] == "PING":
+                    self.handle_ping(message, conn)
+                elif message["MESSAGE"]["NAME"] == "BLOCK":
+                    self.handle_blockchain(message, conn)
+                elif message["MESSAGE"]["NAME"] == "ELECTION":
+                    self.handle_election(message, conn)
+                elif message["MESSAGE"]["NAME"] == "TRANSACTION":
+                    self.handle_transaction(message, conn)
+                else:
+                    raise Exception("Missing handler for message")
 
-                if not message:
+                if not data:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
 
-                if message == "BC":
-                    print("BC")
             except socket.timeout:
                 print("Timeout")
                 self.recon_state = True
@@ -407,16 +457,10 @@ class Node(threading.Thread):
 
             except OSError as e:
                 print(f"System Error {e.strerror}")
-                if conn in self.connections:
-                    self.remove_node(conn, "OSError")
-                    conn.close()
                 break
 
             except Exception as ex:
                 print(f"Exception Error {ex.args}")
-                if conn in self.connections:
-                    self.remove_node(conn, "Exception")
-                    conn.close()
                 break
 
             except ConnectionResetError as c:
@@ -426,13 +470,17 @@ class Node(threading.Thread):
                     conn.close()
                 break
 
+            except json.decoder.JSONDecodeError:
+                print("Invalid message format")
+                break
+        print("Fim handle_messages")
+
     def broadcast_message(self, message):
         """
         The ``broadcast_message`` method broadcasts a message to all connected peers. The message is encoded and sent to
         each peer using the ``sendall`` method of the socket object.
 
         :param message: The message to be broadcast
-        :type message: str
         :return: None
         """
         for peer in self.connections:
