@@ -377,10 +377,11 @@ class Node(threading.Thread):
     def handle_ping(self, message, conn):
         print("\n\n\nCHEGUEI HANDLE PING\n\n\n")
         if self.coordinator is None:
-            self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+            print(message["PAYLOAD"]["COORDINATOR"])
+            self.coordinator = message["PAYLOAD"]["COORDINATOR"]
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            #conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
+            # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
         conn.send(
             create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
@@ -423,7 +424,6 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
-                print(data)
                 try:
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
@@ -431,7 +431,6 @@ class Node(threading.Thread):
                     print("Received unreadable message")
                     continue
 
-                print(data)
                 message_handlers = {
                     "BLOCK": self.handle_blockchain(message, conn),
                     "PING": self.handle_ping(message, conn),
