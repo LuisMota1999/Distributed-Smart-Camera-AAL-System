@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, post_load
 from marshmallow_oneofschema import OneOfSchema
-from ..BlockchainService.Schema import Block, Transaction, Ping, Election
+from ..BlockchainService.Schema import Block, Transaction, Ping, Election, Node
 
 
 class BlockMessage(Schema):
@@ -49,12 +49,13 @@ class MessageDisambiguation(OneOfSchema):
 
 
 class MetaSchema(Schema):
-    client = fields.Str()
+    ADDRESS = fields.Nested(Node())
+    CLIENT = fields.Str()
 
 
 class BaseSchema(Schema):
-    meta = fields.Nested(MetaSchema())
-    message = fields.Nested(MessageDisambiguation())
+    META = fields.Nested(MetaSchema())
+    MESSAGE = fields.Nested(MessageDisambiguation())
 
 
 def meta(ip, port, version="0.0.1"):

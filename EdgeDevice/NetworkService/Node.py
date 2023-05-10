@@ -236,7 +236,7 @@ class Node(threading.Thread):
                 flag = False
         return flag
 
-    def handle_reconnects(self):
+    async def handle_reconnects(self):
         """
         The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
         reconnect if there are no active connections. The method also broadcasts a message to all connected nodes if
@@ -380,9 +380,9 @@ class Node(threading.Thread):
             self.coordinator = uuid.UUID(message.get("COORDINATOR"))
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            conn.send(create_block_message(conn.getpeername()[0], conn.getpeername()[1], message))
+            await conn.send(create_block_message(conn.getpeername()[0], conn.getpeername()[1], message))
 
-        conn.send(create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
+        await conn.send(create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
                                       "PONG", self.coordinator).encode())
 
     async def handle_election(self, message, conn):
@@ -402,7 +402,7 @@ class Node(threading.Thread):
             if tx not in self.blockchain.pending_transactions:
                 self.blockchain.pending_transactions.append(tx)
 
-                self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
+                await self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
         else:
             logger.warning("Received invalid transaction")
 
@@ -427,16 +427,17 @@ class Node(threading.Thread):
                     message = BaseSchema().loads(data)
                 except MarshmallowError:
                     logger.info("Received unreadable message", peer=conn)
+                    print("Received unreadable message")
                     continue
 
-                print(message)
+                print(data)
                 message_handlers = {
                     "BLOCK": self.handle_blockchain(message, conn),
                     "PING": self.handle_ping(message, conn),
                     "ELECTION": self.handle_election(message, conn),
                     "TRANSACTION": self.handle_transaction(message, conn),
                 }
-                print(message_handlers.get(message["NAME"]))
+
                 handler = message_handlers.get(message["NAME"])
 
                 if not handler:
