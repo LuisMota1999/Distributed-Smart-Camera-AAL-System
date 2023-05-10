@@ -11,7 +11,6 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, 
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.utils.constants import Network, HOST_PORT
-import json
 
 
 class NodeListener:
@@ -131,7 +130,9 @@ class Node(threading.Thread):
         Start the node
 
         The ``run`` method starts the node by parsing command line arguments, registering the node service with
-        Zeroconf, and starting a thread to handle reconnections.
+        Zeroconf, and starting a thread to handle reconnections. It initializes a ``ServiceBrowser`` to search for
+        available nodes on the local network and starts a thread to accept incoming connections. If the program
+        receives a keyboard interrupt signal, it will stop and exit gracefully.
 
         :return: None
         """
@@ -162,33 +163,24 @@ class Node(threading.Thread):
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
-        try:
-            print("[COORDINATOR] Starting the discovery service...")
-            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-            threading.Thread(target=self.accept_connections).start()
-        except KeyboardInterrupt:
-            print(f"Machine {Network.HOST_NAME} is shutting down...")
-            self.stop()
+        threading.Thread(target=self.discovery_service).start()
+        time.sleep(2)
 
-        time.sleep(1)
+        threading.Thread(target=self.accept_connections).start()
+
+        time.sleep(2)
 
         self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
 
     def discovery_service(self):
-        """
-        The method ``discovery_service`` initializes a ``ServiceBrowser`` to search for
-        available nodes on the local network if the node is the coordinator. If the program
-        receives a keyboard interrupt signal, it will stop and exit gracefully.
-        :return: None
-        """
         while self.running:
             if self.coordinator == self.id:
                 break
 
         try:
-            print("[COORDINATOR] Starting the discovery service...")
+            print("[COORDINATOR]Starting the discovery service...")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
             print(f"Machine {Network.HOST_NAME} is shutting down...")
@@ -250,11 +242,7 @@ class Node(threading.Thread):
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
                 self.start_election()
-                # Blockchain message
-                data = {"TYPE": "BLOCKCHAIN", "DATA": self.blockchain.to_json()}
-                # Convert JSON data to string
-                message = json.dumps(data)
-                self.broadcast_message(message)
+                self.broadcast_message("BC")
                 self.recon_state = False
                 continue
 
@@ -288,12 +276,6 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id)
                 self.list_peers()
 
-                # if self.coordinator == self.id:
-                #     peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
-                #     peer_info = json.dumps(peer_info)
-                #     peer_info = f"CONNECT{peer_info}"
-                #     conn.sendto(peer_info.encode(), (client_host, client_port))
-
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
@@ -322,9 +304,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"TYPE": "PING", "COORDINATOR": self.coordinator}
-                # Convert JSON data to string
-                message = json.dumps(data)
+                message = f"PING{self.coordinator}"
                 conn.send(message.encode())
                 time.sleep(self.keep_alive_timeout)
             except:
@@ -333,7 +313,7 @@ class Node(threading.Thread):
         # close connection and remove node from list
         if conn in self.connections:
             self.recon_state = True
-            self.remove_node(conn, "KeepAlive")
+            self.remove_node(conn, "KAlive")
             client_id = client_id.decode('utf-8')
             self.neighbours.pop(uuid.UUID(client_id))
             conn.close()
@@ -348,8 +328,8 @@ class Node(threading.Thread):
         if self.coordinator is None and len(self.connections) > 0:
             self.election_in_progress = True
             higher_nodes = []
-            for neighbour_id, neighbour in self.neighbours.items():
-                if neighbour_id > self.id:
+            for id, neighbour in self.neighbours.items():
+                if id > self.id:
                     higher_nodes.append(neighbour)
             if higher_nodes:
                 for ip in higher_nodes:
@@ -359,11 +339,7 @@ class Node(threading.Thread):
 
             else:
                 self.coordinator = self.id
-                # Info message
-                data = {"TYPE": "INFO", "DATA": f"The network coordinator is {self.coordinator}"}
-                # Convert JSON data to string
-                message = json.dumps(data)
-                self.broadcast_message(message)
+                self.broadcast_message(f"COORDINATOR {self.coordinator}")
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
@@ -385,36 +361,28 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                data = conn.recv(1024).decode()
-                message = json.loads(data.decode())
-                message_type = message.get("TYPE")
+                message = conn.recv(1024).decode()
 
-                if message_type == 'PING':
+                if message[:4] == "PING":
                     if self.coordinator is None:
-                        self.coordinator = message.get("COORDINATOR")
+                        self.coordinator = message[4:]
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
+                    conn.send(b"PONG")
 
-                    # ACK message
-                    data = {"TYPE": "ACK", "COORDINATOR": self.coordinator}
-                    # Convert JSON data to string
-                    message = json.dumps(data)
-                    conn.send(message.encode())
-
-                if message_type == 'COORDINATOR':
+                if message[:11] == "COORDINATOR":
                     coordinator_id = message[12:]
                     self.coordinator = coordinator_id
                     print(f"\nCoordinator is {self.coordinator}\n")
                     self.election_in_progress = False
                     continue
 
-                if message_type == 'BLOCKCHAIN':
-                    pass
-
-                if not data:
+                if not message:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
 
+                if message == "BC":
+                    print("BC")
             except socket.timeout:
                 print("Timeout")
                 self.recon_state = True
@@ -442,10 +410,6 @@ class Node(threading.Thread):
                 if conn in self.connections:
                     self.remove_node(conn, "ConnectionResetError")
                     conn.close()
-                break
-
-            except json.decoder.JSONDecodeError:
-                print("Invalid message format")
                 break
 
     def broadcast_message(self, message):
