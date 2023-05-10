@@ -11,6 +11,7 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, 
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.utils.constants import Network, HOST_PORT
+import json
 
 
 class NodeListener:
@@ -130,9 +131,7 @@ class Node(threading.Thread):
         Start the node
 
         The ``run`` method starts the node by parsing command line arguments, registering the node service with
-        Zeroconf, and starting a thread to handle reconnections. It initializes a ``ServiceBrowser`` to search for
-        available nodes on the local network and starts a thread to accept incoming connections. If the program
-        receives a keyboard interrupt signal, it will stop and exit gracefully.
+        Zeroconf, and starting a thread to handle reconnections.
 
         :return: None
         """
@@ -163,24 +162,33 @@ class Node(threading.Thread):
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
-        threading.Thread(target=self.discovery_service).start()
-        time.sleep(2)
+        try:
+            print("[COORDINATOR] Starting the discovery service...")
+            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+            threading.Thread(target=self.accept_connections).start()
+        except KeyboardInterrupt:
+            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            self.stop()
 
-        threading.Thread(target=self.accept_connections).start()
-
-        time.sleep(2)
+        time.sleep(1)
 
         self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
 
     def discovery_service(self):
+        """
+        The method ``discovery_service`` initializes a ``ServiceBrowser`` to search for
+        available nodes on the local network if the node is the coordinator. If the program
+        receives a keyboard interrupt signal, it will stop and exit gracefully.
+        :return: None
+        """
         while self.running:
             if self.coordinator == self.id:
                 break
 
         try:
-            print("[COORDINATOR]Starting the discovery service...")
+            print("[COORDINATOR] Starting the discovery service...")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
             print(f"Machine {Network.HOST_NAME} is shutting down...")
@@ -275,6 +283,12 @@ class Node(threading.Thread):
 
                 self.add_node(conn, client_id)
                 self.list_peers()
+
+                # if self.coordinator == self.id:
+                #     peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
+                #     peer_info = json.dumps(peer_info)
+                #     peer_info = f"CONNECT{peer_info}"
+                #     conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
