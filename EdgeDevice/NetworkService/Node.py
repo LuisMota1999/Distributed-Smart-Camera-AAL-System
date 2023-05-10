@@ -4,14 +4,20 @@ import random
 import socket
 import threading
 import time
+from asyncio.log import logger
 from typing import cast
 import uuid
 import netifaces as ni
+from marshmallow.exceptions import MarshmallowError
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.BlockchainService.Transaction import validate_transaction
+from EdgeDevice.NetworkService.Messages import create_transaction_message, create_block_message, BaseSchema, \
+    create_ping_message
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
+import asyncio
 
 
 class NodeListener:
@@ -283,7 +289,7 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout*2)
+                conn.settimeout(self.keep_alive_timeout * 2)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
@@ -368,30 +374,39 @@ class Node(threading.Thread):
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
 
-    def handle_blockchain(self, json_object, conn):
-        # if the received message is 'GET_CHAIN', send the blockchain
-        message_type = json_object.get('SUBTYPE')
-        if message_type == 'GET_CHAIN':
-            chain_json = self.blockchain.chain
-            conn.send(chain_json.encode())
-        # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
-        elif message_type == 'ADD_BLOCK':
-            block_json = json.loads(json_object)
-            new_block = {
-                'index': block_json['index'],
-                'timestamp': block_json['timestamp'],
-                'transactions': self.blockchain.current_transactions,
-                'proof': 100,
-                'previous_hash': block_json['previous_hash'],
-            }
-            self.blockchain.from_json(new_block)
-        # if the received message is 'IS_VALID', check if the blockchain is valid and send the result
-        elif message_type == 'IS_VALID':
-            is_valid = self.blockchain.valid_chain(self.blockchain.chain)
-            data = {"TYPE": "RESULT", "DATA": str(is_valid).encode('utf-8')}
-
-            self.broadcast_message(json.dumps(data))
+    async def handle_blockchain(self, message, conn):
         pass
+
+    async def handle_ping(self, message, conn):
+        if self.coordinator is None:
+            self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+            self.election_in_progress = False
+            print(f"\nNetwork Coordinator is {self.coordinator}\n")
+            conn.send(create_block_message(conn.getpeername()[0], conn.getpeername()[1], message))
+
+        conn.send(create_ping_message(conn.getpeername()[0], conn.getpeername()[1], len(self.blockchain.chain), 1, 1,
+                                      "PONG").encode())
+
+    async def handle_election(self, message, conn):
+        pass
+
+    async def handle_transaction(self, message, conn):
+        """
+        Executed when we receive a transaction that was broadcast by a peer
+        """
+        logger.info("Received transaction")
+
+        # Validate the transaction
+        tx = message["PAYLOAD"]
+
+        if validate_transaction(tx) is True:
+            # Add the tx to our pool, and propagate it to our peers
+            if tx not in self.blockchain.pending_transactions:
+                self.blockchain.pending_transactions.append(tx)
+
+                self.broadcast_message(create_block_message(conn.getpeername()[0], conn.getpeername()[1], tx))
+        else:
+            logger.warning("Received invalid transaction")
 
     def handle_messages(self, conn):
         """
@@ -410,39 +425,22 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
-                message = json.loads(data)
-                message_type = message.get("TYPE")
+                try:
+                    message = BaseSchema().loads(data)
+                except MarshmallowError:
+                    logger.info("Received unreadable message", peer=conn)
+                    break
 
-                if message_type == 'PING':
-                    if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
-                        self.election_in_progress = False
-                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                        # ACK message
-                        data = {"TYPE": "BLOCKCHAIN", "SUBTYPE": "GET_CHAIN"}
-                        # Convert JSON data to string
-                        message = json.dumps(data)
-                        print(message)
-                        conn.send(message.encode())
+                message_handlers = {
+                    "BLOCK": self.handle_blockchain(message, conn),
+                    "PING": self.handle_ping(message, conn),
+                    "ELECTION": self.handle_election(message, conn),
+                    "TRANSACTION": self.handle_transaction(message, conn),
+                }
 
-                    print(self.blockchain.chain)
-                    # ACK message
-                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
-                    # Convert JSON data to string
-                    message = json.dumps(data)
-                    conn.send(message.encode())
-
-                if message_type == 'BLOCKCHAIN':
-                    message_handlers = {
-                        "ADD_BLOCK": self.handle_block,
-                        "ping": self.handle_ping,
-                        "peers": self.handle_peers,
-                        "transaction": self.handle_transaction,
-                    }
-
-                    handler = message_handlers.get(message["name"])
-                    self.handle_blockchain(message,conn)
-                    continue
+                handler = message_handlers.get(message["NAME"])
+                if not handler:
+                    raise Exception("Missing handler for message")
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
@@ -475,30 +473,6 @@ class Node(threading.Thread):
             except json.decoder.JSONDecodeError:
                 print("Invalid message format")
                 break
-
-    async def handle_transaction(self, message, writer):
-        """
-        Executed when we receive a transaction that was broadcast by a peer
-        """
-        logger.info("Received transaction")
-
-        # Validate the transaction
-        tx = message["payload"]
-
-        if validate_transaction(tx) is True:
-            # Add the tx to our pool, and propagate it to our peers
-            if tx not in self.blockchain.pending_transactions:
-                self.blockchain.pending_transactions.append(tx)
-
-                for peer in self.connection_pool.get_alive_peers(20):
-                    await self.send_message(
-                        peer,
-                        create_transaction_message(
-                            self.server.external_ip, self.server.external_port, tx
-                        ),
-                    )
-        else:
-            logger.warning("Received invalid transaction")
 
     def broadcast_message(self, message):
         """

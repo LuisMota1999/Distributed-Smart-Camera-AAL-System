@@ -1,5 +1,5 @@
 import json
-from time import time
+import time
 
 from marshmallow import Schema, fields, validates_schema, ValidationError
 
@@ -40,10 +40,15 @@ class Block(Schema):
 class Node(Schema):
     ip = fields.Str(required=True)
     port = fields.Int(required=True)
-    last_seen = fields.Int(missing=lambda: int(time()))
+    last_seen = fields.Int(missing=lambda: int(time.time()))
 
 
 class Ping(Schema):
     block_height = fields.Int()
     peer_count = fields.Int()
     is_miner = fields.Bool()
+    SEND_MSG = fields.Str()
+
+
+class Election(Schema):
+    coordinator = fields.UUID(required=True)
