@@ -124,7 +124,7 @@ class Blockchain:
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time.time(),
-            'transactions': self.current_transactions,
+            'transactions': self.pending_transactions,
             'proof': proof,
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
         }

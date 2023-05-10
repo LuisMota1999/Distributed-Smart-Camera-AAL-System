@@ -364,7 +364,7 @@ class Node(threading.Thread):
             else:
                 self.coordinator = self.id
 
-                self.broadcast_message(create_election_message(self.ip, self.port, self.coordinator))
+                #self.broadcast_message(create_election_message(self.ip, self.port, self.coordinator))
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
@@ -376,16 +376,17 @@ class Node(threading.Thread):
 
     def handle_ping(self, message, conn):
         print("\n\n\nCHEGUEI HANDLE PING\n\n\n")
-        if self.coordinator is None:
-            print(message["PAYLOAD"]["COORDINATOR"])
-            self.coordinator = message["PAYLOAD"]["COORDINATOR"]
-            self.election_in_progress = False
-            print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
-
-        conn.send(
-            create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
-                                "PONG", self.coordinator).encode())
+        print(message["MESSAGE"]["PAYLOAD"]["COORDINATOR"])
+        # if self.coordinator is None:
+        #     print(message["MESSAGE"]["PAYLOAD"]["COORDINATOR"])
+        #     self.coordinator = message["PAYLOAD"]["COORDINATOR"]
+        #     self.election_in_progress = False
+        #     print(f"\nNetwork Coordinator is {self.coordinator}\n")
+        #     # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
+        #
+        # conn.send(
+        #     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+        #                         "PONG", self.coordinator).encode())
 
     def handle_election(self, message, conn):
         pass
@@ -432,10 +433,10 @@ class Node(threading.Thread):
                     continue
 
                 message_handlers = {
-                    "BLOCK": self.handle_blockchain(message, conn),
-                    "PING": self.handle_ping(message, conn),
-                    "ELECTION": self.handle_election(message, conn),
-                    "TRANSACTION": self.handle_transaction(message, conn),
+                    "BLOCK": threading.Thread(self.handle_blockchain(message, conn)).start(),
+                    "PING": threading.Thread(self.handle_ping(message, conn)).start(),
+                    "ELECTION": threading.Thread(self.handle_election(message, conn)).start(),
+                    "TRANSACTION": threading.Thread(self.handle_transaction(message, conn)).start(),
                 }
 
                 handler = message_handlers.get(message["NAME"])
