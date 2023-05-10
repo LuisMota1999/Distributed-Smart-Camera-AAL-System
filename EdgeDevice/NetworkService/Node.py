@@ -14,7 +14,7 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, 
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import create_transaction_message, create_block_message, BaseSchema, \
-    create_ping_message
+    create_ping_message, create_election_message
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import asyncio
@@ -361,11 +361,8 @@ class Node(threading.Thread):
 
             else:
                 self.coordinator = self.id
-                # Info message
-                data = {"TYPE": "INFO", "DATA": f"The network coordinator is {str(self.coordinator)}"}
-                # Convert JSON data to string
-                message = json.dumps(data)
-                self.broadcast_message(message)
+
+                self.broadcast_message(create_election_message(self.ip, self.port, self.coordinator))
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:

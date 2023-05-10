@@ -69,11 +69,16 @@ def meta(ip, port, version="0.0.1"):
     }
 
 
-def create_election_message(external_ip, external_port, json):
+def create_election_message(external_ip, external_port, coordinator):
     return BaseSchema().dumps(
         {
             "META": meta(external_ip, external_port),
-            "MESSAGE": {"NAME": "ELECTION", "PAYLOAD": json},
+            "MESSAGE": {
+                "NAME": "ELECTION",
+                "PAYLOAD": {
+                    "COORDINATOR": coordinator
+                },
+            },
         }
     )
 
