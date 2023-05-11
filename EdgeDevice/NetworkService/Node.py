@@ -423,6 +423,7 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
+                print(data)
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
@@ -437,11 +438,8 @@ class Node(threading.Thread):
                     if message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
                 except Exception:
-                    self.recon_state = True
-                    if conn in self.connections:
-                        self.remove_node(conn, "Timeout")
-                        conn.close()
-                    break
+                    print("Exception 3")
+                    continue
 
             except socket.timeout:
                 print("Timeout")
