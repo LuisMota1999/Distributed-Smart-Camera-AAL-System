@@ -372,7 +372,7 @@ class Node(threading.Thread):
         # if the received message is 'GET_CHAIN', send the blockchain
         message_type = json_object.get('SUBTYPE')
         if message_type == 'GET_CHAIN':
-            print("==========>",self.blockchain.chain)
+            pass
         # if the received message is 'ADD_BLOCK', receive the block data and add it to the blockchain
         elif message_type == 'ADD_BLOCK':
             block_json = json.loads(json_object)
@@ -404,7 +404,6 @@ class Node(threading.Thread):
             print(message)
             conn.send(message.encode())
 
-        print(self.blockchain.chain)
         # ACK message
         data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
         # Convert JSON data to string
@@ -436,6 +435,7 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
+                print(message)
                 if message_type == 'PING':
                     self.handle_ping(message, conn)
 
