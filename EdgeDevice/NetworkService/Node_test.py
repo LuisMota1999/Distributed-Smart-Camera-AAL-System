@@ -473,7 +473,7 @@ class Node(threading.Thread):
             except json.decoder.JSONDecodeError:
                 print("Invalid message format")
                 break
-        print("Fim handle_messages")
+
 
     def broadcast_message(self, message):
         """
