@@ -398,7 +398,7 @@ class Node(threading.Thread):
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
-        time.sleep(self.keep_alive_timeout/2)
+        time.sleep(1)
 
     def handle_election(self, message, conn):
         pass
@@ -430,9 +430,8 @@ class Node(threading.Thread):
                     message_type = message["MESSAGE"]["NAME"]
                     if message_type == 'PING':
                         self.handle_ping(message["MESSAGE"]["PAYLOAD"], conn)
-                        time.sleep(1)
-
-                    if message_type == 'BLOCKCHAIN':
+                        print(message["MESSAGE"]["PAYLOAD"])
+                    elif message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
                         time.sleep(1)
 
