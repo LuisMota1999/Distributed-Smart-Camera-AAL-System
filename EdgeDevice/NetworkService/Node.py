@@ -321,10 +321,11 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                time.sleep(self.keep_alive_timeout)
+
                 conn.send(
                     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
+                time.sleep(6)
             except:
                 break
 
@@ -435,10 +436,11 @@ class Node(threading.Thread):
                         self.handle_blockchain(message)
                         time.sleep(1)
 
-                except Exception:
+                except Exception as excepts:
+                    print("Exception ", excepts.args)
                     self.recon_state = True
                     if conn in self.connections:
-                        self.remove_node(conn, "Timeout")
+                        self.remove_node(conn, "JSON")
                         conn.close()
                     break
 
