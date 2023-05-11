@@ -283,7 +283,7 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout*2)
+                conn.settimeout(self.keep_alive_timeout * 2)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
@@ -413,8 +413,6 @@ class Node(threading.Thread):
     def handle_election(self, message, conn):
         pass
 
-
-
     def handle_messages(self, conn):
         """
         The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
@@ -432,25 +430,25 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
-                print(data)
-                try:
-                    message = json.loads(data)
-                    message_type = message.get("TYPE")
-                except:
-                    continue
-
-
-                if message_type == 'PING':
-                    self.handle_ping(message, conn)
-
-                if message_type == 'BLOCKCHAIN':
-                    self.handle_blockchain(message)
-
-                if not data and not message_type:
+                if not data:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
 
+                try:
+                    message = json.loads(data)
+                    message_type = message.get("TYPE")
+                    if message_type == 'PING':
+                        self.handle_ping(message, conn)
+
+                    if message_type == 'BLOCKCHAIN':
+                        self.handle_blockchain(message)
+                except Exception:
+                    self.recon_state = True
+                    if conn in self.connections:
+                        self.remove_node(conn, "Timeout")
+                        conn.close()
+                    break
 
             except socket.timeout:
                 print("Timeout")
