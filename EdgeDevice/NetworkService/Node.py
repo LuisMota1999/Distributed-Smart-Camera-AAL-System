@@ -100,7 +100,7 @@ class Node(threading.Thread):
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
-        self.keep_alive_timeout = 10
+        self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -284,7 +284,7 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout * 2)
+                conn.settimeout(60)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
@@ -397,11 +397,8 @@ class Node(threading.Thread):
             self.coordinator = message["COORDINATOR"]
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
-        conn.send(
-            create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
-                                "PONG", self.coordinator).encode())
+        time.sleep(self.keep_alive_timeout/2)
 
     def handle_election(self, message, conn):
         pass
