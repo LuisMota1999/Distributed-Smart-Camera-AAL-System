@@ -296,7 +296,7 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                time.sleep(1)
+                time.sleep(2)
 
                 send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn, client_id))
                 send_keep_alive_msg.start()
@@ -325,7 +325,7 @@ class Node(threading.Thread):
                 conn.send(
                     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
-                time.sleep(6)
+                time.sleep(2)
             except:
                 break
 
