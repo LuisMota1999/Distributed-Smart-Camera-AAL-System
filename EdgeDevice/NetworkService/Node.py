@@ -245,16 +245,16 @@ class Node(threading.Thread):
                 print("Attempting to reconnect...")
                 time.sleep(self.keep_alive_timeout)
             elif len(self.connections) > 0 and self.recon_state is True:
-                # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
-                # and wait for a short amount of time before continuing
+                # If there are active connections and reconnection is required, broadcast a "Blockchain" message to
+                # all nodes and wait for a short amount of time before continuing
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
                 self.start_election()
                 # Blockchain message
-                data = {"TYPE": "BLOCKCHAIN", "DATA": self.blockchain.to_json()}
+                # data = {"TYPE": "BLOCKCHAIN", "DATA": self.blockchain.to_json()}
                 # Convert JSON data to string
-                message = json.dumps(data)
-                self.broadcast_message(message)
+                # message = json.dumps(data)
+                # self.broadcast_message(message)
                 self.recon_state = False
                 continue
 
@@ -392,6 +392,30 @@ class Node(threading.Thread):
             self.broadcast_message(json.dumps(data))
         pass
 
+    def handle_ping(self, message, conn):
+        if self.coordinator is None:
+            self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+            self.election_in_progress = False
+            print(f"\nNetwork Coordinator is {self.coordinator}\n")
+            # ACK message
+            data = {"TYPE": "BLOCKCHAIN", "SUBTYPE": "GET_CHAIN"}
+            # Convert JSON data to string
+            message = json.dumps(data)
+            print(message)
+            conn.send(message.encode())
+
+        print(self.blockchain.chain)
+        # ACK message
+        data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
+        # Convert JSON data to string
+        message = json.dumps(data)
+        conn.send(message.encode())
+
+    def handle_election(self, message, conn):
+        pass
+
+
+
     def handle_messages(self, conn):
         """
         The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
@@ -413,27 +437,10 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
 
                 if message_type == 'PING':
-                    if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
-                        self.election_in_progress = False
-                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                        # ACK message
-                        data = {"TYPE": "BLOCKCHAIN", "SUBTYPE": "GET_CHAIN"}
-                        # Convert JSON data to string
-                        message = json.dumps(data)
-                        print(message)
-                        conn.send(message.encode())
-
-                    print(self.blockchain.chain)
-                    # ACK message
-                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
-                    # Convert JSON data to string
-                    message = json.dumps(data)
-                    conn.send(message.encode())
+                    self.handle_ping(message, conn)
 
                 if message_type == 'BLOCKCHAIN':
                     self.handle_blockchain(message)
-                    continue
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)

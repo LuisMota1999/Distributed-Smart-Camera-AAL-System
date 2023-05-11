@@ -225,19 +225,19 @@ class Blockchain:
 
         return self.target
 
-    async def get_blocks_after_timestamp(self, timestamp):
+    def get_blocks_after_timestamp(self, timestamp):
         for index, block in enumerate(self.chain):
             if timestamp < block["timestamp"]:
                 return self.chain[index:]
 
-    async def mine_new_block(self):
+    def mine_new_block(self):
         self.recalculate_target(self.last_block["index"] + 1)
         while True:
             new_block = self.new_block()
             if self.valid_block(new_block):
                 break
 
-            await asyncio.sleep(0)
+            time.sleep(1)
 
         self.chain.append(new_block)
         logger.info("Found a new block: ", new_block)
