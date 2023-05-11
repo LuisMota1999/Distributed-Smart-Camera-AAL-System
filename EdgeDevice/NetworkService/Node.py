@@ -321,10 +321,10 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
+                time.sleep(self.keep_alive_timeout)
                 conn.send(
                     create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
                                         "PING", self.coordinator).encode())
-                time.sleep(self.keep_alive_timeout)
             except:
                 break
 
@@ -423,23 +423,28 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
-                print(data)
+
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
-
                 try:
                     message = BaseSchema().loads(data)
                     message_type = message["MESSAGE"]["NAME"]
                     if message_type == 'PING':
                         self.handle_ping(message["MESSAGE"]["PAYLOAD"], conn)
+                        time.sleep(1)
 
                     if message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
+                        time.sleep(1)
+
                 except Exception:
-                    print("Exception 3")
-                    continue
+                    self.recon_state = True
+                    if conn in self.connections:
+                        self.remove_node(conn, "Timeout")
+                        conn.close()
+                    break
 
             except socket.timeout:
                 print("Timeout")
