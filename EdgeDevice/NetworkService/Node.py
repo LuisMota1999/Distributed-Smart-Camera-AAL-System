@@ -10,6 +10,7 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.NetworkService.Messages import create_ping_message, BaseSchema
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 
@@ -320,10 +321,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
-                # Convert JSON data to string
-                message = json.dumps(data)
-                conn.send(message.encode())
+                conn.send(
+                    create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                        "PING", self.coordinator).encode())
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -394,21 +394,14 @@ class Node(threading.Thread):
 
     def handle_ping(self, message, conn):
         if self.coordinator is None:
-            self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+            self.coordinator = message["COORDINATOR"]
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            # ACK message
-            data = {"TYPE": "BLOCKCHAIN", "SUBTYPE": "GET_CHAIN"}
-            # Convert JSON data to string
-            message = json.dumps(data)
-            print(message)
-            conn.send(message.encode())
+            # conn.send(create_block_message(str(conn.getpeername()[0]), conn.getpeername()[1], message))
 
-        # ACK message
-        data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
-        # Convert JSON data to string
-        message = json.dumps(data)
-        conn.send(message.encode())
+        conn.send(
+            create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                "PONG", self.coordinator).encode())
 
     def handle_election(self, message, conn):
         pass
@@ -436,10 +429,10 @@ class Node(threading.Thread):
                     break
 
                 try:
-                    message = json.loads(data)
-                    message_type = message.get("TYPE")
+                    message = BaseSchema().loads(data)
+                    message_type = message["MESSAGE"]["NAME"]
                     if message_type == 'PING':
-                        self.handle_ping(message, conn)
+                        self.handle_ping(message["MESSAGE"]["PAYLOAD"], conn)
 
                     if message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
