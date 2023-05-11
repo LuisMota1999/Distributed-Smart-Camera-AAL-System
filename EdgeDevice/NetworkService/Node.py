@@ -432,20 +432,25 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
-                message = json.loads(data)
-                message_type = message.get("TYPE")
+                print(data)
+                try:
+                    message = json.loads(data)
+                    message_type = message.get("TYPE")
+                except:
+                    continue
 
-                print(message)
+
                 if message_type == 'PING':
                     self.handle_ping(message, conn)
 
                 if message_type == 'BLOCKCHAIN':
                     self.handle_blockchain(message)
 
-                if not data:
+                if not data and not message_type:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
+
 
             except socket.timeout:
                 print("Timeout")
