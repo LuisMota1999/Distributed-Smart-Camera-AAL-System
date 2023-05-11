@@ -10,7 +10,7 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
-from EdgeDevice.NetworkService.Messages import create_ping_message, BaseSchema
+from EdgeDevice.NetworkService.Messages import create_ping_message, BaseSchema, create_election_message
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 
@@ -359,10 +359,8 @@ class Node(threading.Thread):
             else:
                 self.coordinator = self.id
                 # Info message
-                data = {"TYPE": "INFO", "DATA": f"The network coordinator is {str(self.coordinator)}"}
-                # Convert JSON data to string
-                message = json.dumps(data)
-                self.broadcast_message(message)
+                self.broadcast_message(
+                    create_election_message(self.ip, self.port, self.coordinator))
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
@@ -402,7 +400,7 @@ class Node(threading.Thread):
         time.sleep(1)
 
     def handle_election(self, message, conn):
-        pass
+        print(f"{message} from {conn.getpeername()[0]}")
 
     def handle_messages(self, conn):
         """
@@ -421,8 +419,9 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
-
                 if not data:
+                    print(f"Data: {data}")
+                    print("Restarting services...")
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
@@ -435,6 +434,9 @@ class Node(threading.Thread):
                     elif message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
                         time.sleep(1)
+                    elif message_type == 'ELECTION':
+                        self.handle_election(message["MESSAGE"]["PAYLOAD"], conn)
+                        time.sleep(1)
 
                 except Exception as excepts:
                     print("Exception ", excepts.args)
@@ -443,6 +445,8 @@ class Node(threading.Thread):
                         self.remove_node(conn, "JSON")
                         conn.close()
                     break
+
+
 
             except socket.timeout:
                 print("Timeout")
