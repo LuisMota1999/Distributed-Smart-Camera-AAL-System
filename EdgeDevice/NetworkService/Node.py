@@ -10,6 +10,7 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.NetworkService.Messages import create_ping_message
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 
@@ -318,10 +319,10 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
+                data = create_ping_message(self.ip, self.port, "PONG", str(self.coordinator))
                 # Convert JSON data to string
-                message = json.dumps(data)
-                conn.send(bytes(message, encoding="utf-8"))
+                message_json = json.dumps(data)
+                conn.sendall(bytes(message_json, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -386,7 +387,7 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
+                    data = create_ping_message(self.ip, self.port, "PONG", str(self.coordinator))
                     # Convert JSON data to string
                     message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))

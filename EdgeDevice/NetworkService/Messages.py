@@ -66,53 +66,42 @@ def meta(ip, port, version="0.0.1"):
 
 
 def create_election_message(external_ip, external_port, coordinator):
-    return BaseSchema().dumps(
-        {
-            "META": meta(external_ip, external_port),
-            "MESSAGE": {
-                "NAME": "ELECTION",
-                "PAYLOAD": {
-                    "COORDINATOR": coordinator
-                },
+    return {
+        "META": meta(external_ip, external_port),
+        "MESSAGE": {
+            "NAME": "ELECTION",
+            "PAYLOAD": {
+                "COORDINATOR": coordinator
             },
-        }
-    )
+        },
+    }
 
 
 def create_block_message(external_ip, external_port, block):
-    return BaseSchema().dumps(
-        {
-            "META": meta(external_ip, external_port),
-            "MESSAGE": {"NAME": "BLOCK", "PAYLOAD": block},
-        }
-    )
+    return {
+        "META": meta(external_ip, external_port),
+        "MESSAGE": {"NAME": "BLOCK", "PAYLOAD": block},
+    }
 
 
-def create_ping_message(external_ip, external_port, block_height, peer_count, is_miner, msg, coordinator):
-    return BaseSchema().dumps(
-        {
-            "META": meta(external_ip, external_port),
-            "MESSAGE": {
-                "NAME": "PING",
-                "PAYLOAD": {
-                    "COORDINATOR": coordinator,
-                    "BLOCK_HEIGHT": block_height,
-                    "PEER_COUNT": peer_count,
-                    "IS_MINER": is_miner,
-                    "SEND_MSG": msg,
-                },
+def create_ping_message(external_ip, external_port, msg, coordinator):
+    return {
+        "META": meta(external_ip, external_port),
+        "MESSAGE": {
+            "NAME": "PING",
+            "PAYLOAD": {
+                "COORDINATOR": coordinator,
+                "SEND_MSG": msg,
             },
-        }
-    )
+        },
+    }
 
 
 def create_transaction_message(external_ip, external_port, tx):
-    return BaseSchema().dumps(
-        {
-            "META": meta(external_ip, external_port),
-            "MESSAGE": {
-                "NAME": "TRANSACTION",
-                "PAYLOAD": tx,
-            },
-        }
-    )
+    return {
+        "META": meta(external_ip, external_port),
+        "MESSAGE": {
+            "NAME": "TRANSACTION",
+            "PAYLOAD": tx,
+        },
+    }
