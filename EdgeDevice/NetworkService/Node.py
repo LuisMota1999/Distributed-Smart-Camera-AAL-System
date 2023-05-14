@@ -321,10 +321,10 @@ class Node(threading.Thread):
             try:
                 # send keep alive message
 
-                conn.send(
-                    create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
-                                        "PING", self.coordinator).encode())
-                time.sleep(2)
+                json_message = create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                        "PING", self.coordinator)
+                conn.send(json_message)
+                time.sleep(10)
             except:
                 break
 
@@ -396,7 +396,9 @@ class Node(threading.Thread):
             self.election_in_progress = False
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
-        time.sleep(1)
+        json_message = create_ping_message(self.ip, self.port, len(self.blockchain.chain), 1, 1,
+                                           "PONG", self.coordinator)
+        conn.send(json_message)
 
     def handle_election(self, message, conn):
         print(f"{message} from {conn.getpeername()[0]}")
@@ -429,7 +431,6 @@ class Node(threading.Thread):
                     message_type = message["MESSAGE"]["NAME"]
                     if message_type == 'PING':
                         self.handle_ping(message["MESSAGE"]["PAYLOAD"], conn)
-                        print(message["MESSAGE"]["PAYLOAD"])
                     elif message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
                         time.sleep(1)
