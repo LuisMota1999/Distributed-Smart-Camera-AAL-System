@@ -386,12 +386,16 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
+                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator), "CONTENT": {
+                        'name': 'John',
+                        'age': 30,
+                        'city': 'New York'
+                    }}
                     # Convert JSON data to string
                     message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))
 
-                print(message_type)
+                print(message)
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
