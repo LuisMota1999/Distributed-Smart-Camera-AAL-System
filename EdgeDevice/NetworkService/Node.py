@@ -318,17 +318,10 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {
-                    "TYPE": "PING",
-                    "MESSAGE": {
-                        "COORDINATOR": str(self.coordinator),
-                        "STATE": "SENT",
-                    },
-                }
-
+                data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
                 # Convert JSON data to string
-                message_json = json.dumps(data)
-                conn.sendall(bytes(message_json, encoding="utf-8"))
+                message = json.dumps(data)
+                conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -393,14 +386,7 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-                    data = {
-                        "TYPE": "PONG",
-                        "MESSAGE": {
-                            "COORDINATOR": str(self.coordinator),
-                            "STATE": "ACK",
-                        },
-                    }
-
+                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
                     # Convert JSON data to string
                     message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))
