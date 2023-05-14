@@ -321,7 +321,7 @@ class Node(threading.Thread):
                 data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
                 # Convert JSON data to string
                 message = json.dumps(data)
-                conn.send(message.encode())
+                conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except:
                 break
@@ -389,7 +389,7 @@ class Node(threading.Thread):
                     data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
                     # Convert JSON data to string
                     message = json.dumps(data)
-                    conn.send(message.encode())
+                    conn.send(bytes(message, encoding="utf-8"))
 
                 print(message)
 
