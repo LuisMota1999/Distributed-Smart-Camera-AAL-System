@@ -380,7 +380,7 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(1024).decode()
                 message = json.loads(data)
-                message_type = message.get("TYPE")
+                message_type = message["MESSAGE"]["NAME"]
                 if message_type == "PING":
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message.get("COORDINATOR"))
