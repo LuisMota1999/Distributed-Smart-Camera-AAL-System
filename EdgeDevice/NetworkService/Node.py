@@ -383,6 +383,8 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     conn.send(b"PONG")
 
+                print(message)
+
                 if message[:11] == "COORDINATOR":
                     coordinator_id = message[12:]
                     self.coordinator = coordinator_id
