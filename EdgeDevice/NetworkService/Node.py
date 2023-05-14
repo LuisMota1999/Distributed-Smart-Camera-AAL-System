@@ -319,7 +319,8 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = create_ping_message(self.ip, self.port, "PONG", str(self.coordinator))
+                data = create_ping_message(str(self.ip), str(self.port), "PING", str(self.coordinator))
+                print(data)
                 # Convert JSON data to string
                 message_json = json.dumps(data)
                 conn.sendall(bytes(message_json, encoding="utf-8"))
@@ -387,7 +388,8 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-                    data = create_ping_message(self.ip, self.port, "PONG", str(self.coordinator))
+                    data = create_ping_message(str(self.ip), str(self.port), "PONG", str(self.coordinator))
+                    print(data)
                     # Convert JSON data to string
                     message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))
