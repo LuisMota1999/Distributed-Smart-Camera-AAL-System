@@ -84,15 +84,12 @@ def create_block_message(external_ip, external_port, block):
     }
 
 
-def create_ping_message(external_ip, external_port, msg, coordinator):
+def create_ping_message(msg, coordinator):
     return {
-        "META": meta(external_ip, external_port),
+        "TYPE": "PING",
         "MESSAGE": {
-            "NAME": "PING",
-            "PAYLOAD": {
-                "COORDINATOR": coordinator,
-                "SEND_MSG": msg,
-            },
+            "COORDINATOR": coordinator,
+            "CONTENT": msg
         },
     }
 
