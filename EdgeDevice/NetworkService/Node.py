@@ -388,10 +388,10 @@ class Node(threading.Thread):
                         # ACK message
                     data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
                     # Convert JSON data to string
-                    message = json.dumps(data)
-                    conn.send(bytes(message, encoding="utf-8"))
+                    message_json = json.dumps(data)
+                    conn.sendall(bytes(message_json, encoding="utf-8"))
 
-                print(message)
+                print(message_type)
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
