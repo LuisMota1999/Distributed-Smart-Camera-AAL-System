@@ -318,7 +318,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                message = f"PING{self.coordinator}"
+                data = {"TYPE": "PING", "COORDINATOR": str(self.coordinator)}
+                # Convert JSON data to string
+                message = json.dumps(data)
                 conn.send(message.encode())
                 time.sleep(self.keep_alive_timeout)
             except:
@@ -375,30 +377,27 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                message = conn.recv(1024).decode()
-
-                if message[:4] == "PING":
+                data = conn.recv(1024).decode()
+                message = json.loads(data)
+                message_type = message.get("TYPE")
+                if message_type == "PING":
                     if self.coordinator is None:
-                        self.coordinator = message[4:]
+                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                    conn.send(b"PONG")
+
+                        # ACK message
+                    data = {"TYPE": "PONG", "COORDINATOR": str(self.coordinator)}
+                    # Convert JSON data to string
+                    message = json.dumps(data)
+                    conn.send(message.encode())
 
                 print(message)
 
-                if message[:11] == "COORDINATOR":
-                    coordinator_id = message[12:]
-                    self.coordinator = coordinator_id
-                    print(f"\nCoordinator is {self.coordinator}\n")
-                    self.election_in_progress = False
-                    continue
-
-                if not message:
+                if not data:
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
 
-                if message == "BC":
-                    print("BC")
             except socket.timeout:
                 print("Timeout")
                 self.recon_state = True
