@@ -429,7 +429,7 @@ class Node(threading.Thread):
                 try:
                     message = BaseSchema().loads(data)
                     message_type = message["MESSAGE"]["NAME"]
-                    if message_type == 'PING':
+                    if message_type == 'PING' or message_type == 'PONG':
                         self.handle_ping(message["MESSAGE"]["PAYLOAD"], conn)
                     elif message_type == 'BLOCKCHAIN':
                         self.handle_blockchain(message)
