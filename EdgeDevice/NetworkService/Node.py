@@ -125,7 +125,7 @@ class Node(threading.Thread):
             properties={'IP': self.ip, 'ID': self.id},
         )
 
-        self.blockchain.register_node({self.ip: time.time()})
+        #self.blockchain.register_node({self.ip: time.time()})
 
     def run(self):
         """
@@ -157,21 +157,20 @@ class Node(threading.Thread):
 
         if args.debug:
             logging.getLogger('NetworkService').setLevel(logging.DEBUG)
-
         try:
             self.zeroconf.register_service(self.service_info)
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
         try:
-            print("[COORDINATOR] Starting the discovery service...")
+            print("Starting the discovery service...")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
             threading.Thread(target=self.accept_connections).start()
         except KeyboardInterrupt:
             print(f"Machine {Network.HOST_NAME} is shutting down...")
             self.stop()
 
-        time.sleep(1)
+        time.sleep(2)
 
         self.start_election()
 
@@ -363,7 +362,7 @@ class Node(threading.Thread):
                     create_election_message(self.ip, self.port, self.coordinator))
                 print(f"Node {self.id} is the new coordinator")
                 self.election_in_progress = False
-        elif self.coordinator is None and len(self.connections) <= 0:
+        elif self.coordinator is None and len(self.connections) == 0:
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
 
@@ -419,8 +418,8 @@ class Node(threading.Thread):
             try:
 
                 data = conn.recv(1024).decode()
+                print(f"DATA: {data}")
                 if not data:
-                    print(f"Data: {data}")
                     print("Restarting services...")
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
@@ -445,8 +444,6 @@ class Node(threading.Thread):
                         self.remove_node(conn, "JSON")
                         conn.close()
                     break
-
-
 
             except socket.timeout:
                 print("Timeout")
