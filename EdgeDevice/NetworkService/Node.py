@@ -10,9 +10,11 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
+import structlog
 
 
 class NodeListener:
@@ -126,6 +128,7 @@ class Node(threading.Thread):
         )
 
         self.blockchain.register_node({self.ip: time.time()})
+        logger = structlog.getLogger(__name__)
 
     def run(self):
         """
@@ -231,30 +234,6 @@ class Node(threading.Thread):
                 flag = False
         return flag
 
-    def handle_reconnects(self):
-        """
-        The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
-        reconnect if there are no active connections. The method also broadcasts a message to all connected nodes if
-        the node recently reconnected.
-        :return: None
-        """
-        while self.running:
-            if len(self.connections) < 1 and self.recon_state is True:
-                # If there are no connections and reconnection is required, update the node's last seen time and wait
-                # for the specified amount of time before attempting to reconnect
-                self.blockchain.nodes[self.ip] = time.time()
-                print("Attempting to reconnect...")
-                time.sleep(self.keep_alive_timeout)
-            elif len(self.connections) > 0 and self.recon_state is True:
-                # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
-                # and wait for a short amount of time before continuing
-                print("Coordinator not seen for a while. Starting new election...")
-                self.coordinator = None
-                self.start_election()
-                self.broadcast_message("BC")
-                self.recon_state = False
-                continue
-
     def connect_to_peer(self, client_host, client_port, client_id):
         """
         The `connect_to_peer` method is used to create a socket connection with the specified client. If the
@@ -319,12 +298,13 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"META": meta(self.ip, self.port), "TYPE": "PING", "COORDINATOR": str(self.coordinator),
-                        "CONTENT": {
-                            'name': 'John',
-                            'age': 30,
-                            'city': 'New York'
-                        }}
+                data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "TYPE": "KEEPALIVE",
+                        "PAYLOAD": {
+                            "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain, "MESSAGE": "PING"
+                        }
+                        }
+
                 # Convert JSON data to string
                 message = json.dumps(data)
                 conn.send(bytes(message, encoding="utf-8"))
@@ -368,6 +348,71 @@ class Node(threading.Thread):
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
 
+    def handle_reconnects(self):
+        """
+        The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
+        reconnect if there are no active connections. The method also broadcasts a message to all connected nodes if
+        the node recently reconnected.
+        :return: None
+        """
+        while self.running:
+            if len(self.connections) < 1 and self.recon_state is True:
+                # If there are no connections and reconnection is required, update the node's last seen time and wait
+                # for the specified amount of time before attempting to reconnect
+                self.blockchain.nodes[self.ip] = time.time()
+                print("Attempting to reconnect...")
+                time.sleep(self.keep_alive_timeout)
+            elif len(self.connections) > 0 and self.recon_state is True:
+                # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
+                # and wait for a short amount of time before continuing
+                print("Coordinator not seen for a while. Starting new election...")
+                self.coordinator = None
+                self.start_election()
+                self.broadcast_message("BC")
+                self.recon_state = False
+                continue
+
+    def handle_ping(self, message, conn):
+        if self.coordinator is None:
+            self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
+            print(f"\nNetwork Coordinator is {self.coordinator}\n")
+
+        data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]), "TYPE": "KEEPALIVE",
+                "PAYLOAD": {
+                    "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain, "MESSAGE": "PONG",
+                }
+                }
+
+        message_json = json.dumps(data)
+        conn.send(bytes(message_json, encoding="utf-8"))
+
+    def handle_transaction(self, message, conn):
+        """
+        Executed when we receive a transaction that was broadcast by a peer
+        """
+
+        # Validate the transaction
+        tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
+
+        if validate_transaction(tx) is True:
+            # Add the tx to our pool, and propagate it to our peers
+            if tx not in self.blockchain.pending_transactions:
+                self.blockchain.pending_transactions.append(tx)
+                data = {
+                    "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "TYPE": "TRANSACTION",
+                    "PAYLOAD": {
+                        "COORDINATOR": str(self.coordinator),
+                        "BLOCKCHAIN": self.blockchain.chain,
+                        "TRANSACTION_MESSAGE": tx,
+                    }
+                }
+                message = json.dumps(data)
+                self.broadcast_message(message.encode('utf-8'))
+
+        else:
+            print("Received invalid transaction")
+
     def handle_messages(self, conn):
         """
         The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
@@ -386,16 +431,8 @@ class Node(threading.Thread):
                 data = conn.recv(1024).decode()
                 message = json.loads(data)
                 message_type = message.get("TYPE")
-                if message_type == "PING":
-                    if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
-                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
-
-                        # ACK message
-                    data = {"META": meta(self.ip,self.port), "TYPE": "PONG", "COORDINATOR": str(self.coordinator), "CONTENT": self.blockchain.chain}
-                    # Convert JSON data to string
-                    message_json = json.dumps(data)
-                    conn.sendall(bytes(message_json, encoding="utf-8"))
+                if message_type == "KEEPALIVE":
+                    self.handle_ping(message, conn)
 
                 print(message)
 
@@ -403,6 +440,14 @@ class Node(threading.Thread):
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
+
+            except json.JSONDecodeError as e:
+                print("Error decoding JSON:", e)
+                self.recon_state = True
+                if conn in self.connections:
+                    self.remove_node(conn, "Timeout")
+                    conn.close()
+                break
 
             except socket.timeout:
                 print("Timeout")
@@ -421,6 +466,7 @@ class Node(threading.Thread):
 
             except Exception as ex:
                 print(f"Exception Error {ex.args}")
+                self.recon_state = True
                 if conn in self.connections:
                     self.remove_node(conn, "Exception")
                     conn.close()
@@ -428,6 +474,7 @@ class Node(threading.Thread):
 
             except ConnectionResetError as c:
                 print(f"Connection Reset Error {c.strerror}")
+                self.recon_state = True
                 if conn in self.connections:
                     self.remove_node(conn, "ConnectionResetError")
                     conn.close()
