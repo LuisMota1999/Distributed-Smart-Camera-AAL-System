@@ -1,5 +1,6 @@
 # This code was adapted from the original code by Daniel van Flymen
 # Source: https://github.com/dvf/blockchain-book
+# Source: https://github.com/valvesss/blopy/blob/master/blopy/blockchain.py
 import asyncio
 import hashlib
 import json
