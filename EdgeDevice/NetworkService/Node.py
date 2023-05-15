@@ -298,10 +298,10 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]), "TYPE": "PING",
-                        "PAYLOAD": {
-                            "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain,
-                        }
+                data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "TYPE": "PING",
+                        "COORDINATOR": str(self.coordinator),
+                        "BLOCKCHAIN": self.blockchain.chain,
                         }
 
                 # Convert JSON data to string
@@ -419,14 +419,13 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
                 if message_type == "KEEPALIVE":
                     if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
+                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                     data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                             "TYPE": "PONG",
-                            "PAYLOAD": {
-                                "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain,
-                            }
+                            "COORDINATOR": str(self.coordinator),
+                            "BLOCKCHAIN": self.blockchain.chain,
                             }
 
                     message_json = json.dumps(data)
