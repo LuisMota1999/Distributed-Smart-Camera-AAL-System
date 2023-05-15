@@ -371,19 +371,6 @@ class Node(threading.Thread):
                 self.recon_state = False
                 continue
 
-    def handle_ping(self, message, conn):
-        if self.coordinator is None:
-            self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
-            print(f"\nNetwork Coordinator is {self.coordinator}\n")
-
-        data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]), "TYPE": "PONG",
-                "PAYLOAD": {
-                    "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain,
-                }
-                }
-
-        message_json = json.dumps(data)
-        conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_transaction(self, message, conn):
         """
@@ -431,7 +418,19 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
                 if message_type == "KEEPALIVE":
-                    self.handle_ping(message, conn)
+                    if self.coordinator is None:
+                        self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
+                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
+
+                    data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                            "TYPE": "PONG",
+                            "PAYLOAD": {
+                                "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain,
+                            }
+                            }
+
+                    message_json = json.dumps(data)
+                    conn.send(bytes(message_json, encoding="utf-8"))
 
                 print(message)
 
