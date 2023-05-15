@@ -58,38 +58,39 @@ class BaseSchema(Schema):
     MESSAGE = fields.Nested(MessageDisambiguation())
 
 
-def meta(ip, port, version="0.0.1"):
+def meta(ip:str, port:int, version="0.0.1"):
     return {
         "CLIENT": version,
         "ADDRESS": {"IP": ip, "PORT": port},
     }
 
 
-def create_election_message(external_ip, external_port, coordinator):
+def create_election_message(external_ip: str, external_port: int, coordinator: str):
     return {
         "META": meta(external_ip, external_port),
         "MESSAGE": {
             "NAME": "ELECTION",
             "PAYLOAD": {
-                "COORDINATOR": coordinator
+                "COORDINATOR": str(coordinator),
             },
         },
     }
 
 
-def create_block_message(external_ip, external_port, block):
+def create_block_message(external_ip: str, external_port: int, block):
     return {
         "META": meta(external_ip, external_port),
         "MESSAGE": {"NAME": "BLOCK", "PAYLOAD": block},
     }
 
 
-def create_ping_message(msg, coordinator):
+def create_general_message(msg: str, coordinator: str, message_type: str, external_ip: str,external_port:int):
     return {
-        "TYPE": "PING",
+        "TYPE": type,
+        "META": meta(str(external_ip), int(external_port)),
         "MESSAGE": {
-            "COORDINATOR": coordinator,
-            "CONTENT": msg
+            "COORDINATOR": str(coordinator),
+            "CONTENT": str(msg),
         },
     }
 
