@@ -102,7 +102,7 @@ class Node(threading.Thread):
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
-        self.keep_alive_timeout = 10
+        self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -259,7 +259,7 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
-                conn.settimeout(20.0)
+                conn.settimeout(60.0)
 
                 self.add_node(conn, client_id)
                 self.list_peers()
@@ -298,14 +298,17 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
-                        "TYPE": "PING",
+                data = {
+                    "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "TYPE": "PING",
+                    "PAYLOAD": {
                         "COORDINATOR": str(self.coordinator),
-                        "BLOCKCHAIN": self.blockchain.chain,
-                        }
+                        "BLOCKCHAIN_STATE": self.blockchain.chain,
+                    }
+                }
 
                 # Convert JSON data to string
-                message = json.dumps(data)
+                message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except:
@@ -371,34 +374,6 @@ class Node(threading.Thread):
                 self.recon_state = False
                 continue
 
-
-    def handle_transaction(self, message, conn):
-        """
-        Executed when we receive a transaction that was broadcast by a peer
-        """
-
-        # Validate the transaction
-        tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
-
-        if validate_transaction(tx) is True:
-            # Add the tx to our pool, and propagate it to our peers
-            if tx not in self.blockchain.pending_transactions:
-                self.blockchain.pending_transactions.append(tx)
-                data = {
-                    "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
-                    "TYPE": "TRANSACTION",
-                    "PAYLOAD": {
-                        "COORDINATOR": str(self.coordinator),
-                        "BLOCKCHAIN": self.blockchain.chain,
-                        "TRANSACTION_MESSAGE": tx,
-                    }
-                }
-                message = json.dumps(data)
-                self.broadcast_message(message.encode('utf-8'))
-
-        else:
-            print("Received invalid transaction")
-
     def handle_messages(self, conn):
         """
         The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
@@ -419,19 +394,43 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+                        self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
-                    data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
-                            "TYPE": "PONG",
+                    data = {
+                        "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "TYPE": "PONG",
+                        "PAYLOAD": {
                             "COORDINATOR": str(self.coordinator),
-                            "BLOCKCHAIN": self.blockchain.chain,
-                            }
+                            "BLOCKCHAIN_STATE": self.blockchain.chain,
+                        }
+                    }
 
-                    message_json = json.dumps(data)
+                    message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
 
-                print(message)
+                if message_type == "TRANSACTION":
+                    # Validate the transaction
+                    tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
+
+                    if validate_transaction(tx) is True:
+                        # Add the tx to our pool, and propagate it to our peers
+                        if tx not in self.blockchain.pending_transactions:
+                            self.blockchain.pending_transactions.append(tx)
+                            data = {
+                                "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                                "TYPE": "TRANSACTION",
+                                "PAYLOAD": {
+                                    "COORDINATOR": str(self.coordinator),
+                                    "BLOCKCHAIN": self.blockchain.chain,
+                                    "TRANSACTION_MESSAGE": tx,
+                                }
+                            }
+                            message = json.dumps(data,indent=2)
+                            self.broadcast_message(message.encode('utf-8'))
+                    else:
+                        print("Received invalid transaction")
+                        continue
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
