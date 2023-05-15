@@ -88,7 +88,7 @@ def create_block_message(external_ip: str, external_port: int, block):
 
 def create_general_message(msg: str, coordinator: str, message_type: str, external_ip: str,external_port:int):
     data = {
-        "TYPE": type,
+        "TYPE": message_type,
         "META": meta(str(external_ip), int(external_port)),
         "MESSAGE": {
             "COORDINATOR": str(coordinator),
