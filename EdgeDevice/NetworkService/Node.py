@@ -10,11 +10,13 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.NetworkService.Schema import Transaction
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import structlog
+from pprint import pprint
 
 
 class NodeListener:
@@ -275,17 +277,18 @@ class Node(threading.Thread):
 
                 time.sleep(1)
 
-                send_keep_alive_msg = threading.Thread(target=self.send_keep_alive_messages, args=(conn, client_id))
-                send_keep_alive_msg.start()
+                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
+                                                              args=(conn, client_id))
+                handle_keep_alive_messages.start()
 
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
 
-    def send_keep_alive_messages(self, conn, client_id):
+    def handle_keep_alive_messages(self, conn, client_id):
         """
-        The ``send_keep_alive_messages`` method sends a "ping" message to the specified connection periodically
+        The ``handle_keep_alive_messages`` method sends a "ping" message to the specified connection periodically
         to maintain the connection. If the connection fails or is closed, it will remove the node from the list.
 
         :param client_id: The ID of the new node.
@@ -302,6 +305,7 @@ class Node(threading.Thread):
                     "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                     "TYPE": "PING",
                     "PAYLOAD": {
+                        "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                         "BLOCKCHAIN_STATE": self.blockchain.chain,
                     }
@@ -401,10 +405,18 @@ class Node(threading.Thread):
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                         "TYPE": "PONG",
                         "PAYLOAD": {
+                            "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
                             "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
+                    print("\n\n<==================>\n\n")
+                    tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time),
+                              SIGNATURE="SIGNATURE")
+                    schema = Transaction()
+                    result = schema.dump(tx)
+                    pprint(result, indent=2)
+                    print("\n\n<==================>\n\n")
 
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
@@ -426,11 +438,14 @@ class Node(threading.Thread):
                                     "TRANSACTION_MESSAGE": tx,
                                 }
                             }
-                            message = json.dumps(data,indent=2)
+                            message = json.dumps(data, indent=2)
                             self.broadcast_message(message.encode('utf-8'))
                     else:
                         print("Received invalid transaction")
                         continue
+
+                if message_type == "BLOCK":
+                    pass
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
@@ -439,14 +454,9 @@ class Node(threading.Thread):
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
-                self.recon_state = True
-                if conn in self.connections:
-                    self.remove_node(conn, "Timeout")
-                    conn.close()
-                break
 
-            except socket.timeout:
-                print("Timeout")
+            except socket.timeout as e:
+                print("Error timeout:", e)
                 self.recon_state = True
                 if conn in self.connections:
                     self.remove_node(conn, "Timeout")
@@ -455,6 +465,7 @@ class Node(threading.Thread):
 
             except OSError as e:
                 print(f"System Error {e.strerror}")
+                self.recon_state = True
                 if conn in self.connections:
                     self.remove_node(conn, "OSError")
                     conn.close()

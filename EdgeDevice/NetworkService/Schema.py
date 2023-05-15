@@ -1,5 +1,4 @@
 import json
-import time
 from marshmallow import Schema, fields, validates_schema, ValidationError
 
 
@@ -30,28 +29,7 @@ class Block(Schema):
     @validates_schema
     def validate_hash(self, data, **kwargs):
         block = data.copy()
-        block.pop("hash")
+        block.pop("HASH")
 
-        if data["hash"] != json.dumps(block, sort_keys=True):
+        if data["HASH"] != json.dumps(block, sort_keys=True):
             raise ValidationError("Fraudulent block: hash is wrong")
-
-
-class Node(Schema):
-    IP = fields.Str(required=True)
-    PORT = fields.Int(required=True)
-    LAST_SEEN = fields.Int(missing=lambda: int(time.time()))
-
-
-class Ping(Schema):
-    BLOCK_HEIGHT = fields.Int(required=False)
-    PEER_COUNT = fields.Int(required=False)
-    IS_MINER = fields.Bool(required=False)
-    SEND_MSG = fields.Str()
-    COORDINATOR = fields.UUID()
-
-    class Meta:
-        ordered = True
-
-
-class Election(Schema):
-    COORDINATOR = fields.UUID(required=True)

@@ -20,15 +20,15 @@ def create_transaction(
     """
 
     tx = {
-        "sender": public_key,
-        "receiver": receiver,
-        "amount": amount,
-        "timestamp": int(time()),
+        "SENDER": public_key,
+        "RECEIVER": receiver,
+        "AMOUNT": amount,
+        "TIMESTAMP": int(time()),
     }
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
 
     # Generate a signing key from the private key
-    signing_key = SigningKey(private_key, encoder=HexEncoder)
+    signing_key = SigningKey(bytes(private_key), encoder=HexEncoder)
 
     # Now add the signature to the original transaction
     signature = signing_key.sign(tx_bytes).signature
