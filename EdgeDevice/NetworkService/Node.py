@@ -298,10 +298,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
-                        "TYPE": "KEEPALIVE",
+                data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]), "TYPE": "PING",
                         "PAYLOAD": {
-                            "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain, "MESSAGE": "PING"
+                            "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain,
                         }
                         }
 
@@ -377,9 +376,9 @@ class Node(threading.Thread):
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
-        data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]), "TYPE": "KEEPALIVE",
+        data = {"META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]), "TYPE": "PONG",
                 "PAYLOAD": {
-                    "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain, "MESSAGE": "PONG",
+                    "COORDINATOR": str(self.coordinator), "BLOCKCHAIN": self.blockchain.chain,
                 }
                 }
 
