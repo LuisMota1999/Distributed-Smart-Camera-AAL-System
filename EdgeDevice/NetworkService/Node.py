@@ -392,11 +392,7 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-                    data = {"META": meta(self.ip,self.port), "TYPE": "PONG", "COORDINATOR": str(self.coordinator), "CONTENT": {
-                        'name': 'John',
-                        'age': 30,
-                        'city': 'New York'
-                    }}
+                    data = {"META": meta(self.ip,self.port), "TYPE": "PONG", "COORDINATOR": str(self.coordinator), "CONTENT": self.blockchain.chain}
                     # Convert JSON data to string
                     message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))
