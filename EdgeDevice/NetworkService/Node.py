@@ -10,7 +10,7 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
-from EdgeDevice.NetworkService.Messages import create_general_message
+from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 
@@ -317,21 +317,28 @@ class Node(threading.Thread):
         """
 
         while self.running:
-            # try:
-            # Convert JSON data to string
-            message = create_general_message('Teste', str(self.coordinator), 'PING', str(self.ip), int(self.port))
-            conn.send(bytes(message, encoding="utf-8"))
-            time.sleep(self.keep_alive_timeout)
-        #     except:
-        #         break
-        #
-        # # close connection and remove node from list
-        # if conn in self.connections:
-        #     self.recon_state = True
-        #     self.remove_node(conn, "KAlive")
-        #     client_id = client_id.decode('utf-8')
-        #     self.neighbours.pop(uuid.UUID(client_id))
-        #     conn.close()
+            try:
+                # send keep alive message
+                data = {"META": meta(self.ip, self.port), "TYPE": "PING", "COORDINATOR": str(self.coordinator),
+                        "CONTENT": {
+                            'name': 'John',
+                            'age': 30,
+                            'city': 'New York'
+                        }}
+                # Convert JSON data to string
+                message = json.dumps(data)
+                conn.send(bytes(message, encoding="utf-8"))
+                time.sleep(self.keep_alive_timeout)
+            except:
+                break
+
+        # close connection and remove node from list
+        if conn in self.connections:
+            self.recon_state = True
+            self.remove_node(conn, "KAlive")
+            client_id = client_id.decode('utf-8')
+            self.neighbours.pop(uuid.UUID(client_id))
+            conn.close()
 
     def start_election(self):
         """
@@ -381,13 +388,17 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message['MESSAGE'].get("COORDINATOR"))
+                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-
+                    data = {"META": meta(self.ip,self.port), "TYPE": "PONG", "COORDINATOR": str(self.coordinator), "CONTENT": {
+                        'name': 'John',
+                        'age': 30,
+                        'city': 'New York'
+                    }}
                     # Convert JSON data to string
-                    message_json = create_general_message('Teste', str(self.coordinator), 'PING', str(self.ip), int(self.port))
+                    message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))
 
                 print(message)
@@ -396,9 +407,6 @@ class Node(threading.Thread):
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
-
-            except json.JSONDecodeError as e:
-                print("Error decoding JSON:", e)
 
             except socket.timeout:
                 print("Timeout")
