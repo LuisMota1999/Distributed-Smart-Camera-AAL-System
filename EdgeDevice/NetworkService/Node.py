@@ -322,7 +322,7 @@ class Node(threading.Thread):
             data = create_general_message('Teste', str(self.coordinator), 'PING', str(self.ip), int(self.port))
             print(data)
             # Convert JSON data to string
-            message = json.dumps(data)
+            message = json.loads(data)
             conn.send(bytes(message, encoding="utf-8"))
             time.sleep(self.keep_alive_timeout)
         #     except:
@@ -390,7 +390,7 @@ class Node(threading.Thread):
                         # ACK message
                     data = create_general_message('Teste', str(self.coordinator), 'PONG', str(self.ip), int(self.port))
                     # Convert JSON data to string
-                    message_json = json.dumps(data)
+                    message_json = json.loads(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))
 
                 print(message)
