@@ -381,7 +381,7 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message.get("COORDINATOR"))
+                        self.coordinator = uuid.UUID(message['MESSAGE'].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
@@ -396,6 +396,9 @@ class Node(threading.Thread):
                     self.service_info.priority = random.randint(1, 100)
                     self.zeroconf.update_service(self.service_info)
                     break
+
+            except json.JSONDecodeError as e:
+                print("Error decoding JSON:", e)
 
             except socket.timeout:
                 print("Timeout")
