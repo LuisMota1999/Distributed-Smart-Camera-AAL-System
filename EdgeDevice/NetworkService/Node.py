@@ -317,23 +317,24 @@ class Node(threading.Thread):
         """
 
         while self.running:
-            try:
-                # send keep alive message
-                data = create_general_message('Teste', str(self.coordinator), 'PING', str(self.ip), int(self.port))
-                # Convert JSON data to string
-                message = json.dumps(data)
-                conn.send(bytes(message, encoding="utf-8"))
-                time.sleep(self.keep_alive_timeout)
-            except:
-                break
-
-        # close connection and remove node from list
-        if conn in self.connections:
-            self.recon_state = True
-            self.remove_node(conn, "KAlive")
-            client_id = client_id.decode('utf-8')
-            self.neighbours.pop(uuid.UUID(client_id))
-            conn.close()
+            # try:
+            # send keep alive message
+            data = create_general_message('Teste', str(self.coordinator), 'PING', str(self.ip), int(self.port))
+            print(data)
+            # Convert JSON data to string
+            message = json.dumps(data)
+            conn.send(bytes(message, encoding="utf-8"))
+            time.sleep(self.keep_alive_timeout)
+        #     except:
+        #         break
+        #
+        # # close connection and remove node from list
+        # if conn in self.connections:
+        #     self.recon_state = True
+        #     self.remove_node(conn, "KAlive")
+        #     client_id = client_id.decode('utf-8')
+        #     self.neighbours.pop(uuid.UUID(client_id))
+        #     conn.close()
 
     def start_election(self):
         """
@@ -387,7 +388,7 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                         # ACK message
-                    data = create_general_message('Teste',str(self.coordinator),'PONG',str(self.ip),int(self.port))
+                    data = create_general_message('Teste', str(self.coordinator), 'PONG', str(self.ip), int(self.port))
                     # Convert JSON data to string
                     message_json = json.dumps(data)
                     conn.sendall(bytes(message_json, encoding="utf-8"))

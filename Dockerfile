@@ -17,7 +17,7 @@ RUN mkdir -p /root/.ssh && \
 
 # Clone the private GitHub repository
 RUN git clone https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System/ /app
-WORKDIR /app
+WORKDIR /app/EdgeDevice
 
 COPY requirements.txt .
 
