@@ -417,7 +417,7 @@ class Node(threading.Thread):
                 data = conn.recv(1024).decode()
                 message = json.loads(data)
                 message_type = message.get("TYPE")
-                if message_type == "KEEPALIVE":
+                if message_type == "PING":
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message.get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
