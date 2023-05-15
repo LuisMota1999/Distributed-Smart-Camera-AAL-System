@@ -411,7 +411,7 @@ class Node(threading.Thread):
                         }
                     }
                     print("\n\n<==================>\n\n")
-                    tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time),
+                    tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time.time()),
                               SIGNATURE="SIGNATURE")
                     schema = Transaction()
                     result = schema.dump(tx)
