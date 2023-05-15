@@ -415,12 +415,12 @@ class Node(threading.Thread):
                               SIGNATURE="SIGNATURE")
                     schema = Transaction()
                     result = schema.dump(tx)
-                    pprint(result, indent=2)
+                    print(result)
                     print("\n\n<==================>\n\n")
 
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
-                print(json.dumps(message, indent=2))
+                #print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
                     # Validate the transaction
                     tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
@@ -439,7 +439,7 @@ class Node(threading.Thread):
                                 }
                             }
                             message = json.dumps(data, indent=2)
-                            self.broadcast_message(message.encode('utf-8'))
+                            self.broadcast_message(message)
                     else:
                         print("Received invalid transaction")
                         continue
@@ -454,6 +454,7 @@ class Node(threading.Thread):
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
+                break
 
             except socket.timeout as e:
                 print("Error timeout:", e)
