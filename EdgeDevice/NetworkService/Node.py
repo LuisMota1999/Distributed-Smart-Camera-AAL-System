@@ -408,7 +408,7 @@ class Node(threading.Thread):
 
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
-
+                print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
                     # Validate the transaction
                     tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
