@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from tflite_runtime.interpreter import Interpreter
 from pydub import AudioSegment
@@ -27,7 +29,7 @@ class AudioInference:
         self.samples = int(duration * self.fs)
         self.model_name = audio_model['name']
         self.threshold = audio_model['threshold']  # threshold from 0 to 1, ex. 0.85
-
+        self.last_class = ""
         # Load Model
         self.interpreter = Interpreter(f'models/{self.model_name}.tflite')
         inputs = self.interpreter.get_input_details()
@@ -98,9 +100,11 @@ class AudioInference:
         top_score = class_probabilities[top_class]
         inferred_class = self.class_names[top_class]
 
-        if top_score < self.threshold:
+        if top_score < self.threshold or inferred_class == self.last_class:
             inferred_class = 'Unknown'
 
+        self.last_class = inferred_class
         print(f'[AUDIO - \'{self.model_name}\'] {inferred_class} ({top_score})')
 
+        time.sleep(2)
         return inferred_class
