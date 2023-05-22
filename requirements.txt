@@ -131,3 +131,10 @@ wrapt==1.15.0
 zeroconf==0.47.4
 zipp==3.15.0
 zope.interface==6.0
+
+sounddevice~=0.4.6
+structlog~=23.1.0
+pafy~=0.5.5
+matplotlib~=3.7.1
+moviepy~=1.0.3
+scikit-learn~=1.2.2
