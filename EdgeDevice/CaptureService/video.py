@@ -6,7 +6,7 @@ from threading import Thread
 class WebcamVideoStream:
     def __init__(self, src, width, height, in_q):
         # initialize the video camera stream and read the first frame from the stream
-        self.stream = cv2.VideoCapture(src)
+        self.stream = cv2.VideoCapture(src, cv2.CAP_FFMPEG)
         self.found = True
 
         if self.stream is None or not self.stream.isOpened():
