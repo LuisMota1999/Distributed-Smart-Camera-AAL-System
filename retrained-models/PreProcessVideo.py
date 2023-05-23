@@ -1,10 +1,11 @@
+import datetime as dt
+
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from moviepy.editor import *
 from sklearn.model_selection import train_test_split
-import datetime as dt
-import matplotlib.pyplot as plt
 
 # Allow us to control the randomness
 seed_constant = 27
@@ -295,7 +296,7 @@ LRCN_model = create_LRCN_model()
 print("LRCN Model created successfully!")
 
 # Plot the structure of the constructed model
-tf.keras.utils.plot_model(LRCN_model, to_file='LRCN_model_structure_plot.png', show_shapes=True,
+tf.keras.utils.plot_model(LRCN_model, to_file='assets/LRCN_model_structure_plot.png', show_shapes=True,
                           show_layer_names=True)
 
 # Create an Instance of Early Stopping Callback to prevent over fitting

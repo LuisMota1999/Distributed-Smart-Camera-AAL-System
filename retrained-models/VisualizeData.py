@@ -1,17 +1,11 @@
-import os
-import cv2
-import pafy
 import math
 import random
-import numpy as np
-import datetime as dt
-import tensorflow as tf
-from collections import deque
+
+import cv2
 import matplotlib.pyplot as plt
-import requests, zipfile
-from io import StringIO
+import numpy as np
+import tensorflow as tf
 from moviepy.editor import *
-from sklearn.model_selection import train_test_split
 
 # Allow us to control the randomness
 seed_constant = 27
