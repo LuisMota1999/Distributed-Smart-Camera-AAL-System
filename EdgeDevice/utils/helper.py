@@ -103,20 +103,11 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
     # Initialize the VideoCapture object to read from the video file.
     video_reader = cv2.VideoCapture(video_file_path)
 
-    # Get the width and height of the video
-    original_video_width = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-    original_video_height = int(video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    # Initialize the VideoWriter Object to store the output video in the disk
-    # video_writer = cv2.VideoWriter(output_file_path, cv2.VideoWriter_fourcc('M', 'P', '4', 'V'),
-    # video_reader.get(cv2.CAP_PROP_FPS), (original_video_width, original_video_height))
-
     # Declare a queue to store video frames
     frames_queue = deque(maxlen=SEQUENCE_LENGTH)
 
     # Initialize a variable to store the predicted action being performed in the video
     predicted_class_name = ''
-    last_predicted_class_name = ''
 
     # Iterate until the video is accessed successfully
     while video_reader.isOpened():
@@ -137,6 +128,7 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
         # Appending the pre-processed frame into the frames list
         frames_queue.append(normalized_frame)
 
+        print(len(frames_queue))
         # Check if the number of frames in the queue are equal to the fixed sequence length.
         if len(frames_queue) == SEQUENCE_LENGTH:
             # Pass the normalized frames to the model and get the predicted probabilities
@@ -148,13 +140,4 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
             # Get the class name using the retrieved index
             predicted_class_name = CLASSES_LIST[predicted_label]
 
-        # Write predicted class name on top of the frame
-        # cv2.putText(frame, predicted_class_name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-        # Write the frame into the disk using the VideoWriter object
-        # video_writer.write(frame)
-
     return predicted_class_name
-    # Release the VideoCapture and VideoWriter object
-    # video_reader.release()
-    # video_writer.release()
