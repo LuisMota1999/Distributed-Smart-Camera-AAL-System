@@ -16,7 +16,11 @@ from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import structlog
+import os
 from pprint import pprint
+import tensorflow as tf
+
+from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos
 
 
 class NodeListener:
@@ -182,6 +186,11 @@ class Node(threading.Thread):
 
         threading.Thread(target=self.handle_reconnects).start()
 
+        time.sleep(1)
+
+        threading.Thread(target=self.handle_detection).start()
+
+
     def discovery_service(self):
         """
         The method ``discovery_service`` initializes a ``ServiceBrowser`` to search for
@@ -285,6 +294,26 @@ class Node(threading.Thread):
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
+
+    def handle_detection(self):
+        # Make the output directory if it does not exist
+        test_videos_directory = 'test_videos'
+        os.makedirs(test_videos_directory, exist_ok=True)
+
+        # Download a YouTube video
+        video_title = download_youtube_videos('https://youtube.com/watch?v=iNfqx2UCu-g', test_videos_directory)
+        print(f"Downloaded video title: {video_title}")
+
+        # Get the YouTube video's path we just downloaded
+        input_video_file_path = f'{test_videos_directory}/{video_title}.mp4'
+
+        # Load Model
+        model = tf.keras.models.load_model(
+            '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
+
+        # Perform action recognition on the test video
+        class_prediction = predict_on_video(model, input_video_file_path, 20)
+        print("[CLASS_PREDICTION] : ", class_prediction)
 
     def handle_keep_alive_messages(self, conn, client_id):
         """

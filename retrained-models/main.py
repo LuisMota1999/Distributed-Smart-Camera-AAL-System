@@ -28,7 +28,6 @@ def download_youtube_videos(youtube_video_url, output_directory):
     output_file_path = os.path.join(output_directory)
     yt.streams.get_highest_resolution().download(output_path=output_file_path)
 
-    print(yt.title)
     return yt.title
 
 
@@ -116,9 +115,7 @@ def main():
 
     # Load Model
     model = tf.keras.models.load_model(
-        'models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
-
-    print(input_video_file_path)
+        '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
 
     # Perform action recognition on the test video
     predict_on_video(model, input_video_file_path, output_video_file_path, 20)
