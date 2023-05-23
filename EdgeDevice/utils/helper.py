@@ -133,6 +133,8 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
             # Pass the normalized frames to the model and get the predicted probabilities
             predicted_labels_probabilities = model.predict(np.expand_dims(frames_queue, axis=0))[0]
 
+            print("Predicted Accuracy: ", predicted_labels_probabilities)
+
             # Get the index of class with highest probability
             predicted_label = np.argmax(predicted_labels_probabilities)
 
