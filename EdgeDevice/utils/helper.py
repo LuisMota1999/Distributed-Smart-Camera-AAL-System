@@ -128,7 +128,6 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
         # Appending the pre-processed frame into the frames list
         frames_queue.append(normalized_frame)
 
-        print(len(frames_queue))
         # Check if the number of frames in the queue are equal to the fixed sequence length.
         if len(frames_queue) == SEQUENCE_LENGTH:
             # Pass the normalized frames to the model and get the predicted probabilities
@@ -139,5 +138,6 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
 
             # Get the class name using the retrieved index
             predicted_class_name = CLASSES_LIST[predicted_label]
+            break
 
     return predicted_class_name
