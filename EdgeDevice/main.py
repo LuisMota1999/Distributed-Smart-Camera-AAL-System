@@ -4,7 +4,7 @@ from EdgeDevice.utils.helper import generate_keys
 
 
 def main():
-    generate_keys("Keys")
+    generate_keys()
     node = Node(HOST_NAME)
     print(f"Listening on {node.ip}:{node.port}...")
     node.start()

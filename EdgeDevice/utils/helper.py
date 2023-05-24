@@ -143,14 +143,15 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
     return predicted_class_name
 
 
-def generate_keys(path, key_type):
+def generate_keys():
+    current_directory = os.getcwd()
+    keys_folder = os.path.join(current_directory, '..', 'Keys')
     public_key, private_key = rsa.newkeys(1024)
-    if key_type == "PUBLIC":
-        with open(path, "wb") as f:
-            f.write(public_key.save_pkcs1("PEM"))
-    if key_type == "PRIVATE":
-        with open(path, "wb") as f:
-            f.write(private_key.save_pkcs1("PEM"))
+    with open(os.path.join(keys_folder, 'public.pem'), "wb") as f:
+        f.write(public_key.save_pkcs1("PEM"))
+
+    with open(os.path.join(keys_folder, 'private.pem'), "wb") as f:
+        f.write(private_key.save_pkcs1("PEM"))
 
 
 def get_keys():
