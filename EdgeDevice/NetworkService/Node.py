@@ -343,8 +343,6 @@ class Node(threading.Thread):
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                         "PUBLIC_KEY": self.public_key_to_json(),
-                        # .b64encode(self.public_key.save_pkcs1()).decode('utf-8'),
-                        "BLOCKCHAIN_STATE": self.blockchain.chain,
                     }
                 }
 
