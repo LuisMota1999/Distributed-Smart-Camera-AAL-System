@@ -156,7 +156,8 @@ def generate_keys():
 
 def get_keys():
     current_directory = os.getcwd()
-    keys_folder = os.path.join(current_directory, '..', 'Keys')
+    keys_folder = os.path.join(current_directory, 'Keys')
+    print(current_directory)
 
     with open(os.path.join(keys_folder, 'public.pem'), "rb") as f:
         public_key = rsa.PublicKey.load_pkcs1(f.read())
