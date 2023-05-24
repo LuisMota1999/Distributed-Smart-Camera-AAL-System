@@ -132,7 +132,7 @@ class Node(threading.Thread):
             priority=0,
             properties={'IP': self.ip, 'ID': self.id},
         )
-        self.private_key, self.public_key = get_keys("Keys/private.pem", "Keys/public.pem")
+        self.private_key, self.public_key = get_keys()
         self.blockchain.register_node({self.ip: time.time()})
         logger = structlog.getLogger(__name__)
 

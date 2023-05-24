@@ -143,18 +143,24 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
     return predicted_class_name
 
 
-def generate_keys(path):
+def generate_keys(path, key_type):
     public_key, private_key = rsa.newkeys(1024)
-    with open(path + "/public.pem", "wb") as f:
-        f.write(public_key.save_pkcs1("PEM"))
+    if key_type == "PUBLIC":
+        with open(path, "wb") as f:
+            f.write(public_key.save_pkcs1("PEM"))
+    if key_type == "PRIVATE":
+        with open(path, "wb") as f:
+            f.write(private_key.save_pkcs1("PEM"))
 
-    with open(path + "/private.pem", "wb") as f:
-        f.write(private_key.save_pkcs1("PEM"))
 
+def get_keys():
+    current_directory = os.getcwd()
+    keys_folder = os.path.join(current_directory, '..', 'Keys')
 
-def get_keys(path_pub, path_priv):
-    with open(path_pub, "rb") as key:
-        publicKey = rsa.PublicKey.load_pkcs1(key.read())
-    with open(path_priv, "rb") as key:
-        privateKey = rsa.PrivateKey.load_pkcs1(key.read())
-    return privateKey, publicKey
+    with open(os.path.join(keys_folder, 'public.pem'), "rb") as f:
+        public_key = rsa.PublicKey.load_pkcs1(f.read())
+
+    with open(os.path.join(keys_folder, 'private.pem'), "rb") as f:
+        private_key = rsa.PrivateKey.load_pkcs1(f.read())
+
+    return private_key, public_key
