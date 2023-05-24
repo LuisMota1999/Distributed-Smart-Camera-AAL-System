@@ -22,7 +22,7 @@ WORKDIR /app/EdgeDevice
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --ignore-installed sockets zeroconf thread6 python-time argparse netifaces sphinx flask requests pyOpenSSL tensorflow-intel tflite-runtime marshmallow marshmallow_oneofschema structlog pafy youtube-dl moviepy
+RUN pip install --ignore-installed sockets zeroconf thread6 python-time argparse netifaces sphinx flask requests pyOpenSSL tensorflow-intel tflite-runtime marshmallow marshmallow_oneofschema structlog pafy youtube-dl moviepy pytube pycryptodomex
 
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 
