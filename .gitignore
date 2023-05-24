@@ -3,6 +3,7 @@
 
 #Folder containing data to models
 retrained-models/datasets
+EdgeDevice/Keys/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
