@@ -441,8 +441,8 @@ class Node(threading.Thread):
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
-
-                    if self.coordinator in self.neighbours and self.neighbours[self.coordinator]['public_key'] is None:
+                    print(message_type)
+                    if self.coordinator is not None and self.coordinator in self.neighbours and self.neighbours[self.coordinator]['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
                         public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
 
