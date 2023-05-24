@@ -1,4 +1,5 @@
 import argparse
+import base64
 import logging
 import random
 import socket
@@ -330,7 +331,7 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": self.public_key,
+                        "PUBLIC_KEY": base64.b64encode(self.public_key.save_pkcs1()).decode('utf-8'),
                         "BLOCKCHAIN_STATE": self.blockchain.chain,
                     }
                 }
