@@ -18,7 +18,8 @@ from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import os
 import tensorflow as tf
-
+from cryptography.hazmat.primitives import serialization
+import base64
 from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys
 
 
@@ -290,6 +291,14 @@ class Node(threading.Thread):
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
 
+    def public_key_to_json(self):
+        public_key_pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        public_key_base64 = base64.b64encode(public_key_pem).decode('utf-8')
+        return public_key_base64
+
     def handle_detection(self):
         # Make the output directory if it does not exist
         test_videos_directory = 'test_videos'
@@ -331,7 +340,7 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": base64.b64encode(self.public_key.save_pkcs1()).decode('utf-8'),
+                        "PUBLIC_KEY": self.public_key_to_json(),#.b64encode(self.public_key.save_pkcs1()).decode('utf-8'),
                         "BLOCKCHAIN_STATE": self.blockchain.chain,
                     }
                 }
@@ -362,22 +371,23 @@ class Node(threading.Thread):
         :return: None
         """
         if self.coordinator is None and len(self.connections) > 0:
-            self.election_in_progress = True
-            higher_nodes = []
-            for neighbour_id, neighbour in self.neighbours.items():
-                if neighbour_id > self.id:
-                    higher_nodes.append(neighbour['ip'])
-            if higher_nodes:
-                for ip in higher_nodes:
-                    for node in self.connections:
-                        if node.getpeername()[0] == ip:
-                            print(f"Node {self.ip} sent ELECTION message to {ip}")
-
-            else:
-                self.coordinator = self.id
-                self.broadcast_message(f"COORDINATOR {self.coordinator}")
-                print(f"Node {self.id} is the new coordinator")
-                self.election_in_progress = False
+            pass
+            # self.election_in_progress = True
+            # higher_nodes = []
+            # for neighbour_id, neighbour in self.neighbours.items():
+            #     if neighbour_id > self.id:
+            #         higher_nodes.append(neighbour['ip'])
+            # if higher_nodes:
+            #     for ip in higher_nodes:
+            #         for node in self.connections:
+            #             if node.getpeername()[0] == ip:
+            #                 print(f"Node {self.ip} sent ELECTION message to {ip}")
+            #
+            # else:
+            #     self.coordinator = self.id
+            #     self.broadcast_message(f"COORDINATOR {self.coordinator}")
+            #     print(f"Node {self.id} is the new coordinator")
+            #     self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
@@ -430,7 +440,15 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                     if self.coordinator in self.neighbours and self.neighbours[self.coordinator]['public_key'] is None:
-                        self.neighbours[self.coordinator]['public_key'] = message["PAYLOAD"].get("PUBLIC_KEY")
+                        # Extract the base64-encoded public key from the received message
+                        public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
+
+                        # Decode the base64-encoded public key back to bytes
+                        public_key_pem = base64.b64decode(public_key_base64)
+
+                        # Load the decoded public key bytes into a public key object
+                        public_key = serialization.load_pem_public_key(public_key_pem)
+                        self.neighbours[self.coordinator]['public_key'] = public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
