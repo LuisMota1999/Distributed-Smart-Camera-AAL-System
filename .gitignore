@@ -3,7 +3,9 @@
 
 #Folder containing data to models
 retrained-models/datasets
-EdgeDevice/Keys/
+EdgeDevice/Keys/public.pem
+EdgeDevice/Keys/private.pem
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
