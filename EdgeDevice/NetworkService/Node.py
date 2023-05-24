@@ -11,14 +11,12 @@ import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
     NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
-from EdgeDevice.NetworkService.Schema import Transaction
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import os
 import tensorflow as tf
-from cryptography.hazmat.primitives import serialization
 import base64
 from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys
 
@@ -343,6 +341,7 @@ class Node(threading.Thread):
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                         "PUBLIC_KEY": self.public_key_to_json(),
+                        "BLOCKCHAIN_STATE": self.blockchain,
                     }
                 }
 
@@ -440,7 +439,8 @@ class Node(threading.Thread):
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-                    if self.coordinator is not None and self.coordinator in self.neighbours and self.neighbours[self.coordinator]['public_key'] is None:
+                    if self.coordinator is not None and self.coordinator in self.neighbours and \
+                            self.neighbours[self.coordinator]['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
                         public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
 
