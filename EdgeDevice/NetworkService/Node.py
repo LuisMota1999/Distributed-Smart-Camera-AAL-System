@@ -341,7 +341,6 @@ class Node(threading.Thread):
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                         "PUBLIC_KEY": self.public_key_to_json(),
-                        "BLOCKCHAIN_STATE": self.blockchain,
                     }
                 }
 
@@ -372,22 +371,22 @@ class Node(threading.Thread):
         """
         if self.coordinator is None and len(self.connections) > 0:
             pass
-            # self.election_in_progress = True
-            # higher_nodes = []
-            # for neighbour_id, neighbour in self.neighbours.items():
-            #     if neighbour_id > self.id:
-            #         higher_nodes.append(neighbour['ip'])
-            # if higher_nodes:
-            #     for ip in higher_nodes:
-            #         for node in self.connections:
-            #             if node.getpeername()[0] == ip:
-            #                 print(f"Node {self.ip} sent ELECTION message to {ip}")
-            #
-            # else:
-            #     self.coordinator = self.id
-            #     self.broadcast_message(f"COORDINATOR {self.coordinator}")
-            #     print(f"Node {self.id} is the new coordinator")
-            #     self.election_in_progress = False
+            self.election_in_progress = True
+            higher_nodes = []
+            for neighbour_id, neighbour in self.neighbours.items():
+                if neighbour_id > self.id:
+                    higher_nodes.append(neighbour['ip'])
+            if higher_nodes:
+                for ip in higher_nodes:
+                    for node in self.connections:
+                        if node.getpeername()[0] == ip:
+                            print(f"Node {self.ip} sent ELECTION message to {ip}")
+
+            else:
+                self.coordinator = self.id
+                self.broadcast_message(f"COORDINATOR {self.coordinator}")
+                print(f"Node {self.id} is the new coordinator")
+                self.election_in_progress = False
         elif self.coordinator is None and len(self.connections) <= 0:
             self.coordinator = self.id
             print(f"Node {self.id} is the coordinator")
