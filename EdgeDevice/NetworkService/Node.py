@@ -15,9 +15,7 @@ from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
-import structlog
 import os
-from pprint import pprint
 import tensorflow as tf
 
 from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys
@@ -104,6 +102,7 @@ class Node(threading.Thread):
         """
         super().__init__()
         self.id = uuid.uuid4()
+        self.private_key, self.public_key = get_keys()
         self.name = name
         self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
@@ -118,7 +117,7 @@ class Node(threading.Thread):
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: self.ip}
+        self.neighbours = {self.id: {self.ip, self.public_key}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -132,9 +131,7 @@ class Node(threading.Thread):
             priority=0,
             properties={'IP': self.ip, 'ID': self.id},
         )
-        self.private_key, self.public_key = get_keys()
         self.blockchain.register_node({self.ip: time.time()})
-        logger = structlog.getLogger(__name__)
 
     def run(self):
         """
@@ -274,11 +271,9 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id)
                 self.list_peers()
 
-                # if self.coordinator == self.id:
-                #     peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id), "coordinator": self.coordinator}
-                #     peer_info = json.dumps(peer_info)
-                #     peer_info = f"CONNECT{peer_info}"
-                #     conn.sendto(peer_info.encode(), (client_host, client_port))
+                # if self.coordinator == self.id: peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id),
+                # "coordinator": self.coordinator} peer_info = json.dumps(peer_info) peer_info = f"CONNECT{
+                # peer_info}" conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
@@ -364,8 +359,8 @@ class Node(threading.Thread):
         if self.coordinator is None and len(self.connections) > 0:
             self.election_in_progress = True
             higher_nodes = []
-            for id, neighbour in self.neighbours.items():
-                if id > self.id:
+            for neighbour_id, neighbour in self.neighbours.items():
+                if neighbour_id > self.id:
                     higher_nodes.append(neighbour)
             if higher_nodes:
                 for ip in higher_nodes:
@@ -438,13 +433,14 @@ class Node(threading.Thread):
                             "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
-                    print("\n\n<==================>\n\n")
-                    tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time.time()),
-                              SIGNATURE="SIGNATURE")
-                    schema = Transaction()
-                    result = schema.dumps(tx)
-                    print(result)
-                    print("\n\n<==================>\n\n")
+                    # print("\n\n<==================>\n\n")
+                    # tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time.time()),
+                    #           SIGNATURE="SIGNATURE")
+                    # schema = Transaction()
+                    # result = schema.dumps(tx)
+                    # print(result)
+                    # print("\n\n<==================>\n\n")
+                    print(self.neighbours)
 
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
