@@ -49,7 +49,7 @@ class NodeListener:
             ip_list = info.parsed_addresses()
             for ip in ip_list:
                 if ip != self.node.ip:
-                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'PUBLIC_KEY'))
+                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -117,7 +117,7 @@ class Node(threading.Thread):
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: {self.ip, self.public_key}}
+        self.neighbours = {self.id: {'ip': self.ip, 'public_key': self.public_key}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -129,7 +129,7 @@ class Node(threading.Thread):
             port=HOST_PORT,
             weight=0,
             priority=0,
-            properties={'IP': self.ip, 'ID': self.id, 'PUBLIC_KEY': self.public_key},
+            properties={'IP': self.ip, 'ID': self.id},
         )
         self.blockchain.register_node({self.ip: time.time()})
 
@@ -241,14 +241,13 @@ class Node(threading.Thread):
                 flag = False
         return flag
 
-    def connect_to_peer(self, client_host, client_port, client_id, public_key):
+    def connect_to_peer(self, client_host, client_port, client_id):
         """
         The `connect_to_peer` method is used to create a socket connection with the specified client. If the
         specified client is already connected, it will not create a new connection. It adds a new node by creating a
         socket connection to the specified client and adds it to the node list. Additionally, it starts threads to
         handle incoming messages and to send keep-alive messages.
 
-        :param public_key: The public key of the new node
         :param client_id:The ID of the new node.
         :type client_id: bytes
         :param client_host: The host address of the client to connect to, e.g. [192.168.X.X].
@@ -269,7 +268,8 @@ class Node(threading.Thread):
                 conn.connect((client_host, client_port))
                 conn.settimeout(60.0)
 
-                self.add_node(conn, client_id, public_key)
+                conn.send(self.public_key.encode())
+                self.add_node(conn, client_id)
                 self.list_peers()
 
                 # if self.coordinator == self.id: peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id),
@@ -352,8 +352,8 @@ class Node(threading.Thread):
 
     def start_election(self):
         """
-        The ``start_election`` method start the election among the nodes in the network. Sets the node with higher uid
-        the coordinator.
+        The ``start_election`` method starts the election among the nodes in the network. Sets the node with the higher UID
+        as the coordinator.
 
         :return: None
         """
@@ -362,7 +362,7 @@ class Node(threading.Thread):
             higher_nodes = []
             for neighbour_id, neighbour in self.neighbours.items():
                 if neighbour_id > self.id:
-                    higher_nodes.append(neighbour)
+                    higher_nodes.append(neighbour['ip'])
             if higher_nodes:
                 for ip in higher_nodes:
                     for node in self.connections:
@@ -424,6 +424,9 @@ class Node(threading.Thread):
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
+
+                    if self.coordinator in self.neighbours and self.neighbours[self.coordinator]['public_key'] is None:
+                        self.neighbours[self.coordinator]['public_key'] = self.public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
@@ -546,7 +549,7 @@ class Node(threading.Thread):
         self.running = False
         self.zeroconf.close()
 
-    def add_node(self, conn, client_id, client_public_key):
+    def add_node(self, conn, client_id):
         """
         The ``add_node`` method checks if the node is already in the list of connections, if the node is not in the list
         of connections add the new node to the BlockchainService network and to the list of node peer connections.
@@ -569,8 +572,11 @@ class Node(threading.Thread):
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
 
             # Add the new node to the dictionary of neighbors
-            self.neighbours.update(
-                {uuid.UUID(client_id): {'ip': conn.getpeername()[0], 'public_key': client_public_key}})
+            new_client_id = uuid.UUID(client_id)
+            new_ip = conn.getpeername()[0]
+            new_public_key = None
+
+            self.neighbours[new_client_id] = {'ip': new_ip, 'public_key': new_public_key}
 
             # Print a message indicating that the new node has been added to the network
             print(f"Node {conn.getpeername()[0]} added to the network")
