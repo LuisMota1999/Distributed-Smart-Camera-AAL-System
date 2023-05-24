@@ -185,7 +185,7 @@ class Node(threading.Thread):
 
         time.sleep(1)
 
-        threading.Thread(target=self.handle_detection).start()
+        # threading.Thread(target=self.handle_detection).start()
 
     def discovery_service(self):
         """
@@ -268,7 +268,6 @@ class Node(threading.Thread):
                 conn.connect((client_host, client_port))
                 conn.settimeout(60.0)
 
-                conn.send(self.public_key.encode())
                 self.add_node(conn, client_id)
                 self.list_peers()
 
@@ -331,6 +330,7 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
+                        "PUBLIC_KEY": self.public_key,
                         "BLOCKCHAIN_STATE": self.blockchain.chain,
                     }
                 }
@@ -426,7 +426,7 @@ class Node(threading.Thread):
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
 
                     if self.coordinator in self.neighbours and self.neighbours[self.coordinator]['public_key'] is None:
-                        self.neighbours[self.coordinator]['public_key'] = self.public_key
+                        self.neighbours[self.coordinator]['public_key'] = message["PAYLOAD"].get("PUBLIC_KEY")
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
