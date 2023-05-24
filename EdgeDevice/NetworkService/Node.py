@@ -20,7 +20,7 @@ import os
 from pprint import pprint
 import tensorflow as tf
 
-from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos
+from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys
 
 
 class NodeListener:
@@ -132,7 +132,7 @@ class Node(threading.Thread):
             priority=0,
             properties={'IP': self.ip, 'ID': self.id},
         )
-
+        self.private_key, self.public_key = get_keys("Keys/private.pem", "Keys/public.pem")
         self.blockchain.register_node({self.ip: time.time()})
         logger = structlog.getLogger(__name__)
 

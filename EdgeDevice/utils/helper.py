@@ -2,12 +2,10 @@ import uuid
 import random
 import datetime
 from EdgeDevice.InferenceService.audio import AudioInference
-from Crypto.Hash import SHA256
+import rsa
 from collections import deque
-
 import cv2
 import numpy as np
-import tensorflow as tf
 from moviepy.editor import *
 from pytube import YouTube
 
@@ -143,3 +141,20 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
             break
 
     return predicted_class_name
+
+
+def generate_keys(path):
+    public_key, private_key = rsa.newkeys(1024)
+    with open(path + "/public.pem", "wb") as f:
+        f.write(public_key.save_pkcs1("PEM"))
+
+    with open(path + "/private.pem", "wb") as f:
+        f.write(private_key.save_pkcs1("PEM"))
+
+
+def get_keys(path_pub, path_priv):
+    with open(path_pub, "rb") as key:
+        publicKey = rsa.PublicKey.load_pkcs1(key.read())
+    with open(path_priv, "rb") as key:
+        privateKey = rsa.PrivateKey.load_pkcs1(key.read())
+    return privateKey, publicKey

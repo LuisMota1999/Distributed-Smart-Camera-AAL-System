@@ -44,7 +44,7 @@ def validate_transaction(tx: dict) -> bool:
     :return: <bool>
     """
 
-    public_key = tx["sender"]
+    public_key = tx["SENDER"]
 
     # We need to strip the "signature" key from the tx
     signature = tx.pop("signature")

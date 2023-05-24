@@ -1,21 +1,13 @@
-import datetime
-import threading
-import time
 from EdgeDevice.NetworkService.Node import Node
 from EdgeDevice.utils import HOST_NAME
-from InferenceService.audio import AudioInference
-
-
-# Disabled for compatibility with RPI
-# from CaptureService.video import WebcamVideoStream
-# from InferenceService.video import VideoInference
+from EdgeDevice.utils.helper import generate_keys
 
 
 def main():
+    generate_keys("Keys")
     node = Node(HOST_NAME)
     print(f"Listening on {node.ip}:{node.port}...")
     node.start()
-
 
 
 if __name__ == '__main__':
