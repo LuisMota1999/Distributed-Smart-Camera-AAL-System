@@ -1,5 +1,5 @@
 import argparse
-import base64
+import rsa
 import logging
 import random
 import socket
@@ -292,12 +292,14 @@ class Node(threading.Thread):
                 time.sleep(10)
 
     def public_key_to_json(self):
-        public_key_pem = self.public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        public_key_base64 = base64.b64encode(public_key_pem).decode('utf-8')
+        public_key_bytes = self.public_key.save_pkcs1(format='PEM')
+        public_key_base64 = base64.b64encode(public_key_bytes).decode('utf-8')
         return public_key_base64
+
+    def load_public_key_from_json(self, public_key_json):
+        public_key_bytes = base64.b64decode(public_key_json.encode('utf-8'))
+        public_key = rsa.PublicKey.load_pkcs1(public_key_bytes, format='PEM')
+        return public_key
 
     def handle_detection(self):
         # Make the output directory if it does not exist
@@ -340,7 +342,8 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": self.public_key_to_json(),#.b64encode(self.public_key.save_pkcs1()).decode('utf-8'),
+                        "PUBLIC_KEY": self.public_key_to_json(),
+                        # .b64encode(self.public_key.save_pkcs1()).decode('utf-8'),
                         "BLOCKCHAIN_STATE": self.blockchain.chain,
                     }
                 }
@@ -444,10 +447,8 @@ class Node(threading.Thread):
                         public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
 
                         # Decode the base64-encoded public key back to bytes
-                        public_key_pem = base64.b64decode(public_key_base64)
+                        public_key = self.load_public_key_from_json(public_key_base64)
 
-                        # Load the decoded public key bytes into a public key object
-                        public_key = serialization.load_pem_public_key(public_key_pem)
                         self.neighbours[self.coordinator]['public_key'] = public_key
 
                     data = {
@@ -514,9 +515,15 @@ class Node(threading.Thread):
                     conn.close()
                 break
 
+            except ConnectionResetError as c:
+                print(f"Connection Reset Error {c.strerror}")
+                if conn in self.connections:
+                    self.remove_node(conn, "ConnectionResetError")
+                    conn.close()
+                break
+
             except OSError as e:
                 print(f"System Error {e.strerror}")
-                self.recon_state = True
                 if conn in self.connections:
                     self.remove_node(conn, "OSError")
                     conn.close()
@@ -524,17 +531,8 @@ class Node(threading.Thread):
 
             except Exception as ex:
                 print(f"Exception Error {ex.args}")
-                self.recon_state = True
                 if conn in self.connections:
                     self.remove_node(conn, "Exception")
-                    conn.close()
-                break
-
-            except ConnectionResetError as c:
-                print(f"Connection Reset Error {c.strerror}")
-                self.recon_state = True
-                if conn in self.connections:
-                    self.remove_node(conn, "ConnectionResetError")
                     conn.close()
                 break
 
