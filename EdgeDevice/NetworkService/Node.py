@@ -339,15 +339,18 @@ class Node(threading.Thread):
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
-            except:
+            except Exception as ex:  # Catch the specific exception you want to handle
+                print(ex.args)
                 break
 
         # close connection and remove node from list
         if conn in self.connections:
             self.recon_state = True
             self.remove_node(conn, "KAlive")
-            client_id = client_id.decode('utf-8')
-            self.neighbours.pop(uuid.UUID(client_id))
+            client_id_str = client_id.decode('utf-8')
+            client_uuid = uuid.UUID(client_id_str)
+            if client_uuid in self.neighbours:
+                self.neighbours.pop(client_uuid)
             conn.close()
 
     def start_election(self):
