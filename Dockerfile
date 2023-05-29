@@ -26,3 +26,4 @@ RUN pip install --ignore-installed sockets zeroconf thread6 python-time argparse
 
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 
+CMD ["python3.9", "main.py"]
