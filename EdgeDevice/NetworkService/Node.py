@@ -459,7 +459,7 @@ class Node(threading.Thread):
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
 
-                        self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'] = public_key
+                        #self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'] = public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
