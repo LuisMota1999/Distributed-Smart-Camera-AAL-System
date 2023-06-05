@@ -334,6 +334,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
+
                 data = {
                     "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                     "TYPE": "PING",
@@ -465,7 +466,9 @@ class Node(threading.Thread):
                     # print(result)
                     # print("\n\n<==================>\n\n")
                     print(self.neighbours)
-
+                    print("\n\n<==================>\n\n")
+                    print(data)
+                    print("\n\n<==================>\n\n")
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
                 # print(json.dumps(message, indent=2))
