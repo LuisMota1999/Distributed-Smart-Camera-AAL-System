@@ -433,7 +433,18 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(1024)
                 # Attempt to decrypt the received data
-                message = json.loads(data.decode())
+
+                try:
+                    data = rsa.decrypt(data, self.private_key)
+                    is_encrypted = True
+                except rsa.DecryptionError:
+                    is_encrypted = False
+
+                if is_encrypted:
+                    message = json.loads(data)
+                else:
+                    message = json.loads(data.decode())
+
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
@@ -448,7 +459,7 @@ class Node(threading.Thread):
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
 
-                        #self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'] = public_key
+                        self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'] = public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
@@ -469,7 +480,7 @@ class Node(threading.Thread):
 
                     message_json = json.dumps(data, indent=2)
                     encrypted_message = rsa.encrypt(message_json.encode(),
-                                                    self.neighbours[message["META"]["FROM_ADDRESS"]]['public_key'])
+                                                    self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'])
                     conn.send(encrypted_message)
                 # print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
