@@ -431,15 +431,20 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                if self.neighbours[conn.getpeername()[0]]["PUBLIC_KEY"] is None:
-                    print(f"Nao tenho chave publica do {conn.getpeername()[0]}")
-                    decrypted_message = conn.recv(1024).decode()
-                else:
-                    print(f"Tenho chave publica do {conn.getpeername()[0]} com o conteúdo ")
-                    decrypted_message = conn.recv(1024)
-                    decrypted_message = rsa.decrypt(decrypted_message, self.private_key)
+                data = conn.recv(1024)
+                # Attempt to decrypt the received data
+                print(data)
+                try:
+                    data = rsa.decrypt(data, self.private_key)
+                    is_encrypted = True
+                except rsa.DecryptionError:
+                    is_encrypted = False
 
-                message = json.loads(decrypted_message)
+                if is_encrypted:
+                    message = json.loads(data)
+                else:
+                    message = json.loads(data.decode())
+
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
