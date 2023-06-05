@@ -433,18 +433,7 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(1024)
                 # Attempt to decrypt the received data
-                print(data)
-                try:
-                    data = rsa.decrypt(data, self.private_key)
-                    is_encrypted = True
-                except rsa.DecryptionError:
-                    is_encrypted = False
-
-                if is_encrypted:
-                    message = json.loads(data)
-                else:
-                    message = json.loads(data.decode())
-
+                message = json.loads(data.decode())
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
