@@ -3,11 +3,11 @@ import time
 import json
 import base64
 
-with open("public.pem", "rb") as f:
+with open("../Keys/public.pem", "rb") as f:
     public_key_data = f.read()
     public_key = rsa.PublicKey.load_pkcs1(public_key_data)
 
-with open("private.pem", "rb") as f:
+with open("../Keys/private.pem", "rb") as f:
     private_key = rsa.PrivateKey.load_pkcs1(f.read())
 
 # Convert the public key to a Base64-encoded string
@@ -18,8 +18,7 @@ message = {
     "amount": "tx",
     "timestamp": int(time.time()),
 }
-encrypted_message = rsa.encrypt(json.dumps(message).encode(), public_key)
-print(encrypted_message)
+encrypted_message = json.dumps(message).encode()
 
 decrypted_message = rsa.decrypt(encrypted_message, private_key)
 print(decrypted_message.decode())

@@ -431,8 +431,15 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                data = conn.recv(1024).decode()
-                message = json.loads(data)
+                if self.neighbours[conn.getpeername()[0]]["PUBLIC_KEY"] is None:
+                    decrypted_message = conn.recv(1024).decode()
+                    print(f"Nao tenho chave publica do {conn.getpeername()[0]}")
+                else:
+                    decrypted_message = conn.recv(1024)
+                    decrypted_message = rsa.decrypt(decrypted_message, self.private_key)
+                    print(f"Tenho chave publica do {conn.getpeername()[0]} com o conteúdo {decrypted_message}")
+
+                message = json.loads(decrypted_message)
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
