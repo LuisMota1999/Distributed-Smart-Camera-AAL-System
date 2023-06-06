@@ -473,10 +473,12 @@ class Node(threading.Thread):
                     }
 
                     message_json = json.dumps(data, indent=2)
-                    encrypted_message = rsa.encrypt(message_json.encode(),
-                                                    self.get_public_key_by_ip(conn.getpeername()[0]))
 
                     print(f" Public Key from {conn.getpeername()[0]} is {self.get_public_key_by_ip(conn.getpeername()[0])}")
+
+                    encrypted_message = rsa.encrypt(json.dumps(data).encode(),
+                                                    self.get_public_key_by_ip(conn.getpeername()[0]))
+
                     print(encrypted_message)
                     conn.send(encrypted_message)
                 # print(json.dumps(message, indent=2))
