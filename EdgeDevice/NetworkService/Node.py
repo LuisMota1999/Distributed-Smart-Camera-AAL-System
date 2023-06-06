@@ -335,7 +335,7 @@ class Node(threading.Thread):
                 # send keep alive message
 
                 data = {
-                    "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "META": meta(str(self.id),self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                     "TYPE": "PING",
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
@@ -454,8 +454,8 @@ class Node(threading.Thread):
                     print(message_type)
                     print(self.neighbours)
                     print("\n")
-                    neighbour_ip = message['META']['FROM_ADDRESS']['IP']
-                    neighbour = self.neighbours.get(neighbour_ip)
+                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
+                    neighbour = self.neighbours.get(neighbour_id)
                     print(neighbour)
                     print("\n")
                     if neighbour is not None and neighbour['public_key'] is None:
@@ -465,11 +465,11 @@ class Node(threading.Thread):
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
                         if public_key is not None:
-                            # Set public key to neighbour IP address in the dictionary
-                            neighbour['public_key'] = public_key
+                            # Update public key for the specific IP address in the dictionary
+                            self.neighbours[neighbour_id]['public_key'] = public_key
 
                     data = {
-                        "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                         "TYPE": "PONG",
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
@@ -486,6 +486,7 @@ class Node(threading.Thread):
 
                     print(encrypted_message)
                     conn.send(encrypted_message)
+
                 # print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
                     # Validate the transaction
@@ -496,7 +497,7 @@ class Node(threading.Thread):
                         if tx not in self.blockchain.pending_transactions:
                             self.blockchain.pending_transactions.append(tx)
                             data = {
-                                "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                                "META": meta(str(self.id),self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                                 "TYPE": "TRANSACTION",
                                 "PAYLOAD": {
                                     "COORDINATOR": str(self.coordinator),
