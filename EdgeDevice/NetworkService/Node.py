@@ -333,32 +333,27 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                client_id = client_id.decode('utf-8')
-                neighbour_id = uuid.UUID(client_id)
+                identifier = client_id.decode('utf-8')
+                neighbour_id = uuid.UUID(identifier)
                 neighbour = self.neighbours.get(neighbour_id)
 
+                data = {
+                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "TYPE": "PING",
+                    "PAYLOAD": {
+                        "LAST_TIME_ALIVE": time.time(),
+                        "COORDINATOR": str(self.coordinator),
+                        "PUBLIC_KEY": self.public_key_to_json(),
+                    }
+                }
 
                 if neighbour is not None and neighbour['public_key'] is None:
                     # Convert JSON data to string
-                    data = {
-                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
-                        "TYPE": "PING",
-                        "PAYLOAD": {
-                            "LAST_TIME_ALIVE": time.time(),
-                            "COORDINATOR": str(self.coordinator),
-                            "PUBLIC_KEY": self.public_key_to_json(),
-                        }
-                    }
+
                     message = json.dumps(data, indent=2)
                     conn.send(bytes(message, encoding="utf-8"))
                 else:
-                    data = {
-                        "TYPE": "PING",
-                        "PAYLOAD": {
-                            "LAST_TIME_ALIVE": time.time(),
-                            "COORDINATOR": str(self.coordinator),
-                        }
-                    }
+
                     encrypted_message = rsa.encrypt(json.dumps(data).encode(),
                                                     self.get_public_key_by_ip(conn.getpeername()[0]))
                     conn.send(encrypted_message)
@@ -507,7 +502,8 @@ class Node(threading.Thread):
                         if tx not in self.blockchain.pending_transactions:
                             self.blockchain.pending_transactions.append(tx)
                             data = {
-                                "META": meta(str(self.id),self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                                "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                             conn.getpeername()[1]),
                                 "TYPE": "TRANSACTION",
                                 "PAYLOAD": {
                                     "COORDINATOR": str(self.coordinator),

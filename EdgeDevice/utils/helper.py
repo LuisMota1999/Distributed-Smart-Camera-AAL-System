@@ -146,7 +146,7 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
 def generate_keys():
     current_directory = os.getcwd()
     keys_folder = os.path.join(current_directory, 'Keys')
-    public_key, private_key = rsa.newkeys(1024)
+    public_key, private_key = rsa.newkeys(2048)
     with open(os.path.join(keys_folder, 'public.pem'), "wb") as f:
         f.write(public_key.save_pkcs1("PEM"))
 
