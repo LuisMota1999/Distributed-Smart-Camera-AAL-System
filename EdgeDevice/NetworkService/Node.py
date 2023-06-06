@@ -456,10 +456,10 @@ class Node(threading.Thread):
                             self.neighbours[message['META']['FROM_ADDRESS']['IP']]['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
                         public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
-
+                        print(public_key_base64)
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
-                        print(public_key)
+
                         self.neighbours[message['META']['FROM_ADDRESS']['IP']]['public_key'] = public_key
 
                     data = {
