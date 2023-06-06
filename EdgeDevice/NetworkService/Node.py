@@ -454,14 +454,16 @@ class Node(threading.Thread):
                     print(message_type)
                     neighbour_ip = message['META']['FROM_ADDRESS']['IP']
                     neighbour = self.neighbours.get(neighbour_ip)
+                    print(neighbour)
                     if neighbour is not None and neighbour['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
                         public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
                         print(public_key_base64)
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
-                        # Set public key to neighbour ip address in dict
-                        neighbour['public_key'] = public_key
+                        if public_key is not None:
+                            # Set public key to neighbour IP address in the dictionary
+                            neighbour['public_key'] = public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
