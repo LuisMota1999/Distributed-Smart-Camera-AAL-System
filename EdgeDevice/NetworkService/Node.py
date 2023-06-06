@@ -333,6 +333,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
+                client_id = client_id.decode('utf-8')
+                neighbour_id = uuid.UUID(client_id)
+                neighbour = self.neighbours.get(neighbour_id)
 
                 data = {
                     "META": meta(str(self.id),self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
@@ -344,9 +347,15 @@ class Node(threading.Thread):
                     }
                 }
 
-                # Convert JSON data to string
-                message = json.dumps(data, indent=2)
-                conn.send(bytes(message, encoding="utf-8"))
+                if neighbour is not None and neighbour['public_key'] is None:
+                    # Convert JSON data to string
+                    message = json.dumps(data, indent=2)
+                    conn.send(bytes(message, encoding="utf-8"))
+                else:
+                    encrypted_message = rsa.encrypt(json.dumps(data).encode(),
+                                                    self.get_public_key_by_ip(conn.getpeername()[0]))
+                    conn.send(encrypted_message)
+
                 time.sleep(self.keep_alive_timeout)
             except Exception as ex:  # Catch the specific exception you want to handle
                 print(ex.args)
@@ -452,16 +461,14 @@ class Node(threading.Thread):
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-                    print(self.neighbours)
-                    print("\n")
+
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
                     neighbour = self.neighbours.get(neighbour_id)
-                    print(neighbour)
-                    print("\n")
+
                     if neighbour is not None and neighbour['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
                         public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
-                        print(public_key_base64)
+
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
                         if public_key is not None:
@@ -474,12 +481,8 @@ class Node(threading.Thread):
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
-                            "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
-
-                    print(
-                        f" Public Key from {conn.getpeername()[0]} is {self.get_public_key_by_ip(conn.getpeername()[0])}")
 
                     encrypted_message = rsa.encrypt(json.dumps(data).encode(),
                                                     self.get_public_key_by_ip(conn.getpeername()[0]))
