@@ -337,21 +337,28 @@ class Node(threading.Thread):
                 neighbour_id = uuid.UUID(client_id)
                 neighbour = self.neighbours.get(neighbour_id)
 
-                data = {
-                    "META": meta(str(self.id),self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
-                    "TYPE": "PING",
-                    "PAYLOAD": {
-                        "LAST_TIME_ALIVE": time.time(),
-                        "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": self.public_key_to_json(),
-                    }
-                }
 
                 if neighbour is not None and neighbour['public_key'] is None:
                     # Convert JSON data to string
+                    data = {
+                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "TYPE": "PING",
+                        "PAYLOAD": {
+                            "LAST_TIME_ALIVE": time.time(),
+                            "COORDINATOR": str(self.coordinator),
+                            "PUBLIC_KEY": self.public_key_to_json(),
+                        }
+                    }
                     message = json.dumps(data, indent=2)
                     conn.send(bytes(message, encoding="utf-8"))
                 else:
+                    data = {
+                        "TYPE": "PING",
+                        "PAYLOAD": {
+                            "LAST_TIME_ALIVE": time.time(),
+                            "COORDINATOR": str(self.coordinator),
+                        }
+                    }
                     encrypted_message = rsa.encrypt(json.dumps(data).encode(),
                                                     self.get_public_key_by_ip(conn.getpeername()[0]))
                     conn.send(encrypted_message)
