@@ -452,15 +452,15 @@ class Node(threading.Thread):
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-                    if self.coordinator is not None and message["META"]["FROM_ADDRESS"]["IP"] in self.neighbours and \
-                            self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'] is None:
+                    if message['META']['FROM_ADDRESS']['IP'] in self.neighbours and \
+                            self.neighbours[message['META']['FROM_ADDRESS']['IP']]['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
-                        public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
+                        public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
 
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
-
-                        self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'] = public_key
+                        print(public_key)
+                        self.neighbours[message['META']['FROM_ADDRESS']['IP']]['public_key'] = public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
@@ -474,7 +474,8 @@ class Node(threading.Thread):
 
                     message_json = json.dumps(data, indent=2)
 
-                    print(f" Public Key from {conn.getpeername()[0]} is {self.get_public_key_by_ip(conn.getpeername()[0])}")
+                    print(
+                        f" Public Key from {conn.getpeername()[0]} is {self.get_public_key_by_ip(conn.getpeername()[0])}")
 
                     encrypted_message = rsa.encrypt(json.dumps(data).encode(),
                                                     self.get_public_key_by_ip(conn.getpeername()[0]))
