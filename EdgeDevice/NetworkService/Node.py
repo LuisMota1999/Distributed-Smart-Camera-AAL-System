@@ -444,6 +444,7 @@ class Node(threading.Thread):
                     message = json.loads(data)
                 else:
                     message = json.loads(data.decode())
+                    print(message)
 
                 message_type = message.get("TYPE")
                 if message_type == "PING":
@@ -470,17 +471,13 @@ class Node(threading.Thread):
                             "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
-                    # print("\n\n<==================>\n\n")
-                    # tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time.time()),
-                    #           SIGNATURE="SIGNATURE")
-                    # schema = Transaction()
-                    # result = schema.dumps(tx)
-                    # print(result)
-                    # print("\n\n<==================>\n\n")
 
                     message_json = json.dumps(data, indent=2)
                     encrypted_message = rsa.encrypt(message_json.encode(),
                                                     self.get_public_key_by_ip(conn.getpeername()[0]))
+
+                    print(f" Public Key from {conn.getpeername()[0]} is {self.get_public_key_by_ip(conn.getpeername()[0])}")
+                    print(encrypted_message)
                     conn.send(encrypted_message)
                 # print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
