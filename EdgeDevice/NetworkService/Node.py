@@ -439,6 +439,7 @@ class Node(threading.Thread):
                 except rsa.DecryptionError:
                     is_encrypted = False
 
+                print(is_encrypted)
                 if is_encrypted:
                     message = json.loads(data)
                 else:
@@ -479,7 +480,7 @@ class Node(threading.Thread):
 
                     message_json = json.dumps(data, indent=2)
                     encrypted_message = rsa.encrypt(message_json.encode(),
-                                                    self.neighbours[message["META"]["FROM_ADDRESS"]["IP"]]['public_key'])
+                                                    self.get_public_key_by_ip(conn.getpeername()[0]))
                     conn.send(encrypted_message)
                 # print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
@@ -545,6 +546,12 @@ class Node(threading.Thread):
                     self.remove_node(conn, "Exception")
                     conn.close()
                 break
+
+    def get_public_key_by_ip(self, ip_address):
+        for neighbour_id, neighbour_info in self.neighbours.items():
+            if neighbour_info['ip'] == ip_address:
+                return neighbour_info['public_key']
+        return None
 
     def broadcast_message(self, message):
         """
