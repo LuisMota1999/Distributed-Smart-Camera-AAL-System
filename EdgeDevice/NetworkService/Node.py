@@ -16,7 +16,6 @@ from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import os
-import tensorflow as tf
 import base64
 from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys
 
@@ -312,12 +311,12 @@ class Node(threading.Thread):
         input_video_file_path = f'{test_videos_directory}/{video_title}.mp4'
 
         # Load Model
-        model = tf.keras.models.load_model(
-            '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
+        # = tf.keras.models.load_model(
+        #    '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
 
         # Perform action recognition on the test video
-        class_prediction = predict_on_video(model, input_video_file_path, 20)
-        print("[CLASS_PREDICTION] : ", class_prediction)
+        # class_prediction = predict_on_video(model, input_video_file_path, 20)
+        # print("[CLASS_PREDICTION] : ", class_prediction)
 
     def handle_keep_alive_messages(self, conn, client_id):
         """
