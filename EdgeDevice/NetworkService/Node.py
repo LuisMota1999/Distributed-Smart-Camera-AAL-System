@@ -254,22 +254,14 @@ class Node(threading.Thread):
             try:
                 # send keep alive message
                 data = {
-                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1], str(client_id.decode('utf-8'))),
                     "TYPE": "PING",
+                    "PUBLIC_KEY": public_key_to_json(self.public_key),
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "BLOCKCHAIN_STATE": self.blockchain.chain
                     }
                 }
-
-                neighbour_id = uuid.UUID(client_id.decode('utf-8'))
-                neighbour = self.neighbours.get(neighbour_id)
-
-                if neighbour is not None:
-                    data["META"]["TO_ADDRESS"]["ID"] = client_id.decode('utf-8')
-                    if neighbour['public_key'] is None:
-                        data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
                 # Convert JSON data to string
                 message = json.dumps(data, indent=2)
@@ -384,14 +376,14 @@ class Node(threading.Thread):
                             self.neighbours[neighbour_id]['public_key'] = public_key
 
                     data = {
-                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],str(neighbour_id)),
                         "TYPE": "PONG",
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
                         }
                     }
-                    data["META"]["TO_ADDRESS"]["ID"] = str(neighbour_id)
+
                     print(self.neighbours, "\n")
 
                     message_json = json.dumps(data, indent=2)
