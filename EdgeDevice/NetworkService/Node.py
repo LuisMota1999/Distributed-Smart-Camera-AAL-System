@@ -284,6 +284,8 @@ class Node(threading.Thread):
 
                 # Wrap the socket with TLS encryption
                 context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
                 conn = context.wrap_socket(conn, server_hostname=client_host)
 
                 # Connect to the peer using the TLS-encrypted socket
