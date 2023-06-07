@@ -354,9 +354,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                print(data)
-                message = json.loads(data)
 
+                message = json.loads(data)
+                print(message)
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
@@ -427,7 +427,7 @@ class Node(threading.Thread):
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
-                break
+                continue
 
             except socket.timeout as e:
                 print("Error timeout:", e)
