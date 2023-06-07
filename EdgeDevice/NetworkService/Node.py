@@ -41,7 +41,7 @@ class Node(threading.Thread):
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
-
+        self.retries = 5
         # Disable hostname verification for the server-side socket
         self.context.check_hostname = False
         self.context.verify_mode = ssl.CERT_NONE
@@ -427,6 +427,10 @@ class Node(threading.Thread):
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
+                print(f"Retrying attempts left {self.retries}...")
+                self.retries -= 1
+                if self.retries == 0:
+                    break
                 continue
 
             except socket.timeout as e:
