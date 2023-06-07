@@ -11,7 +11,7 @@ from pytube import YouTube
 
 # Specify the height and width to which each video frame will be resized in our dataset
 IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
-
+BUFFERSIZE = 1024
 # Specify the list containing the names of the classes used for training.
 CLASSES_LIST = ["PushUps", "Punch", "PlayingGuitar", "HorseRace"]
 
@@ -146,7 +146,7 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
 def generate_keys():
     current_directory = os.getcwd()
     keys_folder = os.path.join(current_directory, 'Keys')
-    public_key, private_key = rsa.newkeys(2048)
+    public_key, private_key = rsa.newkeys(BUFFERSIZE)
     with open(os.path.join(keys_folder, 'public.pem'), "wb") as f:
         f.write(public_key.save_pkcs1("PEM"))
 

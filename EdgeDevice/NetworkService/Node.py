@@ -258,12 +258,12 @@ class Node(threading.Thread):
 
     def connect_to_peer(self, client_host, client_port, client_id):
         """
-        The `connect_to_peer` method is used to create a socket connection with the specified client. If the
+        The `connect_to_peer` method is used to create a TLS-encrypted socket connection with the specified client. If the
         specified client is already connected, it will not create a new connection. It adds a new node by creating a
         socket connection to the specified client and adds it to the node list. Additionally, it starts threads to
         handle incoming messages and to send keep-alive messages.
 
-        :param client_id:The ID of the new node.
+        :param client_id: The ID of the new node.
         :type client_id: bytes
         :param client_host: The host address of the client to connect to, e.g. [192.168.X.X].
         :type client_host: str
@@ -274,27 +274,25 @@ class Node(threading.Thread):
         if self.validate(client_host, client_port) is not True or self.ip == client_host:
             print(f"Already connected to {client_host, client_port, client_id}")
             return
-        # TLS Client context
-        client_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+
         while self.running:
             try:
-                self.context.wrap_socket(
-                    socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-                    server_side=True,
-                )
-
+                # Create a TCP socket
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+                # Wrap the socket with TLS encryption
+                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                conn = context.wrap_socket(conn, server_hostname=client_host)
+
+                # Connect to the peer using the TLS-encrypted socket
                 conn.connect((client_host, client_port))
                 conn.settimeout(60.0)
-                conn = client_context.wrap_socket(conn, server_side=True)
+
+                # Continue with the rest of your code
                 self.add_node(conn, client_id)
                 self.list_peers()
-
-                # if self.coordinator == self.id: peer_info = {"ip": self.ip, "port": self.port, "id": str(self.id),
-                # "coordinator": self.coordinator} peer_info = json.dumps(peer_info) peer_info = f"CONNECT{
-                # peer_info}" conn.sendto(peer_info.encode(), (client_host, client_port))
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
