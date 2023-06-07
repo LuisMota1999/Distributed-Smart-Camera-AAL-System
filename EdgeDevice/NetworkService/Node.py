@@ -45,16 +45,13 @@ class Node(threading.Thread):
         # Disable hostname verification for the server-side socket
         self.context.check_hostname = False
         self.context.verify_mode = ssl.CERT_NONE
-
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
         )
-
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
-
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
@@ -216,7 +213,7 @@ class Node(threading.Thread):
 
                 # Connect to the peer using the TLS-encrypted socket
                 conn.connect((client_host, client_port))
-                conn.settimeout(60.0)
+                conn.settimeout(self.keep_alive_timeout*3)
 
                 # Continue with the rest of your code
                 self.add_node(conn, client_id)
@@ -364,14 +361,14 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 print(message)
                 message_type = message.get("TYPE")
+                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
+                neighbour = self.neighbours.get(neighbour_id)
                 if message_type == "PING":
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
 
-                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-                    neighbour = self.neighbours.get(neighbour_id)
                     self.retries = 5
                     if neighbour is not None and neighbour['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
@@ -408,7 +405,7 @@ class Node(threading.Thread):
                             self.blockchain.pending_transactions.append(tx)
                             data = {
                                 "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                             conn.getpeername()[1]),
+                                             conn.getpeername()[1], str(neighbour_id)),
                                 "TYPE": "TRANSACTION",
                                 "PAYLOAD": {
                                     "COORDINATOR": str(self.coordinator),

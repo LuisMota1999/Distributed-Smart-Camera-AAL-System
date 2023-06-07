@@ -16,7 +16,6 @@ class Blockchain:
         self.target = "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         self.chain = []
         self.nodes = {}
-        self.chain.append(self.new_block())
 
     def new_block(self):
         block = self.create_block(
@@ -73,11 +72,12 @@ class Blockchain:
         self.chain = []
         for block_json in json.loads(json_chain):
             block = {
-                'height': block_json['height'],
-                'timestamp': block_json['timestamp'],
-                'transactions': block_json['data'],
-                'nonce': block_json['nonce'],
-                'previous_hash': block_json['previous_hash'],
+                "height": block_json["height"],
+                "timestamp": block_json["timestamp"],
+                "transactions": block_json["data"],
+                "nonce": block_json["nonce"],
+                "target": block_json["target"],
+                "previous_hash": block_json["previous_hash"],
             }
             self.chain.append(block)
 
@@ -156,10 +156,6 @@ class Blockchain:
     def valid_block(self, block):
         # Check if a block's hash is less than the target...
         return block["hash"] < self.target
-
-    def add_block(self, block):
-        # TODO: Add proper validation logic here!
-        self.chain.append(block)
 
     @staticmethod
     def hash(block):
