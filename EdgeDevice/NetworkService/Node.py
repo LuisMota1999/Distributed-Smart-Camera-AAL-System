@@ -360,15 +360,19 @@ class Node(threading.Thread):
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-                    if self.coordinator is not None and self.coordinator in self.neighbours and \
-                            self.neighbours[self.coordinator]['public_key'] is None:
+
+                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
+                    neighbour = self.neighbours.get(neighbour_id)
+
+                    if neighbour is not None and neighbour['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
-                        public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
+                        public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
 
                         # Decode the base64-encoded public key back to bytes
                         public_key = load_public_key_from_json(public_key_base64)
-
-                        self.neighbours[self.coordinator]['public_key'] = public_key
+                        if public_key is not None:
+                            # Update public key for the specific IP address in the dictionary
+                            self.neighbours[neighbour_id]['public_key'] = public_key
 
                     data = {
                         "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
