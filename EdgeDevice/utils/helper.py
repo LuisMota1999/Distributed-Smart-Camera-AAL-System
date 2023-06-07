@@ -12,7 +12,7 @@ import base64
 from datetime import datetime, timedelta
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa as rsaCripto
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import NameOID
 
@@ -309,7 +309,7 @@ def generate_tls_keys():
     :return: None
     """
     # Generate a new RSA private key
-    private_key = rsa.generate_private_key(
+    private_key = rsaCripto.generate_private_key(
         public_exponent=PUBLIC_EXPONENT,
         key_size=BUFFER_SIZE * 2
     )
