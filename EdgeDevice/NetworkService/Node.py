@@ -265,9 +265,8 @@ class Node(threading.Thread):
                 neighbour_id = uuid.UUID(client_id.decode('utf-8'))
                 neighbour = self.neighbours.get(neighbour_id)
                 if neighbour is not None and neighbour['public_key'] is None:
-                    print("Public Key is None adding Public Key on PAYLOAD")
                     data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
-                print(f"Public Key is {neighbour['public_key']}")
+
                 # Convert JSON data to string
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
