@@ -254,7 +254,7 @@ class Node(threading.Thread):
             try:
                 # send keep alive message
                 data = {
-                    "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                     "TYPE": "PING",
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
@@ -375,7 +375,7 @@ class Node(threading.Thread):
                             self.neighbours[neighbour_id]['public_key'] = public_key
 
                     data = {
-                        "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                         "TYPE": "PONG",
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
@@ -397,7 +397,8 @@ class Node(threading.Thread):
                         if tx not in self.blockchain.pending_transactions:
                             self.blockchain.pending_transactions.append(tx)
                             data = {
-                                "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                                "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                             conn.getpeername()[1]),
                                 "TYPE": "TRANSACTION",
                                 "PAYLOAD": {
                                     "COORDINATOR": str(self.coordinator),
