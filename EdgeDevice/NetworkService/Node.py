@@ -349,12 +349,8 @@ class Node(threading.Thread):
         while self.running:
             try:
                 # send keep alive message
-                identifier = client_id.decode('utf-8')
-                neighbour_id = uuid.UUID(identifier)
-                neighbour = self.neighbours.get(neighbour_id)
-
                 data = {
-                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                    "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                     "TYPE": "PING",
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
@@ -363,17 +359,9 @@ class Node(threading.Thread):
                     }
                 }
 
-                if neighbour is not None and neighbour['public_key'] is None:
-                    # Convert JSON data to string
-
-                    message = json.dumps(data, indent=2)
-                    conn.send(bytes(message, encoding="utf-8"))
-                else:
-
-                    encrypted_message = rsa.encrypt(json.dumps(data).encode(),
-                                                    self.get_public_key_by_ip(conn.getpeername()[0]))
-                    conn.send(encrypted_message)
-
+                # Convert JSON data to string
+                message = json.dumps(data, indent=2)
+                conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except Exception as ex:  # Catch the specific exception you want to handle
                 print(ex.args)
@@ -457,57 +445,44 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                data = conn.recv(1024)
-                # Attempt to decrypt the received data
-
-                try:
-                    data = rsa.decrypt(data, self.private_key)
-                    is_encrypted = True
-                except rsa.DecryptionError:
-                    is_encrypted = False
-
-                print(is_encrypted)
-                if is_encrypted:
-                    message = json.loads(data)
-                else:
-                    message = json.loads(data.decode())
-                    print(message)
-
+                data = conn.recv(1024).decode()
+                message = json.loads(data)
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-
-                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-                    neighbour = self.neighbours.get(neighbour_id)
-
-                    if neighbour is not None and neighbour['public_key'] is None:
+                    if self.coordinator is not None and self.coordinator in self.neighbours and \
+                            self.neighbours[self.coordinator]['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
-                        public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
+                        public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
 
                         # Decode the base64-encoded public key back to bytes
                         public_key = self.load_public_key_from_json(public_key_base64)
-                        if public_key is not None:
-                            # Update public key for the specific IP address in the dictionary
-                            self.neighbours[neighbour_id]['public_key'] = public_key
+
+                        self.neighbours[self.coordinator]['public_key'] = public_key
 
                     data = {
-                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
+                        "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                         "TYPE": "PONG",
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
+                            "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
+                    # print("\n\n<==================>\n\n")
+                    # tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time.time()),
+                    #           SIGNATURE="SIGNATURE")
+                    # schema = Transaction()
+                    # result = schema.dumps(tx)
+                    # print(result)
+                    # print("\n\n<==================>\n\n")
+                    print(self.neighbours)
 
-                    encrypted_message = rsa.encrypt(json.dumps(data).encode(),
-                                                    self.get_public_key_by_ip(conn.getpeername()[0]))
-
-                    print(encrypted_message)
-                    conn.send(encrypted_message)
-
+                    message_json = json.dumps(data, indent=2)
+                    conn.send(bytes(message_json, encoding="utf-8"))
                 # print(json.dumps(message, indent=2))
                 if message_type == "TRANSACTION":
                     # Validate the transaction
@@ -518,8 +493,7 @@ class Node(threading.Thread):
                         if tx not in self.blockchain.pending_transactions:
                             self.blockchain.pending_transactions.append(tx)
                             data = {
-                                "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                             conn.getpeername()[1]),
+                                "META": meta(self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1]),
                                 "TYPE": "TRANSACTION",
                                 "PAYLOAD": {
                                     "COORDINATOR": str(self.coordinator),
