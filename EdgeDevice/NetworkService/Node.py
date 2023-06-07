@@ -260,6 +260,7 @@ class Node(threading.Thread):
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                         "PUBLIC_KEY": public_key_to_json(self.public_key),
+                        "BLOCKCHAIN": json.dumps(self.blockchain.chain),
                     }
                 }
 
@@ -354,14 +355,14 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(1024).decode()
                 message = json.loads(data)
-                print(data)
+
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-
+                    print(data)
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
                     neighbour = self.neighbours.get(neighbour_id)
 
@@ -381,13 +382,14 @@ class Node(threading.Thread):
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
+                            "BLOCKCHAIN": json.dumps(self.blockchain.chain),
                         }
                     }
-                    print(self.neighbours)
+                    print(self.neighbours, "\n")
 
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))
-                # print(json.dumps(message, indent=2))
+
                 if message_type == "TRANSACTION":
                     # Validate the transaction
                     tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
