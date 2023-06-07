@@ -252,24 +252,27 @@ class Node(threading.Thread):
 
         while self.running:
             try:
-                # send keep alive message
                 data = {
                     "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
                                  str(client_id.decode('utf-8'))),
                     "TYPE": "PING",
                     "PAYLOAD": {
-                        "PUBLIC_KEY": public_key_to_json(self.public_key),
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                     }
                 }
+
+                neighbour_id = uuid.UUID(client_id.decode('utf-8'))
+                neighbour = self.neighbours.get(neighbour_id)
+                if neighbour is not None and neighbour['public_key'] is None:
+                    data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
                 # Convert JSON data to string
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except Exception as ex:  # Catch the specific exception you want to handle
-                print(ex.args)
+                print(f"Exception error in Keep Alive: {ex.args}")
                 break
 
         # close connection and remove node from list
@@ -385,7 +388,6 @@ class Node(threading.Thread):
                                      str(neighbour_id)),
                         "TYPE": "PONG",
                         "PAYLOAD": {
-                            "PUBLIC_KEY": public_key_to_json(self.public_key),
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
                         }
