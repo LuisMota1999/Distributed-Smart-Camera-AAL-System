@@ -1,10 +1,10 @@
 import json
 
 
-def meta(from_id: str, from_ip:str,  from_port:int, to_ip:str, to_port:int, version="0.0.1"):
+def meta(from_ip:str,  from_port:int, to_ip:str, to_port:int, version="0.0.1"):
     return {
         "CLIENT": version,
-        "FROM_ADDRESS": {"ID": from_id ,"IP": from_ip, "PORT": from_port},
+        "FROM_ADDRESS": {"IP": from_ip, "PORT": from_port},
         "TO_ADDRESS": {"IP": to_ip, "PORT": to_port},
     }
 
