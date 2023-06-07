@@ -111,7 +111,7 @@ class Node(threading.Thread):
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
         # Create the socket with TLS encryption
-        self.context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
@@ -274,15 +274,21 @@ class Node(threading.Thread):
         if self.validate(client_host, client_port) is not True or self.ip == client_host:
             print(f"Already connected to {client_host, client_port, client_id}")
             return
-
+        # TLS Client context
+        client_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         while self.running:
             try:
+                self.context.wrap_socket(
+                    socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+                    server_side=True,
+                )
+
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 conn.connect((client_host, client_port))
                 conn.settimeout(60.0)
-
+                conn = client_context.wrap_socket(conn, server_side=True)
                 self.add_node(conn, client_id)
                 self.list_peers()
 
