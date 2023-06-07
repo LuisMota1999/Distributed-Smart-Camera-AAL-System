@@ -381,7 +381,6 @@ class Node(threading.Thread):
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
-                            "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
                     print(self.neighbours)
