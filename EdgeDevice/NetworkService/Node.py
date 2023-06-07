@@ -266,8 +266,10 @@ class Node(threading.Thread):
                 neighbour_id = uuid.UUID(client_id.decode('utf-8'))
                 neighbour = self.neighbours.get(neighbour_id)
 
-                if neighbour is not None and neighbour['public_key'] is None:
-                    data["PAYLOAD"]["PUBLIC_KEY"] =  public_key_to_json(self.public_key)
+                if neighbour is not None:
+                    data["META"]["TO_ADDRESS"]["ID"] = client_id.decode('utf-8')
+                    if neighbour['public_key'] is None:
+                        data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
                 # Convert JSON data to string
                 message = json.dumps(data, indent=2)
@@ -360,14 +362,14 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
                 message = json.loads(data)
-
+                print(data)
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
                         self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
                         print(f"\nNetwork Coordinator is {self.coordinator}\n")
                     print(message_type)
-                    print(data)
+
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
                     neighbour = self.neighbours.get(neighbour_id)
 
@@ -387,9 +389,9 @@ class Node(threading.Thread):
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
-                            "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
+                    data["META"]["TO_ADDRESS"]["ID"] = str(neighbour_id)
                     print(self.neighbours, "\n")
 
                     message_json = json.dumps(data, indent=2)
