@@ -117,7 +117,8 @@ class Node(threading.Thread):
         self.context.load_cert_chain(certfile=cert, keyfile=key)
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-            server_side=True
+            server_side=True,
+            server_hostname=self.ip  # Use the IP address as the server_hostname
         )
 
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
