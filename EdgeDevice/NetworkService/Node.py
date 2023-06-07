@@ -259,7 +259,6 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": public_key_to_json(self.public_key),
                         "BLOCKCHAIN_STATE": [
                             {
                                 "height": 0,
