@@ -115,10 +115,14 @@ class Node(threading.Thread):
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
+
+        # Disable hostname verification for the server-side socket
+        self.context.check_hostname = False
+        self.context.verify_mode = ssl.CERT_NONE
+
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
-            server_hostname=self.ip  # Use the IP address as the server_hostname
         )
 
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
