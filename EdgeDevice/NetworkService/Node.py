@@ -364,6 +364,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(1024).decode()
+                print(data)
                 message = json.loads(data)
 
                 message_type = message.get("TYPE")
