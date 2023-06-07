@@ -3,6 +3,7 @@ import socket
 from enum import Enum
 
 HOST_PORT = random.randint(5000, 6000)
+BUFFER_SIZE = 8192
 class Network(Enum):
     HOST_NAME = socket.gethostname()
     SERVICE_TYPE = "_node._tcp.local."

@@ -12,7 +12,7 @@ from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
-from EdgeDevice.utils.constants import Network, HOST_PORT
+from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE
 import json
 from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json
 
@@ -364,7 +364,7 @@ class Node(threading.Thread):
         """
         while self.running:
             try:
-                data = conn.recv(1024).decode()
+                data = conn.recv(BUFFER_SIZE).decode()
                 message = json.loads(data)
 
                 message_type = message.get("TYPE")
