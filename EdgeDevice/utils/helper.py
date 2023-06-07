@@ -9,10 +9,17 @@ import numpy as np
 from moviepy.editor import *
 from pytube import YouTube
 import base64
+from datetime import datetime, timedelta
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import hashes
+from cryptography.x509.oid import NameOID
 
 # Specify the height and width to which each video frame will be resized in our dataset
 IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
-BUFFERSIZE = 1024
+BUFFER_SIZE = 1024
+PUBLIC_EXPONENT = 65537
 # Specify the list containing the names of the classes used for training.
 CLASSES_LIST = ["PushUps", "Punch", "PlayingGuitar", "HorseRace"]
 
@@ -145,9 +152,26 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
 
 
 def generate_keys():
+    """
+    The `generate_keys` method generates a pair of RSA public and private keys and saves them as PEM files in the
+    'Keys' folder.
+
+    The function first obtains the current directory. It creates a folder named 'Keys' within the current directory
+    if it doesn't already exist. Then, it generates a new pair of RSA public and private keys using the RSA algorithm
+    with a specified key size (BUFFER_SIZE). The public and private keys are obtained as separate objects.
+
+    Next, the function saves the public key to a file named 'public.pem' in the 'Keys' folder. The public key is
+    serialized in the PEM format and written to the file.
+
+    Similarly, the function saves the private key to a file named 'private.pem' in the 'Keys' folder. The private key
+    is also serialized in the PEM format and written to the file.
+
+    :return: None
+    """
     current_directory = os.getcwd()
     keys_folder = os.path.join(current_directory, 'Keys')
-    public_key, private_key = rsa.newkeys(BUFFERSIZE)
+    public_key, private_key = rsa.newkeys(BUFFER_SIZE)
+
     with open(os.path.join(keys_folder, 'public.pem'), "wb") as f:
         f.write(public_key.save_pkcs1("PEM"))
 
@@ -155,7 +179,20 @@ def generate_keys():
         f.write(private_key.save_pkcs1("PEM"))
 
 
+
 def get_keys():
+    """
+    The `get_tls_keys` method retrieves the RSA private and public keys from the specified keys' folder.
+
+    Retrieves the RSA private key and public key from the specified keys' folder. The current working directory is
+    obtained, and the keys' folder is determined by joining the current directory with the 'Keys' folder name. The
+    private key is loaded from the 'private.pem' file within the keys' folder using the RSA algorithm. Similarly, the
+    public key is loaded from the 'public.pem' file within the keys' folder. The loaded private key and public key are
+    returned as a tuple.
+
+    :return: The RSA private key and the RSA public key.
+    :rtype: tuple[rsa.PrivateKey, rsa.PublicKey]
+    """
     current_directory = os.getcwd()
     keys_folder = os.path.join(current_directory, 'Keys')
 
@@ -169,6 +206,16 @@ def get_keys():
 
 
 def get_tls_keys():
+    """
+    The `get_tls_keys` method retrieves the paths to the TLS certificate and key files.
+
+    Retrieves the paths to the TLS certificate file and key file from the specified keys' folder. The current working
+    directory is obtained, and the keys' folder is determined by joining the current directory with the 'Keys' folder
+    name. The paths to the certificate file (cert.pem) and key file (key.pem) within the keys' folder are returned.
+
+    :return: The path to the TLS certificate file and the path to the TLS key file.
+    :rtype: tuple[str, str]
+    """
     current_directory = os.getcwd()
     keys_folder = os.path.join(current_directory, 'Keys')
     cert_pem = os.path.join(keys_folder, 'cert.pem')
@@ -178,12 +225,58 @@ def get_tls_keys():
 
 
 def load_public_key_from_json(public_key_json):
+    """
+    The `load_public_key_from_json` method loads a public key object from a JSON-compatible representation.
+
+    Deserializes a public key object from a JSON-compatible representation. The provided JSON string is first decoded
+    from Base64 to obtain the corresponding bytes. The bytes are then loaded as a PKCS#1 formatted public key using
+    the RSA algorithm. The resulting public key object is returned.
+
+    :param public_key_json: The JSON-compatible representation of the public key.
+    :type public_key_json: str
+    :return: The loaded public key object.
+    :rtype: RSA.RSAPublicKey
+    """
     public_key_bytes = base64.b64decode(public_key_json.encode('utf-8'))
     public_key = rsa.PublicKey.load_pkcs1(public_key_bytes, format='PEM')
     return public_key
 
 
+def public_key_to_json(public_key):
+    """
+    The `public_key_to_json` method converts a public key object to a JSON-compatible representation.
+
+    Serializes the provided public key object to a JSON-compatible representation. The public key is first saved in the
+    PKCS#1 format as bytes, then encoded using Base64 to obtain a string representation. The resulting Base64 string
+    representation of the public key is returned.
+
+    :param public_key: The public key object to be converted.
+    :type public_key: RSA.RSAPublicKey
+    :return: The JSON-compatible representation of the public key.
+    :rtype: str
+    """
+    public_key_bytes = public_key.save_pkcs1(format='PEM')
+    public_key_base64 = base64.b64encode(public_key_bytes).decode('utf-8')
+    return public_key_base64
+
+
 def handle_detection():
+    """
+    The `handle_detection` method handles the detection of actions in a video by performing action recognition using
+    a pre-trained model.
+
+    The function first creates the output directory for storing the test videos if it does not already exist. It then
+    downloads a YouTube video specified by its URL and retrieves the title of the downloaded video. The path to the
+    downloaded video file is obtained.
+
+    Next, the pre-trained action recognition model is loaded from the specified file path. The model is assumed to be
+    trained on a Long-term Recurrent Convolutional Network (LRCN).
+
+    Finally, the loaded model is used to perform action recognition on the test video. The number of predicted classes
+    is specified as 20. The class prediction result is printed.
+
+    :return: None
+    """
     # Make the output directory if it does not exist
     test_videos_directory = 'test_videos'
     os.makedirs(test_videos_directory, exist_ok=True)
@@ -196,9 +289,54 @@ def handle_detection():
     input_video_file_path = f'{test_videos_directory}/{video_title}.mp4'
 
     # Load Model
-    # = tf.keras.models.load_model(
+    # model = tf.keras.models.load_model(
     #    '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
 
     # Perform action recognition on the test video
     # class_prediction = predict_on_video(model, input_video_file_path, 20)
     # print("[CLASS_PREDICTION] : ", class_prediction)
+
+
+def generate_tls_keys():
+    """
+    The `generate_tls_keys` method generates a new RSA private key and a self-signed TLS certificate.
+
+    Generates a new RSA private key using the specified public exponent and key size. Then, creates a self-signed TLS
+    certificate without a common name, using the provided subject and issuer information. The certificate is valid for
+    one year from the current date. The private key and certificate are saved to file's in the 'Keys' folder within the
+    current working directory.
+
+    :return: None
+    """
+    # Generate a new RSA private key
+    private_key = rsa.generate_private_key(
+        public_exponent=PUBLIC_EXPONENT,
+        key_size=BUFFER_SIZE * 2
+    )
+
+    # Create a self-signed certificate without a common name
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, u"PT"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"Porto"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, u"Porto"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"UFP"),
+        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u"Engineering"),
+    ])
+
+    cert = x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).serial_number(
+        x509.random_serial_number()).public_key(private_key.public_key()).not_valid_before(
+        datetime.utcnow()).not_valid_after(datetime.utcnow() + timedelta(days=365)).sign(private_key, hashes.SHA256())
+
+    current_directory = os.getcwd()
+    keys_folder = os.path.join(current_directory, 'Keys')
+
+    # Write the private key and certificate to files
+    with open(os.path.join(keys_folder, 'key.pem'), "wb") as key_file:
+        key_file.write(private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ))
+
+    with open(os.path.join(keys_folder, 'cert.pem'), "wb") as cert_file:
+        cert_file.write(cert.public_bytes(serialization.Encoding.PEM))

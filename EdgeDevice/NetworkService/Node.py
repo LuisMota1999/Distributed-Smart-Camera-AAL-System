@@ -14,8 +14,7 @@ from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
-import base64
-from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json
+from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json
 
 
 class Node(threading.Thread):
@@ -237,20 +236,17 @@ class Node(threading.Thread):
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
                 time.sleep(10)
 
-    def public_key_to_json(self):
-        public_key_bytes = self.public_key.save_pkcs1(format='PEM')
-        public_key_base64 = base64.b64encode(public_key_bytes).decode('utf-8')
-        return public_key_base64
-
     def handle_keep_alive_messages(self, conn, client_id):
         """
-        The ``handle_keep_alive_messages`` method sends a "ping" message to the specified connection periodically
-        to maintain the connection. If the connection fails or is closed, it will remove the node from the list.
+        The ``handle_keep_alive_messages`` method sends keep-alive messages to the specified connection periodically
+        to maintain the connection. The keep-alive message
+        includes information such as the sender's metadata, message type, last time alive, coordinator information, and
+        public key. If an exception occurs during the process, the function breaks the loop and closes the connection.
 
-        :param client_id: The ID of the new node.
-        :type client_id: bytes
-        :param conn: The connection object to send the keep-alive messages to.
+        :param conn: Socket connection object representing the connection to the peer node.
         :type conn: socket.socket
+        :param client_id: The unique identifier of the connected peer node.
+        :type client_id: bytes
         :return: None
         """
 
@@ -263,7 +259,7 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": self.public_key_to_json(),
+                        "PUBLIC_KEY": public_key_to_json(self.public_key),
                     }
                 }
 
@@ -287,8 +283,11 @@ class Node(threading.Thread):
 
     def start_election(self):
         """
-        The ``start_election`` method starts the election among the nodes in the network. Sets the node with the
-        higher UID as the coordinator.
+        The ``start_election`` method implements the Bully algorithm that is a centralized leader election algorithm.
+        In this algorithm, nodes with higher IDs bully nodes with lower IDs to become the leader. When a node detects
+        that the leader is unresponsive, it initiates an election by sending election messages to higher-ID nodes. If
+        no higher-ID node responds, the node becomes the leader. If a higher-ID node responds, it withdraws from the
+        election. The process continues until a leader is elected.
 
         :return: None
         """
@@ -334,18 +333,18 @@ class Node(threading.Thread):
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
                 self.start_election()
-                self.broadcast_message("BC")
                 self.recon_state = False
                 continue
 
     def handle_messages(self, conn):
         """
+
         The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
-        connection object and responds to them appropriately. If the received message is "ping", it sends a "pong"
-        message to keep the connection alive. If the message is empty, it updates the node's priority and breaks the
-        loop. If there is a socket timeout or OSError, the method sets the ``recon_state`` flag to True and removes
-        the node from the list of connections. If the connection is reset, it also removes the node from the list
-        and closes the connection.
+        connection object and responds to them appropriately. If the received message is a valid JSON message,
+        it extracts the message type and processes it accordingly. If the message is empty, it updates the node's
+        priority and breaks the loop. If there is a socket timeout or OSError, the method sets the ``recon_state``
+        flag to True and removes the node from the list of connections. If the connection is reset, it also removes
+        the node from the list and closes the connection.
 
         :param conn: socket connection object representing the connection to the peer node
         :type conn: socket.socket
@@ -380,13 +379,6 @@ class Node(threading.Thread):
                             "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
-                    # print("\n\n<==================>\n\n")
-                    # tx = dict(SENDER="SENDER", RECEIVER="RECEIVER", AMOUNT=1, TIMESTAMP=int(time.time()),
-                    #           SIGNATURE="SIGNATURE")
-                    # schema = Transaction()
-                    # result = schema.dumps(tx)
-                    # print(result)
-                    # print("\n\n<==================>\n\n")
                     print(self.neighbours)
 
                     message_json = json.dumps(data, indent=2)

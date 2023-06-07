@@ -9,6 +9,7 @@ import EdgeDevice.BlockchainService
 import EdgeDevice.NetworkService
 import EdgeDevice.InferenceService
 import EdgeDevice.CaptureService
+import EdgeDevice.utils
 import BrainDevice.HomeAssistantService
 
 # -- Project information -----------------------------------------------------
