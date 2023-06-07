@@ -259,24 +259,18 @@ class Node(threading.Thread):
                     "PAYLOAD": {
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
-                        "PUBLIC_KEY": public_key_to_json(self.public_key),
-                        "BLOCKCHAIN_STATE": [
-                            {
-                                "height": 0,
-                                "transactions": [],
-                                "previous_hash": "nonce",
-                                "nonce": "8c482f41c32db1a2",
-                                "target": "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-                                "timestamp": 1686141352.952037,
-                                "hash": "21f02898e3d5bd80cafe7a355e01403a4812c76d02bee4857d767a4f949acc4f",
-                            }
-                        ]
+                        "BLOCKCHAIN_STATE": self.blockchain.chain
                     }
                 }
 
+                neighbour_id = uuid.UUID(client_id.decode('utf-8'))
+                neighbour = self.neighbours.get(neighbour_id)
+
+                if neighbour is not None and neighbour['public_key'] is None:
+                    data["PAYLOAD"]["PUBLIC_KEY"] =  public_key_to_json(self.public_key)
+
                 # Convert JSON data to string
                 message = json.dumps(data, indent=2)
-                print(message)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except Exception as ex:  # Catch the specific exception you want to handle
@@ -393,17 +387,7 @@ class Node(threading.Thread):
                         "PAYLOAD": {
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
-                            "BLOCKCHAIN_STATE": [
-                                {
-                                    "height": 0,
-                                    "transactions": [],
-                                    "previous_hash": None,
-                                    "nonce": "8c482f41c32db1a2",
-                                    "target": "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-                                    "timestamp": 1686141352.952037,
-                                    "hash": "21f02898e3d5bd80cafe7a355e01403a4812c76d02bee4857d767a4f949acc4f"
-                                }
-                            ],
+                            "BLOCKCHAIN_STATE": self.blockchain.chain,
                         }
                     }
                     print(self.neighbours, "\n")
