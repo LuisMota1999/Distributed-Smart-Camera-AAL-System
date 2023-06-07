@@ -354,6 +354,7 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(1024).decode()
                 message = json.loads(data)
+                print(data)
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
