@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from moviepy.editor import *
 from pytube import YouTube
+import base64
 
 # Specify the height and width to which each video frame will be resized in our dataset
 IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
@@ -174,3 +175,30 @@ def get_tls_keys():
     key_pem = os.path.join(keys_folder, 'key.pem')
 
     return cert_pem, key_pem
+
+
+def load_public_key_from_json(public_key_json):
+    public_key_bytes = base64.b64decode(public_key_json.encode('utf-8'))
+    public_key = rsa.PublicKey.load_pkcs1(public_key_bytes, format='PEM')
+    return public_key
+
+
+def handle_detection():
+    # Make the output directory if it does not exist
+    test_videos_directory = 'test_videos'
+    os.makedirs(test_videos_directory, exist_ok=True)
+
+    # Download a YouTube video
+    video_title = download_youtube_videos('https://youtube.com/watch?v=iNfqx2UCu-g', test_videos_directory)
+    print(f"Downloaded video title: {video_title}")
+
+    # Get the YouTube video's path we just downloaded
+    input_video_file_path = f'{test_videos_directory}/{video_title}.mp4'
+
+    # Load Model
+    # = tf.keras.models.load_model(
+    #    '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
+
+    # Perform action recognition on the test video
+    # class_prediction = predict_on_video(model, input_video_file_path, 20)
+    # print("[CLASS_PREDICTION] : ", class_prediction)

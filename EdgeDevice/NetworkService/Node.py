@@ -1,94 +1,21 @@
 import argparse
-import rsa
 import logging
 import random
 import socket
 import threading
 import time
 import ssl
-from typing import cast
 import uuid
 import netifaces as ni
-from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, ServiceStateChange, IPVersion, \
-    NonUniqueNameException
+from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
-import os
 import base64
-from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys, get_tls_keys
-
-
-class NodeListener:
-    def __init__(self, node):
-        """
-        Initializes a new instance of the NodeListener class.
-
-        :param node: An instance of the Node class representing the local node that will use this listener.
-        """
-        self.node = node
-
-    def add_service(self, zeroconf, service_type, name):
-        """
-        Adds a service to the node's peer list, if it is not already present.
-
-        This method retrieves the IP addresses of the service and adds them as peers, if they are different from
-        the IP address of the node itself. It uses the Zeroconf instance to get the service information.
-
-        :param zeroconf: The Zeroconf instance that discovered the service.
-        :type zeroconf: Zeroconf
-        :param service_type: The type of the service, e.g. "_node._tcp.local.".
-        :type service_type: str
-        :param name: The name of the service, e.g. "Node-X".
-        :type name: str
-        """
-        info = zeroconf.get_service_info(service_type, name)
-        if info:
-            ip_list = info.parsed_addresses()
-            for ip in ip_list:
-                if ip != self.node.ip:
-                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'))
-
-    def update_service(self,
-                       zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
-                       ) -> None:
-        """
-        The `update_service` method is called by the `Zeroconf` instance when a service is added, removed,
-        or updated on the network. It takes several arguments:
-
-        :param zeroconf: A `Zeroconf` instance representing the local network.
-        :type zeroconf: `Zeroconf`
-        :param service_type: The type of the service that was updated, specified as a string in the format "<protocol>._<transport>.local." (e.g. "_node._tcp.local.").
-        :type service_type: `str`
-        :param name: The name of the service that was updated, as a string.
-        :type name: `str`
-        :param state_change: An enum indicating the type of change that occurred, one of "Added", "Updated", or "Removed".
-        :type state_change: `ServiceStateChange`
-
-        If the `state_change` is "Added" or "Updated", the method calls the `add_service` method to add the updated
-        service to the network. Otherwise, the service is removed from the network.
-        """
-        print(f"Service {name} of type {service_type} state changed: {state_change}")
-
-        if state_change is ServiceStateChange.Added or ServiceStateChange.Updated:
-            info = zeroconf.get_service_info(service_type, name)
-            if info:
-                addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_addresses()]
-                print("  Addresses: %s" % ", ".join(addresses))
-                print("  Weight: %d, priority: %d" % (info.weight, info.priority))
-                print(f"  Server: {info.server}")
-                if info.properties:
-                    print("  Properties are:")
-                    for key, value in info.properties.items():
-                        print(f"    {key}: {value}")
-                else:
-                    print("  No properties")
-                self.add_service(zeroconf, service_type, name)
-            else:
-                print("  No info")
-            print('\n')
+from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json
 
 
 class Node(threading.Thread):
@@ -258,10 +185,10 @@ class Node(threading.Thread):
 
     def connect_to_peer(self, client_host, client_port, client_id):
         """
-        The `connect_to_peer` method is used to create a TLS-encrypted socket connection with the specified client. If the
-        specified client is already connected, it will not create a new connection. It adds a new node by creating a
-        socket connection to the specified client and adds it to the node list. Additionally, it starts threads to
-        handle incoming messages and to send keep-alive messages.
+        The `connect_to_peer` method is used to create a TLS-encrypted socket connection with the specified client.
+        If the specified client is already connected, it will not create a new connection. It adds a new node by
+        creating a socket connection to the specified client and adds it to the node list. Additionally,
+        it starts threads to handle incoming messages and to send keep-alive messages.
 
         :param client_id: The ID of the new node.
         :type client_id: bytes
@@ -315,31 +242,6 @@ class Node(threading.Thread):
         public_key_base64 = base64.b64encode(public_key_bytes).decode('utf-8')
         return public_key_base64
 
-    def load_public_key_from_json(self, public_key_json):
-        public_key_bytes = base64.b64decode(public_key_json.encode('utf-8'))
-        public_key = rsa.PublicKey.load_pkcs1(public_key_bytes, format='PEM')
-        return public_key
-
-    def handle_detection(self):
-        # Make the output directory if it does not exist
-        test_videos_directory = 'test_videos'
-        os.makedirs(test_videos_directory, exist_ok=True)
-
-        # Download a YouTube video
-        video_title = download_youtube_videos('https://youtube.com/watch?v=iNfqx2UCu-g', test_videos_directory)
-        print(f"Downloaded video title: {video_title}")
-
-        # Get the YouTube video's path we just downloaded
-        input_video_file_path = f'{test_videos_directory}/{video_title}.mp4'
-
-        # Load Model
-        # = tf.keras.models.load_model(
-        #    '../EdgeDevice/models/LRCN_model__Date_time_2023_05_23__00_06_42__Loss_0.23791147768497467__Accuracy_0.971222996711731.h5')
-
-        # Perform action recognition on the test video
-        # class_prediction = predict_on_video(model, input_video_file_path, 20)
-        # print("[CLASS_PREDICTION] : ", class_prediction)
-
     def handle_keep_alive_messages(self, conn, client_id):
         """
         The ``handle_keep_alive_messages`` method sends a "ping" message to the specified connection periodically
@@ -385,8 +287,8 @@ class Node(threading.Thread):
 
     def start_election(self):
         """
-        The ``start_election`` method starts the election among the nodes in the network. Sets the node with the higher UID
-        as the coordinator.
+        The ``start_election`` method starts the election among the nodes in the network. Sets the node with the
+        higher UID as the coordinator.
 
         :return: None
         """
@@ -465,7 +367,7 @@ class Node(threading.Thread):
                         public_key_base64 = message["PAYLOAD"]["PUBLIC_KEY"]
 
                         # Decode the base64-encoded public key back to bytes
-                        public_key = self.load_public_key_from_json(public_key_base64)
+                        public_key = load_public_key_from_json(public_key_base64)
 
                         self.neighbours[self.coordinator]['public_key'] = public_key
 
