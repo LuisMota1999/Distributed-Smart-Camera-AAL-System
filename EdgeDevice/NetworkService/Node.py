@@ -264,13 +264,13 @@ class Node(threading.Thread):
                             {
                                 "height": 0,
                                 "transactions": [],
-                                "previous_hash": None,
+                                "previous_hash": "nonce",
                                 "nonce": "8c482f41c32db1a2",
                                 "target": "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
                                 "timestamp": 1686141352.952037,
                                 "hash": "21f02898e3d5bd80cafe7a355e01403a4812c76d02bee4857d767a4f949acc4f"
                             }
-                        ],
+                        ]
                     }
                 }
 
@@ -396,13 +396,13 @@ class Node(threading.Thread):
                                 {
                                     "height": 0,
                                     "transactions": [],
-                                    "previous_hash": None,
+                                    "previous_hash": "nonce",
                                     "nonce": "8c482f41c32db1a2",
                                     "target": "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
                                     "timestamp": 1686141352.952037,
                                     "hash": "21f02898e3d5bd80cafe7a355e01403a4812c76d02bee4857d767a4f949acc4f"
                                 }
-                            ],
+                            ]
                         }
                     }
                     print(self.neighbours, "\n")
