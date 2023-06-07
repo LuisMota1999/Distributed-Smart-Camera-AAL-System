@@ -254,7 +254,8 @@ class Node(threading.Thread):
             try:
                 # send keep alive message
                 data = {
-                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1], str(client_id.decode('utf-8'))),
+                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
+                                 str(client_id.decode('utf-8'))),
                     "TYPE": "PING",
                     "PAYLOAD": {
                         "PUBLIC_KEY": public_key_to_json(self.public_key),
@@ -353,8 +354,9 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                message = json.loads(data)
                 print(data)
+                message = json.loads(data)
+
                 message_type = message.get("TYPE")
                 if message_type == "PING":
                     if self.coordinator is None:
@@ -376,9 +378,11 @@ class Node(threading.Thread):
                             self.neighbours[neighbour_id]['public_key'] = public_key
 
                     data = {
-                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],str(neighbour_id)),
+                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
+                                     str(neighbour_id)),
                         "TYPE": "PONG",
                         "PAYLOAD": {
+                            "PUBLIC_KEY": public_key_to_json(self.public_key),
                             "LAST_TIME_ALIVE": time.time(),
                             "COORDINATOR": str(self.coordinator),
                         }
