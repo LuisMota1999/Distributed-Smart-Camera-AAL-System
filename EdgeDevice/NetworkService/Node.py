@@ -256,8 +256,8 @@ class Node(threading.Thread):
                 data = {
                     "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1], str(client_id.decode('utf-8'))),
                     "TYPE": "PING",
-                    "PUBLIC_KEY": public_key_to_json(self.public_key),
                     "PAYLOAD": {
+                        "PUBLIC_KEY": public_key_to_json(self.public_key),
                         "LAST_TIME_ALIVE": time.time(),
                         "COORDINATOR": str(self.coordinator),
                     }
