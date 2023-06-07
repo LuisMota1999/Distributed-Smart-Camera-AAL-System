@@ -354,7 +354,6 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-
                 message = json.loads(data)
                 print(message)
                 message_type = message.get("TYPE")
@@ -366,7 +365,7 @@ class Node(threading.Thread):
 
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
                     neighbour = self.neighbours.get(neighbour_id)
-
+                    self.retries = 5
                     if neighbour is not None and neighbour['public_key'] is None:
                         # Extract the base64-encoded public key from the received message
                         public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
@@ -429,9 +428,10 @@ class Node(threading.Thread):
                 print("Error decoding JSON:", e)
                 print(f"Retrying attempts left {self.retries}...")
                 self.retries -= 1
-                if self.retries == 0:
+                time.sleep(1)
+                if self.retries <= 0:
                     break
-                continue
+
 
             except socket.timeout as e:
                 print("Error timeout:", e)
