@@ -292,27 +292,31 @@ class Node(threading.Thread):
 
         :return: None
         """
-        if self.coordinator is None and len(self.connections) > 0:
-            pass
-            self.election_in_progress = True
-            higher_nodes = []
-            for neighbour_id, neighbour in self.neighbours.items():
-                if neighbour_id > self.id:
-                    higher_nodes.append(neighbour['ip'])
-            if higher_nodes:
-                for ip in higher_nodes:
-                    for node in self.connections:
-                        if node.getpeername()[0] == ip:
-                            print(f"Node {self.ip} sent ELECTION message to {ip}")
+        try:
+            if self.coordinator is None and len(self.connections) > 0:
+                pass
+                self.election_in_progress = True
+                higher_nodes = []
+                for neighbour_id, neighbour in self.neighbours.items():
+                    if neighbour_id > self.id:
+                        higher_nodes.append(neighbour['ip'])
+                if higher_nodes:
+                    for ip in higher_nodes:
+                        for node in self.connections:
+                            if node.getpeername()[0] == ip:
+                                print(f"Node {self.ip} sent ELECTION message to {ip}")
 
-            else:
+                else:
+                    self.coordinator = self.id
+                    self.broadcast_message(f"COORDINATOR {self.coordinator}")
+                    print(f"Node {self.id} is the new coordinator")
+                    self.election_in_progress = False
+            elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                self.broadcast_message(f"COORDINATOR {self.coordinator}")
-                print(f"Node {self.id} is the new coordinator")
-                self.election_in_progress = False
-        elif self.coordinator is None and len(self.connections) <= 0:
-            self.coordinator = self.id
-            print(f"Node {self.id} is the coordinator")
+                print(f"Node {self.id} is the coordinator")
+        except ssl.SSLZeroReturnError as e:
+            print(f"SSLZero Return Error {e.strerror}")
+            return
 
     def handle_reconnects(self):
         """
@@ -432,6 +436,9 @@ class Node(threading.Thread):
                 if self.retries <= 0:
                     break
 
+            except ssl.SSLZeroReturnError as e:
+                print(f"SSLZero Return Error {e.strerror}")
+                break
 
             except socket.timeout as e:
                 print("Error timeout:", e)
