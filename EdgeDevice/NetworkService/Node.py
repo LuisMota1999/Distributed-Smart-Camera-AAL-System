@@ -5,6 +5,7 @@ import random
 import socket
 import threading
 import time
+import ssl
 from typing import cast
 import uuid
 import netifaces as ni
@@ -17,7 +18,7 @@ from EdgeDevice.utils.constants import Network, HOST_PORT
 import json
 import os
 import base64
-from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys
+from EdgeDevice.utils.helper import predict_on_video, download_youtube_videos, get_keys, get_tls_keys
 
 
 class NodeListener:
@@ -109,10 +110,20 @@ class Node(threading.Thread):
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Create the socket with TLS encryption
+        self.context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        cert, key = get_tls_keys()
+        self.context.load_cert_chain(certfile=cert, keyfile=key)
+        self.socket = self.context.wrap_socket(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+            server_side=True
+        )
+
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
+
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True

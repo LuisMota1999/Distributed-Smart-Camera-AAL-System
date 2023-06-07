@@ -165,3 +165,12 @@ def get_keys():
         private_key = rsa.PrivateKey.load_pkcs1(f.read())
 
     return private_key, public_key
+
+
+def get_tls_keys():
+    current_directory = os.getcwd()
+    keys_folder = os.path.join(current_directory, 'Keys')
+    cert_pem = os.path.join(keys_folder, 'cert.pem')
+    key_pem = os.path.join(keys_folder, 'key.pem')
+
+    return cert_pem, key_pem
