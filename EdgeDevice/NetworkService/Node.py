@@ -222,7 +222,7 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                time.sleep(1)
+                time.sleep(2)
 
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
@@ -264,6 +264,7 @@ class Node(threading.Thread):
                 if neighbour is not None and neighbour['public_key'] is None:
                     data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
+                time.sleep(2)
                 # Convert JSON data to string
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
