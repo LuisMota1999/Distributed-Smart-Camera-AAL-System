@@ -112,20 +112,14 @@ class Node(threading.Thread):
             print("[COORDINATOR] Starting the discovery service...")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
-            time.sleep(2)
-
             threading.Thread(target=self.accept_connections).start()
         except KeyboardInterrupt:
             print(f"Machine {Network.HOST_NAME} is shutting down...")
             self.stop()
 
-        time.sleep(2)
-
         self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
-
-        time.sleep(2)
 
         # threading.Thread(target=self.handle_detection).start()
 
@@ -225,8 +219,6 @@ class Node(threading.Thread):
 
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
-
-                time.sleep(2)
 
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
