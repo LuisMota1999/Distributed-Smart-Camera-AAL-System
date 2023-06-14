@@ -93,19 +93,19 @@ class Blockchain(object):
         corresponding hashes.
 
         :param height: The height of the block in the blockchain.
-        :type height: int
+        :type height: <int>
         :param transactions: The list of transactions to include in the block.
-        :type transactions: list
+        :type transactions: <list>
         :param previous_hash: The hash of the previous block in the blockchain.
-        :type previous_hash: str
+        :type previous_hash: <str>
         :param nonce: The nonce value for mining the block.
-        :type nonce: str
+        :type nonce: <str>
         :param target: The target difficulty for finding a valid block.
-        :type target: int
+        :type target: <int>
         :param timestamp: The timestamp of the block (optional). If not provided, the current time will be used.
-        :type timestamp: float or None
+        :type timestamp: <float> or None
         :return: The newly created block with all its attributes.
-        :rtype: dict
+        :rtype: <dict>
         """
         block = {
             "HEIGHT": height,
@@ -131,6 +131,7 @@ class Blockchain(object):
         encodes the string, and applies the SHA-256 hash function. The resulting hash value is returned as a
         hexadecimal string.
         :param block: Dictionary representing a block in the blockchain.
+        :type block: <dict>
         :return: Hexadecimal string representing the block's hash value.
         """
         # We ensure the dictionary is sorted or we'll have inconsistent hashes
@@ -154,7 +155,7 @@ class Blockchain(object):
         the target, indicating that the block meets the required difficulty level, the method returns True.
         Otherwise, it returns False.
         :param block: A dictionary representing a block in the blockchain.
-        :type block: dict
+        :type block: <dict>
         :return: Returns false if the hash value of the block is greater than or equal to the target difficulty else
         returns true.
         """
@@ -169,7 +170,7 @@ class Blockchain(object):
         proof, the method updates the block's hash with the calculated block hash (validate.block_hash) and returns
         True. Otherwise, it returns False.
         :param block: A dictionary representing a block in the blockchain.
-        :type block: dict
+        :type block: <dict>
         :return: Returns true if the validation conditions are met, indicating that the block is considered valid.
         """
         if block['HEIGHT'] == 0:
@@ -187,7 +188,7 @@ class Blockchain(object):
         self.chain list. The method allows adding blocks to the blockchain without performing comprehensive
         validation. It serves as a placeholder for implementing appropriate validation logic in the future.
         :param block: A dictionary representing a block in the blockchain.
-        :type block: dict
+        :type block: <dict>
         :return: None
         """
         self.chain.append(block)
@@ -222,7 +223,7 @@ class Blockchain(object):
         can maintain a consistent block mining rate and adapt to changes in network computing power.
 
         :param block_index: Represents height of block
-        :type block_index: int
+        :type block_index: <int>
         :return: Return the recalculated target difficulty
 
         """
@@ -268,7 +269,8 @@ class Blockchain(object):
         history.
 
 
-        :param timestamp:
+        :param timestamp: Speciffied timestamp
+        :type timestamp: <float>
         :return:
         """
         for index, block in enumerate(self.chain):
@@ -297,7 +299,7 @@ class Blockchain(object):
         attempting to find valid blocks. It demonstrates the process of mining and adding new blocks to the
         blockchain, ensuring the integrity and security of the blockchain network.
 
-        :return:
+        :return: None
         """
         self.recalculate_target(self.last_block["HEIGHT"] + 1)
         while self.running:
@@ -328,7 +330,7 @@ class Blockchain(object):
             from the block dictionary.
 
             :param block: A dictionary representing a block in the blockchain.
-            :type block: dict
+            :type block: <dict>
             """
             self.block = block
             self.block_hash = self.block_hash()

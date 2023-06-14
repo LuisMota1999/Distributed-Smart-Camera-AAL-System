@@ -19,11 +19,11 @@ class NodeListener:
         the IP address of the node itself. It uses the Zeroconf instance to get the service information.
 
         :param zeroconf: The Zeroconf instance that discovered the service.
-        :type zeroconf: Zeroconf
+        :type zeroconf: <Zeroconf>
         :param service_type: The type of the service, e.g. "_node._tcp.local.".
-        :type service_type: str
+        :type service_type: <str>
         :param name: The name of the service, e.g. "Node-X".
-        :type name: str
+        :type name: <str>
         """
         info = zeroconf.get_service_info(service_type, name)
         if info:
@@ -40,14 +40,14 @@ class NodeListener:
         or updated on the network. It takes several arguments:
 
         :param zeroconf: A `Zeroconf` instance representing the local network.
-        :type zeroconf: `Zeroconf`
+        :type zeroconf: `<Zeroconf>`
         :param service_type: The type of the service that was updated, specified as a string in the format "<protocol>._
                             <transport>.local." (e.g. "_node._tcp.local.").
-        :type service_type: `str`
+        :type service_type: `<str>`
         :param name: The name of the service that was updated, as a string.
-        :type name: `str`
+        :type name: `<str>`
         :param state_change: An enum indicating the type of change that occurred one of "Added", "Updated", or "Removed"
-        :type state_change: `ServiceStateChange`
+        :type state_change: `<ServiceStateChange>`
 
         If the `state_change` is "Added" or "Updated", the method calls the `add_service` method to add the updated
         service to the network. Otherwise, the service is removed from the network.

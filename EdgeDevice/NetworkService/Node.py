@@ -166,9 +166,9 @@ class Node(threading.Thread):
         Otherwise, it returns False.
 
         :param ip: The IP address to validate.
-        :type ip: str
+        :type ip: <str>
         :param port: The port number to validate.
-        :type port: int
+        :type port: <int>
         :return: True if the IP address and port number are unique, False otherwise.
         """
         flag = True
@@ -187,11 +187,11 @@ class Node(threading.Thread):
         it starts threads to handle incoming messages and to send keep-alive messages.
 
         :param client_id: The ID of the new node.
-        :type client_id: bytes
+        :type client_id: <bytes>
         :param client_host: The host address of the client to connect to, e.g. [192.168.X.X].
-        :type client_host: str
+        :type client_host: <str>
         :param client_port: The port number of the client to connect to, e.g. [5000].
-        :type client_port: int
+        :type client_port: <int>
         :return: None
         """
         if self.validate(client_host, client_port) is not True or self.ip == client_host:
@@ -241,9 +241,9 @@ class Node(threading.Thread):
         public key. If an exception occurs during the process, the function breaks the loop and closes the connection.
 
         :param conn: Socket connection object representing the connection to the peer node.
-        :type conn: socket.socket
+        :type conn: <socket.socket>
         :param client_id: The unique identifier of the connected peer node.
-        :type client_id: bytes
+        :type client_id: <bytes>
         :return: None
         """
 
@@ -353,7 +353,7 @@ class Node(threading.Thread):
         the node from the list and closes the connection.
 
         :param conn: socket connection object representing the connection to the peer node
-        :type conn: socket.socket
+        :type conn: <socket.socket>
         :return: None
         """
         while self.running:
@@ -480,7 +480,7 @@ class Node(threading.Thread):
         each peer using the ``sendall`` method of the socket object.
 
         :param message: The message to be broadcast
-        :type message: str
+        :type message: <str>
         :return: None
         """
         for peer in self.connections:
@@ -513,9 +513,9 @@ class Node(threading.Thread):
         of connections add the new node to the BlockchainService network and to the list of node peer connections.
 
         :param client_id:The ID of the new node.
-        :type client_id: bytes
+        :type client_id: <bytes>
         :param conn: A socket connection object representing the new node to be added.
-        :type conn: socket.socket
+        :type conn: <socket.socket>
         :return: None
         """
         # Check if the node is already in the list of connections
@@ -547,9 +547,9 @@ class Node(threading.Thread):
         The ``remove_node`` method removes the specified node from the list of connections and prints the updated list.
 
         :param conn: A socket connection object representing the node to be removed.
-        :type conn: socket.socket
+        :type conn: <socket.socket>
         :param function: A string indicating the reason why the node is being removed.
-        :type function: str
+        :type function: <str>
         :return: None
         """
         print(f"Removed by {function}")

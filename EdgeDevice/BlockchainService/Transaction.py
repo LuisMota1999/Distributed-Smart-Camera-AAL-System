@@ -12,9 +12,13 @@ def create_transaction(
     Creates a transaction from a sender's public key to a receiver's public key
 
     :param private_key: The Sender's private key
+    :type private_key: <str>
     :param public_key: The Sender's public key
+    :type  public_key: <str>
     :param receiver: The Receiver's public key
+    :type  receiver: <str>
     :param action: The action performed in real time in a certain point in time by the user
+    :type  action: <str>
     :return: <dict> The transaction dict
     """
 
@@ -40,6 +44,7 @@ def validate_transaction(tx: dict) -> bool:
     """
     Verifies that a given transaction was sent from the sender
     :param tx: The transaction dict
+    :type tx: <dict>
     :return: <bool>
     """
 
