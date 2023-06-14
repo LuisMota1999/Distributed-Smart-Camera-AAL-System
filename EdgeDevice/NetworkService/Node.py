@@ -253,9 +253,8 @@ class Node(threading.Thread):
             try:
                 data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
                                               conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PING.value)
-
-                print(data)
+                                              str(neighbour_id), str(self.coordinator),
+                                              Messages.MESSAGE_TYPE_PING.value)
 
                 if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
                     data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
@@ -412,6 +411,8 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
+                print(f"MESSAGE TYPE: {message_type}")
+                print(f"\nMESSAGE JSON: {data}\n")
                 if message_type == Messages.MESSAGE_TYPE_PING:
                     self.handle_general_message(message, conn, neighbour_id)
 
