@@ -388,6 +388,7 @@ class Node(threading.Thread):
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
+        print(f"PONG MESSAGE: {message_json}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
