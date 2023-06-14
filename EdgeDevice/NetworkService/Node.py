@@ -117,7 +117,8 @@ class Node(threading.Thread):
             print(f"Machine {Network.HOST_NAME} is shutting down...")
             self.stop()
 
-        self.start_election()
+        if len(self.connections) == 0:
+            self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
 
