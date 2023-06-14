@@ -253,7 +253,9 @@ class Node(threading.Thread):
             try:
                 data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
                                               conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PING)
+                                              str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PING.value)
+
+                print(data)
 
                 if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
                     data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
@@ -342,7 +344,7 @@ class Node(threading.Thread):
         data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
                                       conn.getpeername()[1],
                                       str(neighbour_id), str(self.coordinator),
-                                      Messages.MESSAGE_TYPE_TRANSACTION)
+                                      Messages.MESSAGE_TYPE_TRANSACTION.value)
 
         data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
 
@@ -358,7 +360,7 @@ class Node(threading.Thread):
                 data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
                                               conn.getpeername()[1],
                                               str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_TRANSACTION)
+                                              Messages.MESSAGE_TYPE_TRANSACTION.value)
 
                 data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
@@ -381,7 +383,7 @@ class Node(threading.Thread):
                 self.neighbours[neighbour_id]['PUBLIC_KEY'] = public_key
 
         data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
-                                      str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PONG)
+                                      str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PONG.value)
 
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
