@@ -360,7 +360,6 @@ class Node(threading.Thread):
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
                 message = json.loads(data)
-                print(message)
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
                 neighbour = self.neighbours.get(neighbour_id)
@@ -391,7 +390,8 @@ class Node(threading.Thread):
                         }
                     }
 
-                    print(self.neighbours, "\n")
+                    if neighbour is not None and neighbour['public_key'] is None:
+                        data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
                     message_json = json.dumps(data, indent=2)
                     conn.send(bytes(message_json, encoding="utf-8"))

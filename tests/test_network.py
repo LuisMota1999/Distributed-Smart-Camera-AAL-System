@@ -1,7 +1,6 @@
 import unittest
-import threading
 import time
-import netifaces as ni
+import uuid
 from EdgeDevice.NetworkService.Node import Node
 
 
@@ -9,7 +8,7 @@ class SocketConnectionTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.node = Node("Node-1")
+        cls.node = Node("NODE-1")
         cls.node.start()  # Start the node in a separate thread
 
         # Wait for the node to start and establish connections
@@ -23,10 +22,10 @@ class SocketConnectionTest(unittest.TestCase):
         # Test connecting to a peer node
         peer_ip = "192.168.0.100"
         peer_port = 5000
-        peer_id = "peer-123"
+        peer_id = uuid.uuid4()
 
         # Connect to the peer node
-        self.node.connect_to_peer(peer_ip, peer_port, bytes(peer_id))
+        self.node.connect_to_peer(peer_ip, peer_port, peer_id.bytes)
 
         # Wait for the connection to be established
         time.sleep(2)
@@ -39,7 +38,6 @@ class SocketConnectionTest(unittest.TestCase):
         # Test disconnecting from a peer node
         peer_ip = "192.168.0.100"
         peer_port = 5000
-        peer_id = "peer-123"
 
         # Disconnect from the peer node
         for conn in self.node.connections:
