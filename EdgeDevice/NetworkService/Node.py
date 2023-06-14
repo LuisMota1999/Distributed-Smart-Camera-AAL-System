@@ -338,20 +338,25 @@ class Node(threading.Thread):
                 self.recon_state = False
                 continue
 
-    def handle_get_chain_message(self, conn, neighbour_id):
+    def handle_chain_message(self, message, conn, neighbour_id, message_type):
+        if message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
+            if self.coordinator == uuid.UUID(message["PAYLOAD"].get("COORDINATOR")):
+                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                              conn.getpeername()[1],
+                                              str(neighbour_id), str(self.coordinator),
+                                              Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value)
 
-        data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                      conn.getpeername()[1],
-                                      str(neighbour_id), str(self.coordinator),
-                                      Messages.MESSAGE_TYPE_TRANSACTION.value)
+                data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
 
-        data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
-
-        message_json = json.dumps(data, indent=2)
-        conn.send(bytes(message_json, encoding="utf-8"))
+                message_json = json.dumps(data, indent=2)
+                print(message_json)
+                conn.send(bytes(message_json, encoding="utf-8"))
+        elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
+            self.blockchain.chain = message["PAYLOAD"].get("CHAIN")
+            logging.info("Blockchain chain was updated with information from coordinator")
 
     def handle_transaction_message(self, message, conn, neighbour_id):
-        tx = message["PAYLOAD"].get("PENDING")
+        tx = message["PAYLOAD"]["PENDING"]
 
         if validate_transaction(tx):
             if tx not in self.blockchain.pending_transactions:
@@ -370,9 +375,11 @@ class Node(threading.Thread):
             return
 
     def handle_general_message(self, message, conn, neighbour_id):
+        message_type = Messages.MESSAGE_TYPE_PONG.value
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
             print(f"\nNetwork Coordinator is {self.coordinator}\n")
+            message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -382,7 +389,7 @@ class Node(threading.Thread):
                 self.neighbours[neighbour_id]['PUBLIC_KEY'] = public_key
 
         data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
-                                      str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PONG.value)
+                                      str(neighbour_id), str(self.coordinator), message_type)
 
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
@@ -417,11 +424,14 @@ class Node(threading.Thread):
                 if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)
 
+                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
+                    self.handle_chain_message(message, conn, neighbour_id, message_type)
+
                 elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id)
 
-                elif message_type == Messages.MESSAGE_TYPE_BLOCK.value:
-                    pass
+                elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
+                    self.handle_chain_message(message, conn, neighbour_id, message_type)
 
                 if not data:
                     self.service_info.priority = random.randint(1, 100)
