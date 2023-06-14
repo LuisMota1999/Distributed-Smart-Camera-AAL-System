@@ -1,13 +1,12 @@
-import json
 from time import time
-
 from nacl.encoding import HexEncoder
 from nacl.exceptions import BadSignatureError
 from nacl.signing import SigningKey, VerifyKey
+import json
 
 
 def create_transaction(
-        private_key: str, public_key: str, receiver: str, amount: int
+    private_key: str, public_key: str, receiver: str, action: str
 ) -> dict:
     """
     Creates a transaction from a sender's public key to a receiver's public key
@@ -15,20 +14,20 @@ def create_transaction(
     :param private_key: The Sender's private key
     :param public_key: The Sender's public key
     :param receiver: The Receiver's public key
-    :param amount: The amount in cents
+    :param action: The action performed in real time in a certain point in time by the user
     :return: <dict> The transaction dict
     """
 
     tx = {
-        "SENDER": public_key,
-        "RECEIVER": receiver,
-        "AMOUNT": amount,
-        "TIMESTAMP": int(time()),
+        "sender": public_key,
+        "receiver": receiver,
+        "action": action,
+        "timestamp": int(time()),
     }
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
 
     # Generate a signing key from the private key
-    signing_key = SigningKey(bytes(private_key), encoder=HexEncoder)
+    signing_key = SigningKey(private_key, encoder=HexEncoder)
 
     # Now add the signature to the original transaction
     signature = signing_key.sign(tx_bytes).signature
@@ -44,7 +43,7 @@ def validate_transaction(tx: dict) -> bool:
     :return: <bool>
     """
 
-    public_key = tx["SENDER"]
+    public_key = tx["sender"]
 
     # We need to strip the "signature" key from the tx
     signature = tx.pop("signature")

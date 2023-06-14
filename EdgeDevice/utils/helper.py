@@ -15,6 +15,10 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa as rsaCripto
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import NameOID
+import json
+import logging
+from hashlib import sha256
+import netifaces as ni
 
 # Specify the height and width to which each video frame will be resized in our dataset
 IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
@@ -179,7 +183,6 @@ def generate_keys():
         f.write(private_key.save_pkcs1("PEM"))
 
 
-
 def get_keys():
     """
     The `get_tls_keys` method retrieves the RSA private and public keys from the specified keys' folder.
@@ -340,3 +343,59 @@ def generate_tls_keys():
 
     with open(os.path.join(keys_folder, 'cert.pem'), "wb") as cert_file:
         cert_file.write(cert.public_bytes(serialization.Encoding.PEM))
+
+
+def get_interface_ip():
+    interfaces = ni.interfaces()
+    for interface in interfaces:
+        if ni.AF_INET in ni.ifaddresses(interface):
+            addresses = ni.ifaddresses(interface)[ni.AF_INET]
+            if len(addresses) > 0:
+                ip = addresses[0]['addr']
+                return ip
+    return None
+
+
+class Utils(object):
+    def compute_hash(self, block):
+        json_block = self.dict_to_json(block)
+        return sha256(json_block.encode()).hexdigest()
+
+    def json_to_dict(self, data):
+        try:
+            dict_data = json.loads(data)
+        except Exception as error:
+            logging.error('Block: error converting json to dict!')
+            return False
+        return dict_data
+
+    def dict_to_json(self, data):
+        try:
+            json_data = json.dumps(data, sort_keys=True)
+        except Exception as error:
+            logging.error('Block: error converting dict to json!')
+            return False
+        return json_data
+
+    @staticmethod
+    def validate_dict_keys(data, base_dict):
+        if not isinstance(data, dict):
+            return False
+        data_keys = [k for k in data.keys()]
+        base_keys = [k for k in base_dict.keys()]
+        if sorted(data_keys) != sorted(base_keys):
+            logging.error('Server Transaction: Transaction #{} keys are not valid!'.format(data['HEIGHT']))
+            return False
+        return True
+
+    @staticmethod
+    def validate_dict_values(data, base_dict):
+        if not isinstance(data, dict):
+            return False
+        keys = [k for k in data.keys()]
+
+        for i in range(len(keys)):
+            if type(data[keys[i]]) != base_dict[keys[i]]:
+                logging.error('Server Transaction: Transaction #{} values are not valid!'.format(data['HEIGHT']))
+                return False
+        return True

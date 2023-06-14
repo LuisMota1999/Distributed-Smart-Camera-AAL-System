@@ -6,7 +6,6 @@ import threading
 import time
 import ssl
 import uuid
-import netifaces as ni
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.NetworkService.NodeListener import NodeListener
@@ -14,7 +13,8 @@ from EdgeDevice.BlockchainService.Transaction import validate_transaction
 from EdgeDevice.NetworkService.Messages import meta
 from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE
 import json
-from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json
+from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json, \
+    get_interface_ip
 
 
 class Node(threading.Thread):
@@ -30,7 +30,7 @@ class Node(threading.Thread):
         self.id = uuid.uuid4()
         self.private_key, self.public_key = get_keys()
         self.name = name
-        self.ip = ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.ip = get_interface_ip()  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
         self.keep_alive_timeout = 20
@@ -213,7 +213,7 @@ class Node(threading.Thread):
 
                 # Connect to the peer using the TLS-encrypted socket
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout*3)
+                conn.settimeout(self.keep_alive_timeout * 3)
 
                 # Continue with the rest of your code
                 self.add_node(conn, client_id)
@@ -410,8 +410,7 @@ class Node(threading.Thread):
                                 "TYPE": "TRANSACTION",
                                 "PAYLOAD": {
                                     "COORDINATOR": str(self.coordinator),
-                                    "BLOCKCHAIN": self.blockchain.chain,
-                                    "TRANSACTION_MESSAGE": tx,
+                                    "PENDING": self.blockchain.pending_transactions,
                                 }
                             }
                             message = json.dumps(data, indent=2)
