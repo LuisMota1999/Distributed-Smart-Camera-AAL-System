@@ -118,6 +118,7 @@ class Node(threading.Thread):
             self.stop()
 
         if len(self.connections) == 0:
+            time.sleep(5)
             self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
