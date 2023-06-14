@@ -353,6 +353,7 @@ class Node(threading.Thread):
                 conn.send(bytes(message_json, encoding="utf-8"))
         elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
             self.blockchain.chain = message["PAYLOAD"].get("CHAIN")
+            print(f"IP: {self.ip} , CHAIN: {self.blockchain.chain}")
             logging.info("Blockchain chain was updated with information from coordinator")
 
     def handle_transaction_message(self, message, conn, neighbour_id):
@@ -420,7 +421,7 @@ class Node(threading.Thread):
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
                 print(f"MESSAGE TYPE: {message_type}")
-                print(f"\nMESSAGE JSON: {data}\n")
+                # print(f"\nMESSAGE JSON: {data}\n")
                 if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)
 
