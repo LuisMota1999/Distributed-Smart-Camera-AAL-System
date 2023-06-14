@@ -19,6 +19,7 @@ import json
 import logging
 from hashlib import sha256
 import netifaces as ni
+import platform
 
 # Specify the height and width to which each video frame will be resized in our dataset
 IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
@@ -346,14 +347,13 @@ def generate_tls_keys():
 
 
 def get_interface_ip():
-    interfaces = ni.interfaces()
-    for interface in interfaces:
-        if ni.AF_INET in ni.ifaddresses(interface):
-            addresses = ni.ifaddresses(interface)[ni.AF_INET]
-            if len(addresses) > 0:
-                ip = addresses[0]['addr']
-                return ip
-    return None
+    if platform.system() == 'Windows':
+        interface = 'Ethernet'  # Replace with the actual interface name in Windows
+    elif platform.system() == 'Linux':
+        interface = 'eth0'  # Replace with the actual interface name in Linux
+    else:
+        return None
+    return ni.ifaddresses(interface)[ni.AF_INET][0]['addr']
 
 
 class Utils(object):

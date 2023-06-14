@@ -5,7 +5,8 @@
 retrained-models/datasets
 EdgeDevice/Keys/public.pem
 EdgeDevice/Keys/private.pem
-tests/Keys/
+tests/Keys/private.pem
+tests/Keys/pub.pem
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
