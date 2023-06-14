@@ -10,11 +10,12 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUnique
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
-from EdgeDevice.NetworkService.Messages import meta
-from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE
+from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages
 import json
 from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json, \
-    get_interface_ip
+    get_interface_ip, create_general_message
+
+logger = logging.getLogger(__name__)
 
 
 class Node(threading.Thread):
@@ -55,7 +56,7 @@ class Node(threading.Thread):
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: {'ip': self.ip, 'public_key': self.public_key}}
+        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -246,22 +247,15 @@ class Node(threading.Thread):
         :type client_id: <bytes>
         :return: None
         """
-
+        neighbour_id = uuid.UUID(client_id.decode('utf-8'))
+        neighbour = self.neighbours.get(neighbour_id)
         while self.running:
             try:
-                data = {
-                    "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
-                                 str(client_id.decode('utf-8'))),
-                    "TYPE": "PING",
-                    "PAYLOAD": {
-                        "LAST_TIME_ALIVE": time.time(),
-                        "COORDINATOR": str(self.coordinator),
-                    }
-                }
+                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                              conn.getpeername()[1],
+                                              str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PING)
 
-                neighbour_id = uuid.UUID(client_id.decode('utf-8'))
-                neighbour = self.neighbours.get(neighbour_id)
-                if neighbour is not None and neighbour['public_key'] is None:
+                if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
                     data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
                 time.sleep(2)
@@ -300,7 +294,7 @@ class Node(threading.Thread):
                 higher_nodes = []
                 for neighbour_id, neighbour in self.neighbours.items():
                     if neighbour_id > self.id:
-                        higher_nodes.append(neighbour['ip'])
+                        higher_nodes.append(neighbour['IP'])
                 if higher_nodes:
                     for ip in higher_nodes:
                         for node in self.connections:
@@ -314,6 +308,7 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
+                self.blockchain.add_block(self.blockchain.new_block())
                 print(f"Node {self.id} is the coordinator")
         except ssl.SSLZeroReturnError as e:
             print(f"SSLZero Return Error {e.strerror}")
@@ -342,6 +337,58 @@ class Node(threading.Thread):
                 self.recon_state = False
                 continue
 
+    def handle_get_chain_message(self, conn, neighbour_id):
+
+        data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                      conn.getpeername()[1],
+                                      str(neighbour_id), str(self.coordinator),
+                                      Messages.MESSAGE_TYPE_TRANSACTION)
+
+        data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
+
+        message_json = json.dumps(data, indent=2)
+        conn.send(bytes(message_json, encoding="utf-8"))
+
+    def handle_transaction_message(self, message, conn, neighbour_id):
+        tx = message["PAYLOAD"].get("PENDING")
+
+        if validate_transaction(tx):
+            if tx not in self.blockchain.pending_transactions:
+                self.blockchain.pending_transactions.append(tx)
+                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                              conn.getpeername()[1],
+                                              str(neighbour_id), str(self.coordinator),
+                                              Messages.MESSAGE_TYPE_TRANSACTION)
+
+                data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
+
+                message = json.dumps(data, indent=2)
+                self.broadcast_message(message)
+        else:
+            print("Received invalid transaction")
+            return
+
+    def handle_general_message(self, message, conn, neighbour_id):
+        if self.coordinator is None:
+            self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
+            print(f"\nNetwork Coordinator is {self.coordinator}\n")
+
+        neighbour = self.neighbours.get(neighbour_id)
+        if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
+            public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
+            public_key = load_public_key_from_json(public_key_base64)
+            if public_key is not None:
+                self.neighbours[neighbour_id]['PUBLIC_KEY'] = public_key
+
+        data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
+                                      str(neighbour_id), str(self.coordinator), Messages.MESSAGE_TYPE_PONG)
+
+        if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
+            data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
+
+        message_json = json.dumps(data, indent=2)
+        conn.send(bytes(message_json, encoding="utf-8"))
+
     def handle_messages(self, conn):
         """
 
@@ -362,64 +409,14 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-                neighbour = self.neighbours.get(neighbour_id)
-                if message_type == "PING":
-                    if self.coordinator is None:
-                        self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
-                        print(f"\nNetwork Coordinator is {self.coordinator}\n")
-                    print(message_type)
 
-                    self.retries = 5
-                    if neighbour is not None and neighbour['public_key'] is None:
-                        # Extract the base64-encoded public key from the received message
-                        public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
+                if message_type == Messages.MESSAGE_TYPE_PING:
+                    self.handle_general_message(message, conn, neighbour_id)
 
-                        # Decode the base64-encoded public key back to bytes
-                        public_key = load_public_key_from_json(public_key_base64)
-                        if public_key is not None:
-                            # Update public key for the specific IP address in the dictionary
-                            self.neighbours[neighbour_id]['public_key'] = public_key
+                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION:
+                    self.handle_transaction_message(message, conn, neighbour_id)
 
-                    data = {
-                        "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
-                                     str(neighbour_id)),
-                        "TYPE": "PONG",
-                        "PAYLOAD": {
-                            "LAST_TIME_ALIVE": time.time(),
-                            "COORDINATOR": str(self.coordinator),
-                        }
-                    }
-
-                    if neighbour is not None and neighbour['public_key'] is None:
-                        data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
-
-                    message_json = json.dumps(data, indent=2)
-                    conn.send(bytes(message_json, encoding="utf-8"))
-
-                if message_type == "TRANSACTION":
-                    # Validate the transaction
-                    tx = message["PAYLOAD"].get("TRANSACTION_MESSAGE")
-
-                    if validate_transaction(tx) is True:
-                        # Add the tx to our pool, and propagate it to our peers
-                        if tx not in self.blockchain.pending_transactions:
-                            self.blockchain.pending_transactions.append(tx)
-                            data = {
-                                "META": meta(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                             conn.getpeername()[1], str(neighbour_id)),
-                                "TYPE": "TRANSACTION",
-                                "PAYLOAD": {
-                                    "COORDINATOR": str(self.coordinator),
-                                    "PENDING": self.blockchain.pending_transactions,
-                                }
-                            }
-                            message = json.dumps(data, indent=2)
-                            self.broadcast_message(message)
-                    else:
-                        print("Received invalid transaction")
-                        continue
-
-                if message_type == "BLOCK":
+                elif message_type == Messages.MESSAGE_TYPE_BLOCK:
                     pass
 
                 if not data:
@@ -470,8 +467,8 @@ class Node(threading.Thread):
 
     def get_public_key_by_ip(self, ip_address):
         for neighbour_id, neighbour_info in self.neighbours.items():
-            if neighbour_info['ip'] == ip_address:
-                return neighbour_info['public_key']
+            if neighbour_info['IP'] == ip_address:
+                return neighbour_info['PUBLIC_KEY']
         return None
 
     def broadcast_message(self, message):
@@ -534,7 +531,7 @@ class Node(threading.Thread):
             new_ip = conn.getpeername()[0]
             new_public_key = None
 
-            self.neighbours[new_client_id] = {'ip': new_ip, 'public_key': new_public_key}
+            self.neighbours[new_client_id] = {'IP': new_ip, 'PUBLIC_KEY': new_public_key}
 
             # Print a message indicating that the new node has been added to the network
             print(f"Node {conn.getpeername()[0]} added to the network")

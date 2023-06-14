@@ -1,3 +1,4 @@
+import time
 import uuid
 import random
 import datetime
@@ -82,6 +83,8 @@ def inference_worker(in_q, out_q):
 def network_worker(in_q):
     while True:
         item = in_q.get()
+        time.sleep(1)
+        print(item)
 
 
 def download_youtube_videos(youtube_video_url, output_directory):
@@ -264,6 +267,26 @@ def public_key_to_json(public_key):
     return public_key_base64
 
 
+def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, to_id: str, version="0.0.1"):
+    return {
+        "CLIENT": version,
+        "FROM_ADDRESS": {"ID": from_id, "IP": from_ip, "PORT": from_port},
+        "TO_ADDRESS": {"ID": to_id, "IP": to_ip, "PORT": to_port},
+    }
+
+
+def create_general_message(internal_id, internal_ip, internal_port, external_id, external_ip, external_port,
+                           node_coordinator, message_type):
+    return {
+        "META": meta(internal_id, internal_ip, internal_port, external_ip, external_port, external_id),
+        "TYPE": message_type,
+        "PAYLOAD": {
+            "LAST_TIME_ALIVE": time.time(),
+            "COORDINATOR": node_coordinator,
+        },
+    }
+
+
 def handle_detection():
     """
     The `handle_detection` method handles the detection of actions in a video by performing action recognition using
@@ -361,19 +384,21 @@ class Utils(object):
         json_block = self.dict_to_json(block)
         return sha256(json_block.encode()).hexdigest()
 
-    def json_to_dict(self, data):
+    @staticmethod
+    def json_to_dict(data):
         try:
             dict_data = json.loads(data)
         except Exception as error:
-            logging.error('Block: error converting json to dict!')
+            logging.error(f'Block: error converting json to dict {error.args}')
             return False
         return dict_data
 
-    def dict_to_json(self, data):
+    @staticmethod
+    def dict_to_json(data):
         try:
             json_data = json.dumps(data, sort_keys=True)
         except Exception as error:
-            logging.error('Block: error converting dict to json!')
+            logging.error(f'Block: error converting dict to json! {error.args}')
             return False
         return json_data
 
