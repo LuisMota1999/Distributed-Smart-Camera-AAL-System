@@ -278,7 +278,7 @@ def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, t
 def create_general_message(internal_id, internal_ip, internal_port, external_id, external_ip, external_port,
                            node_coordinator, message_type):
     return {
-        "META": meta(internal_id, internal_ip, internal_port, external_ip, external_port, external_id),
+        "META": meta(internal_id, internal_ip, internal_port, external_id, external_ip, external_port),
         "TYPE": message_type,
         "PAYLOAD": {
             "LAST_TIME_ALIVE": time.time(),

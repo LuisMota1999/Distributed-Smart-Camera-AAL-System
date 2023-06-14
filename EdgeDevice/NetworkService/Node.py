@@ -349,7 +349,7 @@ class Node(threading.Thread):
                 data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
 
                 message_json = json.dumps(data, indent=2)
-                print(message_json)
+                print(f"CHAIN MESSAGE: {message_json}")
                 conn.send(bytes(message_json, encoding="utf-8"))
         elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
             self.blockchain.chain = message["PAYLOAD"].get("CHAIN")
@@ -395,7 +395,7 @@ class Node(threading.Thread):
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
-        print(f"PONG MESSAGE: {message_json}")
+        print(f"GENERAL MESSAGE: {message_json}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
@@ -424,13 +424,13 @@ class Node(threading.Thread):
                 if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)
 
-                if message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
+                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
 
-                if message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
+                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id)
 
-                if message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
+                elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
 
                 if not data:
