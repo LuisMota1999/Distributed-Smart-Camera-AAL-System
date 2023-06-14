@@ -414,13 +414,13 @@ class Node(threading.Thread):
 
                 print(f"MESSAGE TYPE: {message_type}")
                 print(f"\nMESSAGE JSON: {data}\n")
-                if message_type == Messages.MESSAGE_TYPE_PING:
+                if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)
 
-                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION:
+                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id)
 
-                elif message_type == Messages.MESSAGE_TYPE_BLOCK:
+                elif message_type == Messages.MESSAGE_TYPE_BLOCK.value:
                     pass
 
                 if not data:
