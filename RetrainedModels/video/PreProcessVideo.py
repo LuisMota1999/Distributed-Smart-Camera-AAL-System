@@ -19,7 +19,7 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
 SEQUENCE_LENGTH = 20
 
 # Specify the directory containing the UCF50 dataset
-DATASET_DIR = "./datasets/UCF50/"
+DATASET_DIR = "datasets/UCF50/"
 
 # Specify the list containing the names of the classes used for training.
 CLASSES_LIST = ["PushUps", "Punch", "PlayingGuitar", "HorseRace"]
@@ -296,7 +296,7 @@ LRCN_model = create_LRCN_model()
 print("LRCN Model created successfully!")
 
 # Plot the structure of the constructed model
-tf.keras.utils.plot_model(LRCN_model, to_file='assets/LRCN_model_structure_plot.png', show_shapes=True,
+tf.keras.utils.plot_model(LRCN_model, to_file='../assets/model_video_imgs/LRCN_model_structure_plot.png', show_shapes=True,
                           show_layer_names=True)
 
 # Create an Instance of Early Stopping Callback to prevent over fitting

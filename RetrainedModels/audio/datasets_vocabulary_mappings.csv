@@ -1,0 +1,16 @@
+category,dataset,id,matching_category
+scissors,FSD50k,143,Scissors
+knock,FSD50k,106,Knock
+silence,CUSTOM-SOUNDS,0,silence
+boiling,FSD50k,17,Boiling
+water,FSD50k,187,Water
+bathtub,FSD50k,10,Bathtub_(filling_or_washing)
+speech,FSD50k,158,Speech
+dishes,FDS50k,58,Dishes_and_pots_and_pans
+frying_(food),FDS50k,83,Frying_(food)
+microwave,FDS50k,117,Microwave_oven
+splash_and_splatter,FDS50k,160,Splash_and_splatter
+toilet_flush,FSD50k,175,Toilet_flush
+doorbell,FDS50k,63,Doorbell
+alarm,FSD50k,4,Alarm
+crying_and_sobbing,FDS50k,54,Crying_and_sobbing

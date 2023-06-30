@@ -16,7 +16,7 @@ tf.random.set_seed(seed_constant)
 plt.figure(figsize=(20, 20))
 
 # Get the names of all classes/categories in UCF50
-all_classes_names = os.listdir('./datasets/UCF50/')
+all_classes_names = os.listdir('datasets/UCF50/')
 
 # Generate a list of 20 random values. The values will be between 0-50,
 # where 50 is the total number of class in the dataset.
@@ -35,7 +35,7 @@ for counter, random_index in enumerate(random_range, 1):
     selected_class_name = all_classes_names[random_index]
 
     # Retrieve the list of all the video files present in the randomly selected class directory
-    video_files_names_list = os.listdir(f'./datasets/UCF50/{selected_class_name}')
+    video_files_names_list = os.listdir(f'datasets/UCF50/{selected_class_name}')
 
     # Randomly select a video file from the list retrieved from the randomly selected class Directory.
     selected_video_file_name = random.choice(video_files_names_list)

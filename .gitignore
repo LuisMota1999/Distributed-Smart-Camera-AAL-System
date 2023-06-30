@@ -2,7 +2,10 @@
 .idea/
 
 #Folder containing data to models
-retrained-models/datasets
+RetrainedModels/video/datasets
+RetrainedModels/video/models
+RetrainedModels/audio/datasets
+
 EdgeDevice/Keys/public.pem
 EdgeDevice/Keys/private.pem
 tests/Keys/private.pem
