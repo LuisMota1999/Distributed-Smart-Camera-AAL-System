@@ -12,7 +12,7 @@ VAL_DS_PERCENTAGE = 0.0
 TEST_DS_PERCENTAGE = 0.2
 
 if TRAIN_DS_PERCENTAGE + VAL_DS_PERCENTAGE + TEST_DS_PERCENTAGE != 1:
-    raise Exception('Train/Val/Test split sum must be equal to 100%')
+    raise Exception('train/Val/Test split sum must be equal to 100%')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', dest='datasets_path',
@@ -109,7 +109,7 @@ def balance_wav_files(maps):
     dif = min_count - (train_ds + val_ds + test_ds)
     train_ds += dif
 
-    print("Train DS size: " + str(train_ds))
+    print("train DS size: " + str(train_ds))
     print("Val DS size: " + str(val_ds))
     print("Test DS size: " + str(test_ds))
 

@@ -19,10 +19,10 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 64, 64
 SEQUENCE_LENGTH = 20
 
 # Specify the directory containing the UCF50 dataset
-DATASET_DIR = "datasets/UCF50/"
+DATASET_DIR = "datasets/Charades/"
 
 # Specify the list containing the names of the classes used for training.
-CLASSES_LIST = ["PushUps", "Punch", "PlayingGuitar", "HorseRace"]
+CLASSES_LIST = ["Washing_a_window", "Working_at_a_table", "Opening_a_laptop"]
 
 
 def plot_metrics(model_training_history, metric_name_1, metric_name_2, plot_name):
@@ -256,7 +256,7 @@ def create_convlstm_model():
 def create_LRCN_model():
     """
     This function will construct the required LRCN model.
-    :return model: It is the required consctructed LRCN model.
+    :return model: It is the required constructed LRCN model.
     """
     model = tf.keras.Sequential()
 
@@ -264,22 +264,27 @@ def create_LRCN_model():
     ##################################################################################################################
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(16, (3, 3), padding='same', activation='relu'),
                                               input_shape=(SEQUENCE_LENGTH, IMAGE_HEIGHT, IMAGE_WIDTH, 3)))
+    model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.BatchNormalization()))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D((4, 4))))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.25)))
 
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu')))
+    model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.BatchNormalization()))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D((4, 4))))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.25)))
 
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(64, (3, 3), padding='same', activation='relu')))
+    model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.BatchNormalization()))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D((2, 2))))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.25)))
 
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(64, (3, 3), padding='same', activation='relu')))
+    model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.BatchNormalization()))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D((2, 2))))
     model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Flatten()))
 
-    model.add(tf.keras.layers.LSTM(32))  # Set return_sequences=True
+    model.add(tf.keras.layers.LSTM(32, return_sequences=True))
+    model.add(tf.keras.layers.LSTM(32))
     model.add(tf.keras.layers.Dense(len(CLASSES_LIST), activation="softmax"))
     ##################################################################################################################
 

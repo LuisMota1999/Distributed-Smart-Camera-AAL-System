@@ -1,184 +1,144 @@
-import collections
-import pathlib
-import random
-
-import cv2
-import matplotlib.pyplot as plt
-import numpy as np
-import remotezip as rz
+# Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 import seaborn as sns
+import matplotlib.pyplot as plt
+import pathlib
+import numpy as np
+# Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 import tensorflow as tf
-import tqdm
+from RetrainedModels.video.DataExtraction import UCF101Dataset, FrameGenerator
+# Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 from official.projects.movinet.modeling import movinet
 from official.projects.movinet.modeling import movinet_model
 
-URL = 'https://storage.googleapis.com/thumos14_files/UCF101_videos.zip'
-download_dir = pathlib.Path('./UCF101_subset/')
+url_ucf101_dataset = "https://storage.googleapis.com/thumos14_files/UCF101_videos.zip"
+ucf101_output_directory = pathlib.Path('datasets/UCF101/')
+ucf101_classes = ["CuttingInKitchen", "BlowDryHair", "ApplyLipstick"]
+ucf101_dataset = UCF101Dataset(url_ucf101_dataset, ucf101_output_directory, ucf101_classes)
+subset_paths = ucf101_dataset.dirs
+batch_size = 8
+num_frames = 8
+
+output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
+                    tf.TensorSpec(shape=(), dtype=tf.int16))
+
+print(output_signature)
+train_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=ucf101_dataset, training=True),
+    output_signature=output_signature)
+train_ds = train_ds.batch(batch_size)
+
+test_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=ucf101_dataset),
+    output_signature=output_signature)
+test_ds = test_ds.batch(batch_size)
+
+val_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=ucf101_dataset),
+    output_signature=output_signature)
+val_ds = val_ds.batch(batch_size)
+
+for frames, labels in train_ds.take(10):
+    print(labels)
+    print(f"Shape: {frames.shape}")
+    print(f"Label: {labels.shape}")
+
+gru = tf.keras.layers.GRU(units=4, return_sequences=True, return_state=True)
+
+inputs = tf.random.normal(shape=[1, 10, 8])  # (batch, sequence, channels)
+
+result, state = gru(inputs)  # Run it all at once
+
+first_half, state = gru(inputs[:, :5, :])  # run the first half, and capture the state
+second_half, _ = gru(inputs[:, 5:, :], initial_state=state)  # Use the state to continue where you left off.
+
+print(np.allclose(result[:, :5, :], first_half))
+print(np.allclose(result[:, 5:, :], second_half))
+
+model_id = 'a0'
+resolution = 224
+
+tf.keras.backend.clear_session()
+
+backbone = movinet.Movinet(model_id=model_id)
+backbone.trainable = False
+
+# Set num_classes=600 to load the pre-trained weights from the original model
+model = movinet_model.MovinetClassifier(backbone=backbone, num_classes=600)
+model.build([None, None, None, None, 3])
+
+checkpoint_dir = pathlib.Path("movinet_a0_base")
+checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir)
+checkpoint = tf.train.Checkpoint(model=model)
+status = checkpoint.restore(checkpoint_path)
+status.assert_existing_objects_matched()
 
 
-def list_files_per_class(zip_url):
-    files = []
-    with rz.RemoteZip(zip_url) as zip:
-        for zip_info in zip.infolist():
-            files.append(zip_info.filename)
-    return files
-
-
-def get_class(fname):
-    return fname.split('_')[-3]
-
-
-def get_files_per_class(files):
-    files_for_class = collections.defaultdict(list)
-    for fname in files:
-        class_name = get_class(fname)
-        files_for_class[class_name].append(fname)
-    return files_for_class
-
-
-def download_from_zip(zip_url, to_dir, file_names):
-    with rz.RemoteZip(zip_url) as zip:
-        for fn in tqdm.tqdm(file_names):
-            class_name = get_class(fn)
-            zip.extract(fn, str(to_dir / class_name))
-            unzipped_file = to_dir / class_name / fn
-
-            fn = pathlib.Path(fn).parts[-1]
-            output_file = to_dir / class_name / fn
-            unzipped_file.rename(output_file)
-
-
-def split_class_lists(files_for_class, count):
-    split_files = []
-    remainder = {}
-    for cls in files_for_class:
-        split_files.extend(files_for_class[cls][:count])
-        remainder[cls] = files_for_class[cls][count:]
-    return split_files, remainder
-
-
-def download_ufc_101_subset(zip_url, num_classes, splits, download_dir):
-    files = list_files_per_class(zip_url)
-    for f in files:
-        tokens = f.split('/')
-        if len(tokens) <= 2:
-            files.remove(f)
-
-    files_for_class = get_files_per_class(files)
-
-    classes = list(files_for_class.keys())[:num_classes]
-
-    for cls in classes:
-        new_files_for_class = files_for_class[cls]
-        random.shuffle(new_files_for_class)
-        files_for_class[cls] = new_files_for_class
-
-    files_for_class = {x: files_for_class[x] for x in list(files_for_class)[:num_classes]}
-
-    dirs = {}
-    for split_name, split_count in splits.items():
-        print(split_name, ":")
-        split_dir = download_dir / split_name
-        split_files, files_for_class = split_class_lists(files_for_class, split_count)
-        download_from_zip(zip_url, split_dir, split_files)
-        dirs[split_name] = split_dir
-
-    return dirs
-
-
-def format_frames(frame, output_size):
-    frame = tf.image.convert_image_dtype(frame, tf.float32)
-    frame = tf.image.resize_with_pad(frame, *output_size)
-    return frame
-
-
-def frames_from_video_file(video_path, n_frames, output_size=(224, 224), frame_step=15):
-    result = []
-    src = cv2.VideoCapture(str(video_path))
-
-    video_length = src.get(cv2.CAP_PROP_FRAME_COUNT)
-
-    need_length = 1 + (n_frames - 1) * frame_step
-
-    if need_length > video_length:
-        start = 0
-    else:
-        max_start = video_length - need_length
-        start = random.randint(0, max_start + 1)
-
-    src.set(cv2.CAP_PROP_POS_FRAMES, start)
-    ret, frame = src.read()
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame = format_frames(frame, output_size)
-    result.append(frame)
-
-    while len(result) < n_frames:
-        for _ in range(frame_step - 1):
-            ret, _ = src.read()
-        ret, frame = src.read()
-        if not ret:
-            break
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = format_frames(frame, output_size)
-        result.append(frame)
-
-    while len(result) < n_frames:
-        result.append(result[-1])
-
-    src.release()
-    return np.stack(result)
-
-
-def load_movinet(weights_path, num_classes):
+def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
+    """Builds a classifier on top of a backbone model."""
     model = movinet_model.MovinetClassifier(
-        model_id='a0',
-        num_classes=num_classes,
-        temporal_size=300,
-        temporal_downsample=16,
-        norm_mom=0.99,
-        norm_epsilon=1e-3,
-        kernel_initializer='VarianceScaling'
-    )
-
-    dummy_input = tf.keras.Input(shape=(300, 224, 224, 3))
-    _ = model(dummy_input)
-
-    model.load_weights(weights_path)
+        backbone=backbone,
+        num_classes=num_classes)
+    model.build([batch_size, num_frames, resolution, resolution, 3])
 
     return model
 
 
-def predict_video_class(video_path, model, output_size=(224, 224), n_frames=8):
-    frames = frames_from_video_file(video_path, n_frames, output_size=output_size)
-    frames = np.expand_dims(frames, axis=0)
-    predictions = model.predict(frames)
-    return predictions
+model = build_classifier(batch_size, num_frames, resolution, backbone, 10)
+
+num_epochs = 1
+
+loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+
+model.compile(loss=loss_obj, optimizer=optimizer, metrics=['accuracy'])
+
+results = model.fit(train_ds,
+                    validation_data=test_ds,
+                    epochs=num_epochs,
+                    validation_freq=1,
+                    verbose=1)
+
+model.evaluate(test_ds, return_dict=True)
 
 
-def plot_prediction(predictions, class_names):
-    sns.barplot(x=predictions[0], y=class_names)
-    plt.show()
+def get_actual_predicted_labels(dataset):
+    """
+      Create a list of actual ground truth values and the predictions from the model.
+
+      Args:
+        dataset: An iterable data structure, such as a TensorFlow Dataset, with features and labels.
+
+      Return:
+        Ground truth and predicted values for a particular dataset.
+    """
+    actual = [labels for _, labels in dataset.unbatch()]
+    predicted = model.predict(dataset)
+
+    actual = tf.stack(actual, axis=0)
+    predicted = tf.concat(predicted, axis=0)
+    predicted = tf.argmax(predicted, axis=1)
+
+    return actual, predicted
 
 
-def main():
-    zip_url = URL
-    num_classes = 5
-    splits = {'train': 30, 'val': 10, 'test': 10}
-
-    download_dirs = download_ufc_101_subset(zip_url, num_classes, splits, download_dir)
-
-    weights_path = '/path/to/movinet_weights'
-    model = load_movinet(weights_path, num_classes)
-
-    class_names = list(download_dirs.keys())
-
-    for split_name, split_dir in download_dirs.items():
-        for class_dir in split_dir.iterdir():
-            video_files = list(class_dir.glob('*.avi'))
-            video_file = random.choice(video_files)
-            predictions = predict_video_class(video_file, model)
-            plot_prediction(predictions, class_names)
+def plot_confusion_matrix(actual, predicted, labels, ds_type):
+    print("MATRIX")
+    cm = tf.math.confusion_matrix(actual, predicted)
+    ax = sns.heatmap(cm, annot=True, fmt='g')
+    sns.set(rc={'figure.figsize': (22, 22)})
+    sns.set(font_scale=1.4)
+    ax.set_title('Matriz de confusão de atividades')
+    ax.set_xlabel('Predicted Action')
+    ax.set_ylabel('Actual Action')
+    plt.xticks(rotation=90)
+    plt.yticks(rotation=0)
+    ax.xaxis.set_ticklabels(labels)
+    ax.yaxis.set_ticklabels(labels)
 
 
-if __name__ == '__main__':
-    main()
+fg = FrameGenerator(path=subset_paths['train'], n_frames=num_frames, dataset=ucf101_dataset, training=True)
+label_names = list(fg.class_ids_for_name.keys())
+actual, predicted = get_actual_predicted_labels(test_ds)
+plot_confusion_matrix(actual, predicted, label_names, 'test')
+plt.show()

@@ -10,13 +10,19 @@ import remotezip as rz
 import tensorflow as tf
 import tqdm
 from tensorflow_docs.vis import embed
+from RetrainedModels.video.utils.helper import get_directory_lengths, convert_mp4_to_avi_recursive
 
 
 class CharadesDataset:
-    def __init__(self, csv_file, txt_action_file, output_directory):
+    def __init__(self, csv_file, txt_action_file, output_directory, charades_video_directory):
         self.csv_file = csv_file
         self.txt_action_file = txt_action_file
         self.output_directory = output_directory
+        if not os.path.exists(output_directory):
+            self.create_dir_actions()
+            self.create_actions_files_dir(charades_video_directory)
+        else:
+            print("Charades dataset already exists. Skipping download.")
 
     def create_dir_actions(self):
         # Create the output directory if it doesn't exist
@@ -99,13 +105,18 @@ class CharadesDataset:
             if os.path.exists(file_path):
                 destination_path = os.path.join(action_directory, video_id + ".mp4")
                 os.rename(file_path, destination_path)
-                print(f"Arquivo {video_id} movido para o diretório {destination_path}")
+                print(f"File {video_id} moved to {destination_path} directory")
 
 
 class ToyotaSmartHomeDataset:
     def __init__(self, video_directory, output_directory):
         self.video_directory = video_directory
         self.output_directory = output_directory
+        if not os.path.exists(output_directory):
+            self.create_dir_actions()
+            self.map_files_to_action_directory()
+        else:
+            print("Toyota Smarthomee dataset already exists. Skipping download.")
 
     def create_dir_actions(self):
         # Create the output directory if it doesn't exist
@@ -125,16 +136,64 @@ class ToyotaSmartHomeDataset:
             if os.path.exists(filename_path):
                 destination_path = os.path.join(folder_path, filename)
                 os.rename(filename_path, destination_path)
-                print(f"Arquivo {filename} movido para o diretório {folder_path}")
+                print(f"File {filename} moved to {folder_path} directory")
 
 
 class UCF101Dataset:
-    def __init__(self, URL, output_directory):
+    def __init__(self, URL, output_directory, classes):
         self.URL = URL
         self.dirs = self.download_ufc_101_subset(URL,
-                                                 num_classes=10,
+                                                 selected_classes=classes,
                                                  splits={"train": 40, "val": 10, "test": 10},
                                                  download_dir=output_directory)
+
+    def download_ufc_101_subset(self, zip_url, selected_classes, splits, download_dir):
+        """
+        Download a subset of the UFC101 dataset and split them into various parts, such as
+        training, validation, and test.
+
+        Args:
+            zip_url: Zip URL containing data.
+            selected_classes: List of class names to download.
+            splits: Dictionary specifying the training, validation, test, etc. (key) division of data
+            (value is number of files per split).
+            download_dir: Directory to download data to.
+
+        Return:
+            dirs: Posix path of the resulting directories containing the splits of data.
+        """
+
+        # Check if the 'ucf101' directory already exists
+        if os.path.exists('./datasets/UCF101'):
+            print("UCF101 dataset already exists. Skipping download.")
+            dirs = self.get_existing_splits(download_dir)
+        else:
+            # Download the subset of the dataset
+            files = self.list_files_per_class(zip_url)
+            for f in files:
+                tokens = f.split('/')
+                if len(tokens) <= 2:
+                    files.remove(f)  # Remove that item from the list if it does not have a filename
+
+            files_for_class = self.get_files_per_class(files)
+
+            # Extract selected classes
+            selected_files_for_class = {class_name: file_list for class_name, file_list in files_for_class.items() if
+                                        class_name in selected_classes}
+
+            print(selected_files_for_class)
+
+            files_for_class = selected_files_for_class
+
+            dirs = {}
+            for split_name, split_count in splits.items():
+                print(split_name, ":")
+                split_dir = download_dir / split_name
+                split_files, files_for_class = self.split_class_lists(files_for_class, split_count)
+                self.download_from_zip(zip_url, split_dir, split_files)
+                dirs[split_name] = split_dir
+
+        return dirs
 
     @staticmethod
     def list_files_per_class(zip_url):
@@ -222,48 +281,16 @@ class UCF101Dataset:
             remainder[cls] = files_for_class[cls][count:]
         return split_files, remainder
 
-    def download_ufc_101_subset(self, zip_url, num_classes, splits, download_dir):
-        """
-          Download a subset of the UFC101 dataset and split them into various parts, such as
-          training, validation, and test.
-
-          Args:
-            zip_url: Zip URL containing data.
-            num_classes: Number of labels.
-            splits: Dictionary specifying the training, validation, test, etc. (key) division of data
-                    (value is number of files per split).
-            download_dir: Directory to download data to.
-
-          Return:
-            dir: Posix path of the resulting directories containing the splits of data.
-        """
-        files = self.list_files_per_class(zip_url)
-        for f in files:
-            tokens = f.split('/')
-            if len(tokens) <= 2:
-                files.remove(f)  # Remove that item from the list if it does not have a filename
-
-        files_for_class = self.get_files_per_class(files)
-
-        classes = list(files_for_class.keys())[:num_classes]
-
-        for cls in classes:
-            new_files_for_class = files_for_class[cls]
-            random.shuffle(new_files_for_class)
-            files_for_class[cls] = new_files_for_class
-
-        # Only use the number of classes you want in the dictionary
-        files_for_class = {x: files_for_class[x] for x in list(files_for_class)[:num_classes]}
-
-        dirs = {}
-        for split_name, split_count in splits.items():
-            print(split_name, ":")
+    @staticmethod
+    def get_existing_splits(download_dir):
+        splits = {}
+        for split_name in ["train", "val", "test"]:
             split_dir = download_dir / split_name
-            split_files, files_for_class = self.split_class_lists(files_for_class, split_count)
-            self.download_from_zip(zip_url, split_dir, split_files)
-            dirs[split_name] = split_dir
-
-        return dirs
+            if os.path.exists(split_dir):
+                splits[split_name] = split_dir
+            else:
+                print(f"Warning: Split '{split_name}' directory does not exist.")
+        return splits
 
     @staticmethod
     def format_frames(frame, output_size):
@@ -281,115 +308,123 @@ class UCF101Dataset:
         frame = tf.image.resize_with_pad(frame, *output_size)
         return frame
 
-    def frames_from_video_file(self, video_path, n_frames, output_size=(172, 172), frame_step=15):
-        """
-          Creates frames from each video file present for each category.
-
-          Args:
-            :param video_path: File path to the video.
-            :param n_frames: Number of frames to be created per video file.
-            :param output_size: Pixel size of the output frame image.
-            :param frame_step:
-
-          Return:
-            An NumPy array of frames in the shape of (n_frames, height, width, channels).
-        """
-        # Read each video frame by frame
-        result = []
-        src = cv2.VideoCapture(str(video_path))
-
-        video_length = src.get(cv2.CAP_PROP_FRAME_COUNT)
-
-        need_length = 1 + (n_frames - 1) * frame_step
-
-        if need_length > video_length:
-            start = 0
-        else:
-            max_start = video_length - need_length
-            start = random.randint(0, max_start + 1)
-
-        src.set(cv2.CAP_PROP_POS_FRAMES, start)
-        # ret is a boolean indicating whether read was successful, frame is the image itself
-        ret, frame = src.read()
-        result.append(self.format_frames(frame, output_size))
-
-        for _ in range(n_frames - 1):
-            for _ in range(frame_step):
-                ret, frame = src.read()
-            if ret:
-                frame = self.format_frames(frame, output_size)
-                result.append(frame)
-            else:
-                result.append(np.zeros_like(result[0]))
-        src.release()
-        result = np.array(result)[..., [2, 1, 0]]
-
-        return result
-
     @staticmethod
     def to_gif(images):
         converted_images = np.clip(images * 255, 0, 255).astype(np.uint8)
         imageio.mimsave('./animation.gif', converted_images, fps=10)
         return embed.embed_file('./animation.gif')
 
-    class FrameGenerator:
-        def __init__(self, path, n_frames, training=False):
-            """ Returns a set of frames with their associated label.
 
-              Args:
-                path: Video file paths.
-                n_frames: Number of frames.
-                training: Boolean to determine if training dataset is being created.
-            """
-            self.path = path
-            self.n_frames = n_frames
-            self.training = training
-            self.class_names = sorted(set(p.name for p in self.path.iterdir() if p.is_dir()))
-            self.class_ids_for_name = dict((name, idx) for idx, name in enumerate(self.class_names))
+def frames_from_video_file(video_path, n_frames, dataset, output_size=(172, 172), frame_step=15, ):
+    """
+      Creates frames from each video file present for each category.
 
-        def get_files_and_class_names(self):
-            video_paths = list(self.path.glob('*/*.avi'))
-            classes = [p.parent.name for p in video_paths]
-            return video_paths, classes
+      Args:
+        :param dataset:
+        :param video_path: File path to the video.
+        :param n_frames: Number of frames to be created per video file.
+        :param output_size: Pixel size of the output frame image.
+        :param frame_step:
 
-        def __call__(self):
-            video_paths, classes = self.get_files_and_class_names()
+      Return:
+        An NumPy array of frames in the shape of (n_frames, height, width, channels).
+    """
+    # Read each video frame by frame
+    result = []
+    src = cv2.VideoCapture(str(video_path))
 
-            pairs = list(zip(video_paths, classes))
+    video_length = src.get(cv2.CAP_PROP_FRAME_COUNT)
 
-            if self.training:
-                random.shuffle(pairs)
+    need_length = 1 + (n_frames - 1) * frame_step
 
-            for path, name in pairs:
-                video_frames = UCF101Dataset.frames_from_video_file(path, self.n_frames)
-                label = self.class_ids_for_name[name]  # Encode labels
-                yield video_frames, label
+    if need_length > video_length:
+        start = 0
+    else:
+        max_start = video_length - need_length
+        start = random.randint(0, max_start + 1)
+
+    src.set(cv2.CAP_PROP_POS_FRAMES, start)
+    # ret is a boolean indicating whether read was successful, frame is the image itself
+    ret, frame = src.read()
+    result.append(dataset.format_frames(frame, output_size))
+
+    for _ in range(n_frames - 1):
+        for _ in range(frame_step):
+            ret, frame = src.read()
+        if ret:
+            frame = dataset.format_frames(frame, output_size)
+            result.append(frame)
+        else:
+            result.append(np.zeros_like(result[0]))
+    src.release()
+    result = np.array(result)[..., [2, 1, 0]]
+
+    return result
+
+
+class FrameGenerator:
+    def __init__(self, path, n_frames, dataset, training=False):
+        """ Returns a set of frames with their associated label.
+
+          Args:
+            path: Video file paths.
+            n_frames: Number of frames.
+            training: Boolean to determine if training dataset is being created.
+        """
+        self.dataset = dataset
+        self.path = path
+        self.n_frames = n_frames
+        self.training = training
+        self.class_names = sorted(set(p.name for p in self.path.iterdir() if p.is_dir()))
+        self.class_ids_for_name = dict((name, idx) for idx, name in enumerate(self.class_names))
+
+    def get_files_and_class_names(self):
+        video_paths = list(self.path.glob('*/*.avi'))
+        classes = [p.parent.name for p in video_paths]
+        return video_paths, classes
+
+    def __call__(self):
+        video_paths, classes = self.get_files_and_class_names()
+
+        pairs = list(zip(video_paths, classes))
+
+        if self.training:
+            random.shuffle(pairs)
+
+        for path, name in pairs:
+            video_frames = frames_from_video_file(video_path=path, dataset=self.dataset, n_frames=self.n_frames)
+            label = self.class_ids_for_name[name]
+            yield video_frames, label
 
 
 def main():
     # Charades dataset
     charades_csv_file = 'models/charades/Charades_v1_train.csv'
     charades_txt_action_file = 'models/charades/Charades_v1_classes.txt'
-    charades_output_directory = './datasets/Charades/'
-    charades_video_directory = './datasets/Charades/Charades_v1_480/'
-
-    charades_dataset = CharadesDataset(charades_csv_file, charades_txt_action_file, charades_output_directory)
-    charades_dataset.create_dir_actions()
-    charades_dataset.create_actions_files_dir(charades_video_directory)
-
+    charades_output_directory = pathlib.Path('datasets/Charades/')
+    charades_video_directory = pathlib.Path('datasets/Charades/Charades_v1_480/')
+    convert_mp4_to_avi_recursive(charades_output_directory)
+    CharadesDataset(charades_csv_file, charades_txt_action_file, charades_output_directory,
+                    charades_video_directory)
+    print("\n===============================CHARADES DATASET===============================")
+    print(get_directory_lengths(charades_output_directory))
     # Toyota Smarthome dataset
-    toyota_video_directory = './datasets/ToyotaSmartHome/mp4/'
-    toyota_output_directory = './datasets/ToyotaSmartHome/'
 
-    toyota_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
-    toyota_dataset.create_dir_actions()
-    toyota_dataset.map_files_to_action_directory()
+    toyota_video_directory = pathlib.Path('datasets/ToyotaSmartHome/mp4/')
+    toyota_output_directory = pathlib.Path('datasets/ToyotaSmartHome/')
+
+    ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
+    print("\n===============================TOYOTA SMARTHOME DATASET===============================")
+    print(get_directory_lengths(toyota_output_directory))
 
     # UCF101 dataset
     url_ucf101_dataset = "https://storage.googleapis.com/thumos14_files/UCF101_videos.zip"
     ucf101_output_directory = pathlib.Path('datasets/UCF101/')
-    ucf101_dataset = UCF101Dataset(url_ucf101_dataset, ucf101_output_directory)
-    print(ucf101_dataset.dirs)
+    ucf101_classes = ["PlayingGuitar", "CuttingInKitchen", "BlowDryHair", "ApplyLipstick"]
+
+    UCF101Dataset(url_ucf101_dataset, ucf101_output_directory, ucf101_classes)
+    print("\n===============================UCF101 DATASET===============================")
+    print(get_directory_lengths(ucf101_output_directory))
 
 
 if __name__ == '__main__':
