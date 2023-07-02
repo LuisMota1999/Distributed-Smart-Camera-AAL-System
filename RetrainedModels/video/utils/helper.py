@@ -62,7 +62,7 @@ def convert_mp4_to_avi_recursive(root_folder):
 
 def split_dataset(root_folder, train_ratio, test_ratio, datasetName):
     # Create the output directories for train, test, and val
-    output_folder = os.path.join('Datasets_filtered',datasetName)
+    output_folder = os.path.join('Datasets_filtered', datasetName)
     train_dir = os.path.join(output_folder, 'train')
     test_dir = os.path.join(output_folder, 'test')
     val_dir = os.path.join(output_folder, 'val')
@@ -125,9 +125,12 @@ def split_dataset(root_folder, train_ratio, test_ratio, datasetName):
         print(f"  Val: {num_val} files")
 
 
-# Example usage
-root_folder = pathlib.Path('C:\\Users\\luisp\Desktop\\Distributed-Smart-Camera-AAL-System\RetrainedModels\\video\\datasets\\ToyotaSmartHome\\')
-train_ratio = 0.7
-test_ratio = 0.2
-
-split_dataset(root_folder, train_ratio, test_ratio, 'ToyotaSmartHome')
+def get_existing_splits(download_dir):
+    splits = {}
+    for split_name in ["train", "val", "test"]:
+        split_dir = download_dir / split_name
+        if os.path.exists(split_dir):
+            splits[split_name] = split_dir
+        else:
+            print(f"Warning: Split '{split_name}' directory does not exist.")
+    return splits

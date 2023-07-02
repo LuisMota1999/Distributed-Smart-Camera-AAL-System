@@ -5,17 +5,24 @@ import pathlib
 import numpy as np
 # Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 import tensorflow as tf
-from RetrainedModels.video.DataExtraction import UCF101Dataset, FrameGenerator
+from RetrainedModels.video.DataExtraction import UCF101Dataset, FrameGenerator, ToyotaSmartHomeDataset
 # Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 from official.projects.movinet.modeling import movinet
 from official.projects.movinet.modeling import movinet_model
 
-url_ucf101_dataset = "https://storage.googleapis.com/thumos14_files/UCF101_videos.zip"
-ucf101_output_directory = pathlib.Path('datasets/UCF101/')
-ucf101_classes = ["CuttingInKitchen", "BlowDryHair", "ApplyLipstick"]
-ucf101_dataset = UCF101Dataset(url_ucf101_dataset, ucf101_output_directory, ucf101_classes)
-subset_paths = ucf101_dataset.dirs
-batch_size = 8
+# url_ucf101_dataset = "https://storage.googleapis.com/thumos14_files/UCF101_videos.zip"
+# ucf101_output_directory = pathlib.Path('datasets/UCF101/')
+# ucf101_classes = ["CuttingInKitchen", "BlowDryHair", "ApplyLipstick"]
+# ucf101_dataset = UCF101Dataset(url_ucf101_dataset, ucf101_output_directory, ucf101_classes)
+
+toyota_video_directory = pathlib.Path('datasets/ToyotaSmartHome/mp4/')
+toyota_output_directory = pathlib.Path('datasets/ToyotaSmartHome/')
+
+toyotaSmartHome_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
+
+dataset = toyotaSmartHome_dataset
+subset_paths = toyotaSmartHome_dataset.dirs
+batch_size = 128
 num_frames = 8
 
 output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
@@ -23,17 +30,17 @@ output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32)
 
 print(output_signature)
 train_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=ucf101_dataset, training=True),
+    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=dataset, training=True),
     output_signature=output_signature)
 train_ds = train_ds.batch(batch_size)
 
 test_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=ucf101_dataset),
+    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=dataset),
     output_signature=output_signature)
 test_ds = test_ds.batch(batch_size)
 
 val_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=ucf101_dataset),
+    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=dataset),
     output_signature=output_signature)
 val_ds = val_ds.batch(batch_size)
 
@@ -83,9 +90,9 @@ def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
     return model
 
 
-model = build_classifier(batch_size, num_frames, resolution, backbone, 10)
+model = build_classifier(batch_size, num_frames, resolution, backbone, 64)
 
-num_epochs = 1
+num_epochs = 5
 
 loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
@@ -137,7 +144,7 @@ def plot_confusion_matrix(actual, predicted, labels, ds_type):
     ax.yaxis.set_ticklabels(labels)
 
 
-fg = FrameGenerator(path=subset_paths['train'], n_frames=num_frames, dataset=ucf101_dataset, training=True)
+fg = FrameGenerator(path=subset_paths['train'], n_frames=num_frames, dataset=dataset, training=True)
 label_names = list(fg.class_ids_for_name.keys())
 actual, predicted = get_actual_predicted_labels(test_ds)
 plot_confusion_matrix(actual, predicted, label_names, 'test')

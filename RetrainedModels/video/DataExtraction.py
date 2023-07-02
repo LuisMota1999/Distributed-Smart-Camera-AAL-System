@@ -10,7 +10,7 @@ import remotezip as rz
 import tensorflow as tf
 import tqdm
 from tensorflow_docs.vis import embed
-from RetrainedModels.video.utils.helper import get_directory_lengths, convert_mp4_to_avi_recursive
+from RetrainedModels.video.utils.helper import get_directory_lengths, convert_mp4_to_avi_recursive, get_existing_splits
 
 
 class CharadesDataset:
@@ -112,6 +112,7 @@ class ToyotaSmartHomeDataset:
     def __init__(self, video_directory, output_directory):
         self.video_directory = video_directory
         self.output_directory = output_directory
+        self.dirs = get_existing_splits(output_directory)
         if not os.path.exists(output_directory):
             self.create_dir_actions()
             self.map_files_to_action_directory()
@@ -137,6 +138,22 @@ class ToyotaSmartHomeDataset:
                 destination_path = os.path.join(folder_path, filename)
                 os.rename(filename_path, destination_path)
                 print(f"File {filename} moved to {folder_path} directory")
+
+    @staticmethod
+    def format_frames(frame, output_size):
+        """
+          Pad and resize an image from a video.
+
+          Args:
+            frame: Image that needs to resized and padded.
+            output_size: Pixel size of the output frame image.
+
+          Return:
+            Formatted frame with padding of specified output size.
+        """
+        frame = tf.image.convert_image_dtype(frame, tf.float32)
+        frame = tf.image.resize_with_pad(frame, *output_size)
+        return frame
 
 
 class UCF101Dataset:
@@ -166,7 +183,7 @@ class UCF101Dataset:
         # Check if the 'ucf101' directory already exists
         if os.path.exists('./datasets/UCF101'):
             print("UCF101 dataset already exists. Skipping download.")
-            dirs = self.get_existing_splits(download_dir)
+            dirs = get_existing_splits(download_dir)
         else:
             # Download the subset of the dataset
             files = self.list_files_per_class(zip_url)
@@ -281,16 +298,6 @@ class UCF101Dataset:
             remainder[cls] = files_for_class[cls][count:]
         return split_files, remainder
 
-    @staticmethod
-    def get_existing_splits(download_dir):
-        splits = {}
-        for split_name in ["train", "val", "test"]:
-            split_dir = download_dir / split_name
-            if os.path.exists(split_dir):
-                splits[split_name] = split_dir
-            else:
-                print(f"Warning: Split '{split_name}' directory does not exist.")
-        return splits
 
     @staticmethod
     def format_frames(frame, output_size):
@@ -403,7 +410,6 @@ def main():
     charades_txt_action_file = 'models/charades/Charades_v1_classes.txt'
     charades_output_directory = pathlib.Path('datasets/Charades/')
     charades_video_directory = pathlib.Path('datasets/Charades/Charades_v1_480/')
-    convert_mp4_to_avi_recursive(charades_output_directory)
     CharadesDataset(charades_csv_file, charades_txt_action_file, charades_output_directory,
                     charades_video_directory)
     print("\n===============================CHARADES DATASET===============================")
@@ -416,6 +422,7 @@ def main():
     ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
     print("\n===============================TOYOTA SMARTHOME DATASET===============================")
     print(get_directory_lengths(toyota_output_directory))
+    print(get_existing_splits(toyota_output_directory))
 
     # UCF101 dataset
     url_ucf101_dataset = "https://storage.googleapis.com/thumos14_files/UCF101_videos.zip"
