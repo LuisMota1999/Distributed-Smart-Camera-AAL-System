@@ -22,7 +22,7 @@ toyotaSmartHome_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_
 
 dataset = toyotaSmartHome_dataset
 subset_paths = toyotaSmartHome_dataset.dirs
-batch_size = 128
+batch_size = 64
 num_frames = 8
 
 output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
