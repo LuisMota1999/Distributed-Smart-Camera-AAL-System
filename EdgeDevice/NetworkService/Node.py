@@ -98,7 +98,7 @@ class Node(threading.Thread):
             logging.info("[DISCOVERY] Starting the discovery service . . .")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
-            threading.Thread(target=self.accept_connections).start()
+            #threading.Thread(target=self.accept_connections).start()
 
         except KeyboardInterrupt:
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
@@ -108,9 +108,9 @@ class Node(threading.Thread):
 
         if len(self.connections) == 0:
             time.sleep(2)
-            self.start_election()
+            #self.start_election()
 
-        threading.Thread(target=self.handle_reconnects).start()
+        #threading.Thread(target=self.handle_reconnects).start()
 
     def handle_detection(self):
         """
