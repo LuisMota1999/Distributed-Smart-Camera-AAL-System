@@ -89,7 +89,9 @@ class Node(threading.Thread):
 
         try:
             self.zeroconf.register_service(self.service_info)
-        except NonUniqueNameException:
+        except NonUniqueNameException as n:
+            logging.error(f"Non Unique Name Exception Error: {n.args}")
+
             self.zeroconf.update_service(self.service_info)
 
         try:
