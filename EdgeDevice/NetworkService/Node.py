@@ -1,4 +1,3 @@
-import argparse
 import logging
 import socket
 import ssl
@@ -54,7 +53,7 @@ class Node(threading.Thread):
             server_side=True,
         )
         node_number = int(self.name.split('-')[1].strip())
-        self.local = 'SALA' # if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
+        self.local = 'SALA' if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
@@ -87,26 +86,6 @@ class Node(threading.Thread):
         :return: None
         """
         logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--debug', action='store_true')
-        parser.add_argument('--find', action='store_true', help='Browse all available services')
-        parser.add_argument('-src', '--source', dest='video_source', type=int,
-                            default=0, help='Device index of the camera.')
-        parser.add_argument('-wd', '--width', dest='width', type=int,
-                            default=480, help='Width of the frames in the video stream.')
-        parser.add_argument('-ht', '--height', dest='height', type=int,
-                            default=360, help='Height of the frames in the video stream.')
-        parser.add_argument('-num-w', '--num-workers', dest='num_workers', type=int,
-                            default=4, help='Number of workers.')
-        parser.add_argument('-q-size', '--queue-size', dest='queue_size', type=int,
-                            default=5, help='Size of the queue.')
-        version_group = parser.add_mutually_exclusive_group()
-        version_group.add_argument('--v6', action='store_true')
-        version_group.add_argument('--v6-only', action='store_true')
-        args = parser.parse_args()
-
-        if args.debug:
-            logging.getLogger('NetworkService').setLevel(logging.DEBUG)
 
         try:
             self.zeroconf.register_service(self.service_info)
@@ -114,16 +93,19 @@ class Node(threading.Thread):
             self.zeroconf.update_service(self.service_info)
 
         try:
-            print("[COORDINATOR] Starting the discovery service...")
+            logging.info("[DISCOVERY] Starting the discovery service . . .")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
             threading.Thread(target=self.accept_connections).start()
+
         except KeyboardInterrupt:
-            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
 
+        time.sleep(1)
+
         if len(self.connections) == 0:
-            time.sleep(5)
+            time.sleep(2)
             self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
