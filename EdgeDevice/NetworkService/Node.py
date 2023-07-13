@@ -120,7 +120,7 @@ class Node(threading.Thread):
         }
 
         audio_inference = AudioInference(audio_model)
-        audio_file_path = '../../RetrainedModels/audio/test_audios/136.wav'
+        audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
 
         while self.running:
