@@ -179,7 +179,7 @@ class Node(threading.Thread):
                 flag = False
         return flag
 
-    def connect_to_peer(self, client_host, client_port, client_id):
+    def connect_to_peer(self, client_host, client_port, client_id, node_local):
         """
         The `connect_to_peer` method is used to create a TLS-encrypted socket connection with the specified client.
         If the specified client is already connected, it will not create a new connection. It adds a new node by
