@@ -131,7 +131,6 @@ class Node(threading.Thread):
             self.blockchain.pending_transactions.append(inferred_class)
             break
 
-
     def handle_reconnects(self):
         """
         The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
@@ -150,24 +149,6 @@ class Node(threading.Thread):
                 self.start_election()
                 self.recon_state = False
                 continue
-
-    def discovery_service(self):
-        """
-        The method ``discovery_service`` initializes a ``ServiceBrowser`` to search for
-        available nodes on the local network if the node is the coordinator. If the program
-        receives a keyboard interrupt signal, it will stop and exit gracefully.
-        :return: None
-        """
-        while self.running:
-            if self.coordinator == self.id:
-                break
-
-        try:
-            logging.info("[DISCOVERY] Starting the discovery service . . .")
-            ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-        except KeyboardInterrupt:
-            logging.error(f"[DISCOVERY] Machine {Network.HOST_NAME} is shutting down.")
-            self.stop()
 
     def accept_connections(self):
         """
@@ -267,7 +248,7 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                self.handle_detection()
+                # self.handle_detection()
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
