@@ -189,7 +189,7 @@ class Node(threading.Thread):
                 context.verify_mode = ssl.CERT_NONE
                 conn = context.wrap_socket(conn, server_hostname=client_host)
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout)
+                conn.settimeout(self.keep_alive_timeout * 3)
 
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
