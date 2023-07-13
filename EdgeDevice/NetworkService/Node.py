@@ -1,19 +1,20 @@
-import argparse
 import logging
-import random
 import socket
+import ssl
 import threading
 import time
-import ssl
 import uuid
+
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
+
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.NetworkService.MessageHandler import MessageHandler
 from EdgeDevice.NetworkService.NodeListener import NodeListener
-from EdgeDevice.BlockchainService.Transaction import validate_transaction
-from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages
-import json
-from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json, \
-    get_interface_ip, create_general_message
+from EdgeDevice.utils.constants import Network, HOST_PORT
+from EdgeDevice.utils.helper import (
+    get_keys, get_tls_keys,
+    get_interface_ip, validate
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,27 +32,26 @@ class Node(threading.Thread):
         self.id = uuid.uuid4()
         self.private_key, self.public_key = get_keys()
         self.name = name
-        self.ip = get_interface_ip()  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.ip = get_interface_ip()                                # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
-        # Create the socket with TLS encryption
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        self.messageHandler = MessageHandler(self)
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)             # Create the socket with TLS encryption
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
         self.retries = 5
-        # Disable hostname verification for the server-side socket
-        self.context.check_hostname = False
+        self.context.check_hostname = False                         # Disable hostname verification for the server-side
         self.context.verify_mode = ssl.CERT_NONE
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
         )
-        node_number = int(self.name.split('-')[1].strip())  # Extrai o número do nó removendo o prefixo 'node-'
-        self.local = 'Sala' if node_number % 2 == 0 else 'Cozinha' if node_number == 1 else 'Quarto'
+        node_number = int(self.name.split('-')[1].strip())
+        self.local = 'SALA' if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
@@ -83,49 +83,47 @@ class Node(threading.Thread):
 
         :return: None
         """
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--debug', action='store_true')
-        parser.add_argument('--find', action='store_true', help='Browse all available services')
-        parser.add_argument('-src', '--source', dest='video_source', type=int,
-                            default=0, help='Device index of the camera.')
-        parser.add_argument('-wd', '--width', dest='width', type=int,
-                            default=480, help='Width of the frames in the video stream.')
-        parser.add_argument('-ht', '--height', dest='height', type=int,
-                            default=360, help='Height of the frames in the video stream.')
-        parser.add_argument('-num-w', '--num-workers', dest='num_workers', type=int,
-                            default=4, help='Number of workers.')
-        parser.add_argument('-q-size', '--queue-size', dest='queue_size', type=int,
-                            default=5, help='Size of the queue.')
-        version_group = parser.add_mutually_exclusive_group()
-        version_group.add_argument('--v6', action='store_true')
-        version_group.add_argument('--v6-only', action='store_true')
-        args = parser.parse_args()
-
-        if args.debug:
-            logging.getLogger('NetworkService').setLevel(logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
 
         try:
             self.zeroconf.register_service(self.service_info)
         except NonUniqueNameException:
             self.zeroconf.update_service(self.service_info)
 
-        try:
-            print("\n[DISCOVERY] Starting the discovery service...\n")
-            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+        threading.Thread(target=self.accept_connections).start()
 
-            threading.Thread(target=self.accept_connections).start()
+        time.sleep(2)
+
+        try:
+            logging.info("\n[DISCOVERY] Starting the discovery service . . .\n")
+            ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
-            print(f"\nMachine {Network.HOST_NAME} is shutting down...\n")
+            logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
 
         if len(self.connections) == 0:
-            time.sleep(5)
+            time.sleep(2)
             self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
 
-        # threading.Thread(target=self.handle_detection).start()
+    def handle_reconnects(self):
+        """
+        The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
+        reconnect if there are no active connections. The method also broadcasts a message to all connected nodes if
+        the node recently reconnected.
+        :return: None
+        """
+        while self.running:
+            if len(self.connections) < 1 and self.recon_state is True:
+                self.blockchain.nodes[self.ip] = time.time()
+                logging.info(f"Attempting to reconnect...")
+            elif len(self.connections) > 0 and self.recon_state is True:
+                logging.info(f"Coordinator not seen for a while. Starting new election...")
+                self.coordinator = None
+                self.start_election()
+                self.recon_state = False
+                continue
 
     def discovery_service(self):
         """
@@ -139,10 +137,10 @@ class Node(threading.Thread):
                 break
 
         try:
-            print("\n[DISCOVERY] Starting the discovery service...\n")
-            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+            logging.info("\n[DISCOVERY] Starting the discovery service . . .\n")
+            ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
-            print(f"\nMachine {Network.HOST_NAME} is shutting down...\n")
+            logging.error(f"\n[DISCOVERY] Machine {Network.HOST_NAME} is shutting down.\n")
             self.stop()
 
     def accept_connections(self):
@@ -156,30 +154,8 @@ class Node(threading.Thread):
         """
         while self.running:
             conn, addr = self.socket.accept()
-            print(f"\nConnected to {addr[0]}:{addr[1]}\n")
-
-            # Start a thread to handle incoming messages
-            threading.Thread(target=self.handle_messages, args=(conn,)).start()
-
-    def validate(self, ip, port):
-        """
-        The ``validate`` method checks if a given IP address and port number are already in use by any of the
-        existing connections in the node. If the IP address and port number are unique, the method returns True.
-        Otherwise, it returns False.
-
-        :param ip: The IP address to validate.
-        :type ip: <str>
-        :param port: The port number to validate.
-        :type port: <int>
-        :return: True if the IP address and port number are unique, False otherwise.
-        """
-        flag = True
-        for connection in self.connections:
-            if ip != connection.getpeername()[0] and port != connection.getpeername()[1]:
-                flag = True
-            else:
-                flag = False
-        return flag
+            logging.info(f"\n[CONNECTION] Connected to {addr[0]}:{addr[1]}\n")
+            threading.Thread(target=self.messageHandler.handle_messages, args=(conn,)).start()
 
     def connect_to_peer(self, client_host, client_port, client_id, node_local):
         """
@@ -197,86 +173,44 @@ class Node(threading.Thread):
         :type client_port: <int>
         :return: None
         """
-        if self.validate(client_host, client_port) is not True or self.ip == client_host:
-            print(f"\nAlready connected to {client_host, client_port, client_id}\n")
+        if validate(self.connections, client_host, client_port) is not True or self.ip == client_host:
+            logging.info(f"\n[CONNECTION] Already connected to {client_host, client_port, client_id, node_local}\n")
             return
 
         while self.running:
             try:
-                # Create a TCP socket
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
-                # Wrap the socket with TLS encryption
-                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)   # Wrap the socket with TLS encryption
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
                 conn = context.wrap_socket(conn, server_hostname=client_host)
-
-                # Connect to the peer using the TLS-encrypted socket
                 conn.connect((client_host, client_port))
-                conn.settimeout(self.keep_alive_timeout * 3)
+                conn.settimeout(self.keep_alive_timeout)
 
-                # Continue with the rest of your code
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
 
-                handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
+                time.sleep(1)
+
+                handle_messages = threading.Thread(target=self.messageHandler.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
+                time.sleep(1)
+
+                handle_keep_alive_messages = threading.Thread(target=self.messageHandler.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
+                handle_keep_alive_messages.join()
+                handle_messages.join()
+
                 break
-            except ConnectionRefusedError:
-                print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
-                time.sleep(10)
-
-    def handle_keep_alive_messages(self, conn, client_id):
-        """
-        The ``handle_keep_alive_messages`` method sends keep-alive messages to the specified connection periodically
-        to maintain the connection. The keep-alive message
-        includes information such as the sender's metadata, message type, last time alive, coordinator information, and
-        public key. If an exception occurs during the process, the function breaks the loop and closes the connection.
-
-        :param conn: Socket connection object representing the connection to the peer node.
-        :type conn: <socket.socket>
-        :param client_id: The unique identifier of the connected peer node.
-        :type client_id: <bytes>
-        :return: None
-        """
-        neighbour_id = uuid.UUID(client_id.decode('utf-8'))
-        neighbour = self.neighbours.get(neighbour_id)
-        while self.running:
-            try:
-                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                              conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_PING.value)
-
-                if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-                    data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
-
-                time.sleep(2)
-                # Convert JSON data to string
-                message = json.dumps(data, indent=2)
-                conn.send(bytes(message, encoding="utf-8"))
-                time.sleep(self.keep_alive_timeout)
-            except Exception as ex:  # Catch the specific exception you want to handle
-                print(f"\nException error in Keep Alive: {ex.args}\n")
-                break
-
-        # close connection and remove node from list
-        if conn in self.connections:
-            self.recon_state = True
-            self.remove_node(conn, "KAlive")
-            client_id_str = client_id.decode('utf-8')
-            client_uuid = uuid.UUID(client_id_str)
-            if client_uuid in self.neighbours:
-                self.neighbours.pop(client_uuid)
-            conn.close()
+            except ConnectionRefusedError as e:
+                logging.error(f"[CONNECTION] Connection refused by {client_host}:{client_port}: {e.strerror}")
+                time.sleep(5)
 
     def start_election(self):
         """
@@ -300,196 +234,19 @@ class Node(threading.Thread):
                     for ip in higher_nodes:
                         for node in self.connections:
                             if node.getpeername()[0] == ip:
-                                print(f"\nNode {self.ip} sent ELECTION message to {ip}\n")
-
+                                logging.info(f"[ELECTION] \nNode {self.ip} sent ELECTION message to {ip}\n")
                 else:
                     self.coordinator = self.id
                     self.broadcast_message(f"COORDINATOR {self.coordinator}")
-                    print(f"\nNode {self.id} is the new coordinator\n")
+                    logging.info(f"\n[ELECTION] Node {self.id} is the new coordinator\n")
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
                 self.blockchain.add_block(self.blockchain.new_block())
-                print(f"\nNode {self.id} is the coordinator\n")
+                logging.info(f"\n[ELECTION] Node {self.id} is the coordinator. \n")
         except ssl.SSLZeroReturnError as e:
-            print(f"SSLZero Return Error {e.strerror}")
+            logging.error(f"SSLZero Return Error {e.strerror}")
             return
-
-    def handle_reconnects(self):
-        """
-        The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
-        reconnect if there are no active connections. The method also broadcasts a message to all connected nodes if
-        the node recently reconnected.
-        :return: None
-        """
-        while self.running:
-            if len(self.connections) < 1 and self.recon_state is True:
-                # If there are no connections and reconnection is required, update the node's last seen time and wait
-                # for the specified amount of time before attempting to reconnect
-                self.blockchain.nodes[self.ip] = time.time()
-                print("\nAttempting to reconnect...\n")
-                time.sleep(self.keep_alive_timeout * 2)
-            elif len(self.connections) > 0 and self.recon_state is True:
-                # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
-                # and wait for a short amount of time before continuing
-                print("\nCoordinator not seen for a while. Starting new election...\n")
-                self.coordinator = None
-                self.start_election()
-                self.recon_state = False
-                continue
-
-    def handle_chain_message(self, message, conn, neighbour_id, message_type):
-        if message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
-            if self.coordinator == uuid.UUID(message["PAYLOAD"].get("COORDINATOR")):
-                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                              conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value)
-
-                data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
-
-                message_json = json.dumps(data, indent=2)
-                print(f"CHAIN MESSAGE: {message_json}")
-                conn.send(bytes(message_json, encoding="utf-8"))
-        elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
-            self.blockchain.chain = message["PAYLOAD"].get("CHAIN")
-            print(f"IP: {self.ip} , CHAIN: {self.blockchain.chain}")
-            logging.info("Blockchain chain was updated with information from coordinator")
-
-    def handle_transaction_message(self, message, conn, neighbour_id):
-        tx = message["PAYLOAD"]["PENDING"]
-
-        if validate_transaction(tx):
-            if tx not in self.blockchain.pending_transactions:
-                self.blockchain.pending_transactions.append(tx)
-                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                              conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_TRANSACTION.value)
-
-                data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
-
-                message = json.dumps(data, indent=2)
-                self.broadcast_message(message)
-        else:
-            print("Received invalid transaction")
-            return
-
-    def handle_general_message(self, message, conn, neighbour_id):
-        message_type = Messages.MESSAGE_TYPE_PONG.value
-        if self.coordinator is None:
-            self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
-            print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
-
-        neighbour = self.neighbours.get(neighbour_id)
-        if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-            public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
-            public_key = load_public_key_from_json(public_key_base64)
-            if public_key is not None:
-                self.neighbours[neighbour_id]['PUBLIC_KEY'] = public_key
-
-        data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
-                                      str(neighbour_id), str(self.coordinator), message_type)
-
-        if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-            data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
-
-        message_json = json.dumps(data, indent=2)
-        print(f"\nGENERAL MESSAGE: {message_json}\n")
-        conn.send(bytes(message_json, encoding="utf-8"))
-
-    def handle_messages(self, conn):
-        """
-
-        The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
-        connection object and responds to them appropriately. If the received message is a valid JSON message,
-        it extracts the message type and processes it accordingly. If the message is empty, it updates the node's
-        priority and breaks the loop. If there is a socket timeout or OSError, the method sets the ``recon_state``
-        flag to True and removes the node from the list of connections. If the connection is reset, it also removes
-        the node from the list and closes the connection.
-
-        :param conn: socket connection object representing the connection to the peer node
-        :type conn: <socket.socket>
-        :return: None
-        """
-        while self.running:
-            try:
-                data = conn.recv(BUFFER_SIZE).decode()
-
-                if data == '':
-                    print("WRONG DATA: ", data)
-                    break
-
-                message = json.loads(data)
-                message_type = message.get("TYPE")
-                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-
-                print(f"\nMESSAGE TYPE: {message_type}\n")
-
-                if message_type == Messages.MESSAGE_TYPE_PING.value:
-                    self.handle_general_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
-                    self.handle_transaction_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                if not data:
-                    self.service_info.priority = random.randint(1, 100)
-                    self.zeroconf.update_service(self.service_info)
-                    break
-
-            except json.JSONDecodeError as e:
-                print("Error decoding JSON:", e)
-                print(f"Retrying attempts left {self.retries}...")
-                self.retries -= 1
-                time.sleep(1)
-                if self.retries <= 0:
-                    break
-
-            except ssl.SSLZeroReturnError as e:
-                print(f"SSLZero Return Error {e.strerror}")
-                break
-
-            except socket.timeout as e:
-                print("Error timeout:", e)
-                self.recon_state = True
-                if conn in self.connections:
-                    self.remove_node(conn, "Timeout")
-                    conn.close()
-                break
-
-            except ConnectionResetError as c:
-                print(f"Connection Reset Error {c.strerror}")
-                if conn in self.connections:
-                    self.remove_node(conn, "ConnectionResetError")
-                    conn.close()
-                break
-
-            except OSError as e:
-                print(f"System Error {e.strerror}")
-                if conn in self.connections:
-                    self.remove_node(conn, "OSError")
-                    conn.close()
-                break
-
-            except Exception as ex:
-                print(f"Exception Error {ex.args}")
-                if conn in self.connections:
-                    self.remove_node(conn, "Exception")
-                    conn.close()
-                break
-
-    def get_public_key_by_ip(self, ip_address):
-        for neighbour_id, neighbour_info in self.neighbours.items():
-            if neighbour_info['IP'] == ip_address:
-                return neighbour_info['PUBLIC_KEY']
-        return None
 
     def broadcast_message(self, message):
         """
@@ -536,30 +293,22 @@ class Node(threading.Thread):
         :type conn: <socket.socket>
         :return: None
         """
-        # Check if the node is already in the list of connections
         for connections in self.connections:
             if connections.getpeername()[0] == conn.getpeername()[0]:
                 return
         client_id = client_id.decode('utf-8')
         node_local = node_local.decode('utf-8')
-        # If the node is not in the list of connections, add it
         if conn not in self.connections:
             self.connections.append(conn)
-            # Register the new node with the blockchain service
             self.blockchain.register_node({conn.getpeername()[0]: time.time()})
 
-            # Add the new node to the dictionary of neighbors
             new_client_id = uuid.UUID(client_id)
             new_ip = conn.getpeername()[0]
             new_public_key = None
-
             self.neighbours[new_client_id] = {'IP': new_ip, 'PUBLIC_KEY': new_public_key, 'LOCAL': node_local}
 
-            # Print a message indicating that the new node has been added to the network
-            print(f"Node {conn.getpeername()[0]} added to the network")
-
-            # Print the list of nodes in the blockchain
-            print(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
+            logging.info(f"\nNode [{conn.getpeername()[0]}] added to the network\n")
+            logging.info(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
     def remove_node(self, conn, function):
         """
@@ -571,9 +320,9 @@ class Node(threading.Thread):
         :type function: <str>
         :return: None
         """
-        print(f"Removed by {function}")
+        logging.info(f"Removed by {function}")
         if conn in self.connections:
-            print(f"Node {conn} removed from the network")
+            logging.info(f"Node {conn} removed from the network")
             self.connections.remove(conn)
-        print(f"Nodes still available:")
+        logging.info(f"\nNodes still available:")
         self.list_peers()

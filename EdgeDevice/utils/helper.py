@@ -287,6 +287,29 @@ def create_general_message(internal_id, internal_ip, internal_port, external_id,
     }
 
 
+def validate(node_connections, ip, port):
+    """
+    The ``validate`` method checks if a given IP address and port number are already in use by any of the
+    existing connections in the node. If the IP address and port number are unique, the method returns True.
+    Otherwise, it returns False.
+
+    :param node_connections: The connections that node has
+    :type node_connections: <List>
+    :param ip: The IP address to validate.
+    :type ip: <str>
+    :param port: The port number to validate.
+    :type port: <int>
+    :return: True if the IP address and port number are unique, False otherwise.
+    """
+    flag = True
+    for connection in node_connections:
+        if ip != connection.getpeername()[0] and port != connection.getpeername()[1]:
+            flag = True
+        else:
+            flag = False
+    return flag
+
+
 def handle_detection():
     """
     The `handle_detection` method handles the detection of actions in a video by performing action recognition using
@@ -424,3 +447,10 @@ class Utils(object):
                 logging.error('Server Transaction: Transaction #{} values are not valid!'.format(data['HEIGHT']))
                 return False
         return True
+
+
+def get_public_key_by_ip(node_neighbours, ip_address):
+    for neighbour_id, neighbour_info in node_neighbours.items():
+        if neighbour_info['IP'] == ip_address:
+            return neighbour_info['PUBLIC_KEY']
+    return None

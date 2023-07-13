@@ -5,7 +5,7 @@ import pathlib
 import numpy as np
 # Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 import tensorflow as tf
-from RetrainedModels.video.DataExtraction import UCF101Dataset, FrameGenerator, ToyotaSmartHomeDataset
+from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
 # Import the MoViNet model from TensorFlow Models (tf-models-official) for the MoViNet model
 from official.projects.movinet.modeling import movinet
 from official.projects.movinet.modeling import movinet_model

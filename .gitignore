@@ -4,10 +4,15 @@
 #Folder containing data to models
 RetrainedModels/video/datasets
 RetrainedModels/video/models
+RetrainedModels/video/movinet_a0_base
+RetrainedModels/video/movinet_a0_stream
+RetrainedModels/video/trained_model
 RetrainedModels/audio/datasets
 
 EdgeDevice/Keys/public.pem
 EdgeDevice/Keys/private.pem
+EdgeDevice/models
+
 tests/Keys/private.pem
 tests/Keys/pub.pem
 

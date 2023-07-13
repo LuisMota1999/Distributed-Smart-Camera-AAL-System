@@ -10,7 +10,7 @@ from official.projects.movinet.modeling import movinet
 from official.projects.movinet.modeling import movinet_model
 from official.projects.movinet.tools import export_saved_model
 
-from RetrainedModels.video.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
+from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
 
 batch_size = 10
 num_frames = 8

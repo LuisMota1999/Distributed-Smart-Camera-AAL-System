@@ -1,3 +1,5 @@
+import logging
+
 from zeroconf import Zeroconf, ServiceStateChange
 from typing import cast
 
@@ -52,7 +54,7 @@ class NodeListener:
         If the `state_change` is "Added" or "Updated", the method calls the `add_service` method to add the updated
         service to the network. Otherwise, the service is removed from the network.
         """
-        print(f"Service {name} of type {service_type} state changed: {state_change}")
+        logging.info(f"Service {name} of type {service_type} state changed: {state_change}")
 
         if state_change is ServiceStateChange.Added or ServiceStateChange.Updated:
             info = zeroconf.get_service_info(service_type, name)
