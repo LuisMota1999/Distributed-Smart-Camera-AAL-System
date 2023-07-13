@@ -2,6 +2,9 @@ import time
 import uuid
 import random
 import datetime
+
+from pydub import AudioSegment
+
 from EdgeDevice.InferenceService.audio import AudioInference
 import rsa
 from collections import deque
@@ -454,3 +457,22 @@ def get_public_key_by_ip(node_neighbours, ip_address):
         if neighbour_info['IP'] == ip_address:
             return neighbour_info['PUBLIC_KEY']
     return None
+
+
+def remove_middle_silence(sound):
+    """
+        Removes silence from the middle of an audio signal.
+        :param sound (pydub.AudioSegment): An audio signal to process.
+        :returns pydub.AudioSegment: A copy of the input signal with middle silence removed.
+    """
+    silence_threshold = -45.0  # dB
+    chunk_size = 100  # ms
+    sound_ms = 0  # ms
+    trimmed_sound = AudioSegment.empty()
+
+    while sound_ms < len(sound):
+        if sound[sound_ms:sound_ms + chunk_size].dBFS >= silence_threshold:
+            trimmed_sound += sound[sound_ms:sound_ms + chunk_size]
+        sound_ms += chunk_size
+
+    return trimmed_sound.set_sample_width(2)

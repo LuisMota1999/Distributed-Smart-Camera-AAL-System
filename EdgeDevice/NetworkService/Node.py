@@ -4,9 +4,11 @@ import ssl
 import threading
 import time
 import uuid
+import soundfile as sf
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 
+from EdgeDevice.InferenceService.audio import AudioInference
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.NetworkService.MessageHandler import MessageHandler
 from EdgeDevice.NetworkService.NodeListener import NodeListener
@@ -32,19 +34,19 @@ class Node(threading.Thread):
         self.id = uuid.uuid4()
         self.private_key, self.public_key = get_keys()
         self.name = name
-        self.ip = get_interface_ip()                                # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.ip = get_interface_ip()  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
         self.messageHandler = MessageHandler(self)
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)             # Create the socket with TLS encryption
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # Create the socket with TLS encryption
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
         self.retries = 5
-        self.context.check_hostname = False                         # Disable hostname verification for the server-side
+        self.context.check_hostname = False  # Disable hostname verification for the server-side
         self.context.verify_mode = ssl.CERT_NONE
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
@@ -106,6 +108,26 @@ class Node(threading.Thread):
             self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
+
+        threading.Thread(target=self.handle_detection).start()
+
+    def handle_detection(self):
+        audio_model = {
+            'name': 'yamnet_retrained',
+            'frequency': 16000,  # sample rate in Hz
+            'duration': 0.96,  # duration of each input signal in seconds
+            'threshold': 0.85  # confidence threshold for classification
+        }
+
+        audio_inference = AudioInference(audio_model)
+        audio_file_path = '../../RetrainedModels/audio/test_audios/136.wav'
+        waveform, _ = sf.read(audio_file_path, dtype='float32')
+
+        while self.running:
+            inferred_class = audio_inference.inference(waveform)
+            self.blockchain.pending_transactions.append(inferred_class)
+            time.sleep(120)
+
 
     def handle_reconnects(self):
         """
@@ -184,7 +206,7 @@ class Node(threading.Thread):
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
-                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)   # Wrap the socket with TLS encryption
+                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)  # Wrap the socket with TLS encryption
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
                 conn = context.wrap_socket(conn, server_hostname=client_host)

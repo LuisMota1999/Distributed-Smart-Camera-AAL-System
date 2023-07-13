@@ -1,5 +1,4 @@
 import os
-import pathlib
 import imageio
 import numpy as np
 import seaborn as sns
@@ -15,8 +14,8 @@ from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaS
 batch_size = 10
 num_frames = 8
 
-toyota_video_directory = pathlib.Path('datasets/ToyotaSmartHome/mp4/')
-toyota_output_directory = pathlib.Path('datasets/ToyotaSmartHome/')
+toyota_video_directory = 'datasets/ToyotaSmartHome/mp4/'
+toyota_output_directory = 'datasets/ToyotaSmartHome/'
 
 toyotaSmartHome_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
 
@@ -121,7 +120,7 @@ def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
 
 # Construct loss, optimizer and compile the model
 with distribution_strategy.scope():
-    model = build_classifier(batch_size, num_frames, resolution, backbone, 10)
+    model = build_classifier(batch_size, num_frames, resolution, backbone, 3)
     loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
     model.compile(loss=loss_obj, optimizer=optimizer, metrics=['accuracy'])
@@ -136,7 +135,7 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 
 results = model.fit(train_ds,
                     validation_data=val_ds,
-                    epochs=15,
+                    epochs=1,
                     validation_freq=1,
                     verbose=1,
                     callbacks=[cp_callback])

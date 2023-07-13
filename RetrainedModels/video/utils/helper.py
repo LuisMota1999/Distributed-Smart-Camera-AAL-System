@@ -128,7 +128,7 @@ def split_dataset(root_folder, train_ratio, test_ratio, datasetName):
 def get_existing_splits(download_dir):
     splits = {}
     for split_name in ["train", "val", "test"]:
-        split_dir = download_dir / split_name
+        split_dir = pathlib.Path(download_dir) / split_name
         if os.path.exists(split_dir):
             splits[split_name] = split_dir
         else:

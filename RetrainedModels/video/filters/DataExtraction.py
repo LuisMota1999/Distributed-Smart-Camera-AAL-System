@@ -181,7 +181,8 @@ class UCF101Dataset:
         """
 
         # Check if the 'ucf101' directory already exists
-        if os.path.exists('../datasets/UCF101'):
+
+        if os.path.exists(download_dir):
             print("UCF101 dataset already exists. Skipping download.")
             dirs = get_existing_splits(download_dir)
         else:
