@@ -96,7 +96,8 @@ class Node(threading.Thread):
 
         try:
             logging.info("[DISCOVERY] Starting the discovery service . . .")
-            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+            while self.running:
+                browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
             #threading.Thread(target=self.accept_connections).start()
 
