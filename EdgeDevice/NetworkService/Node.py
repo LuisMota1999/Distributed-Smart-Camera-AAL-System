@@ -98,7 +98,7 @@ class Node(threading.Thread):
 
         try:
             logging.info("[DISCOVERY] Starting the discovery service . . .")
-            ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+            browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
