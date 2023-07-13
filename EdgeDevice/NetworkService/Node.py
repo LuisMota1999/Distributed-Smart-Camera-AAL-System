@@ -267,7 +267,7 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                threading.Thread(target=self.handle_detection).start()
+                self.handle_detection()
                 time.sleep(1)
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
