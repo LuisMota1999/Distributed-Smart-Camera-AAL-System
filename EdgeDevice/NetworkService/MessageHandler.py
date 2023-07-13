@@ -137,7 +137,7 @@ class MessageHandler:
         while self.node.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-
+                print("DATA: ", data)
                 if not data:
                     self.node.service_info.priority = random.randint(1, 100)
                     self.node.zeroconf.update_service(self.node.service_info)

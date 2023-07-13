@@ -118,6 +118,7 @@ class Node(threading.Thread):
             if len(self.connections) < 1 and self.recon_state is True:
                 self.blockchain.nodes[self.ip] = time.time()
                 logging.info(f"Attempting to reconnect...")
+                time.sleep(5)
             elif len(self.connections) > 0 and self.recon_state is True:
                 logging.info(f"Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
