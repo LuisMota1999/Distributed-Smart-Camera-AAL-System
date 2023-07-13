@@ -112,6 +112,11 @@ class Node(threading.Thread):
         threading.Thread(target=self.handle_detection).start()
 
     def handle_detection(self):
+        """
+
+        :return:
+        """
+        tries = 5
         audio_model = {
             'name': 'yamnet_retrained',
             'frequency': 16000,  # sample rate in Hz
@@ -123,10 +128,11 @@ class Node(threading.Thread):
         audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
 
-        while self.running:
+        while tries > 0:
             inferred_class = audio_inference.inference(waveform)
             self.blockchain.pending_transactions.append(inferred_class)
-            time.sleep(120)
+            time.sleep(90)
+            tries -= tries
 
     def handle_reconnects(self):
         """

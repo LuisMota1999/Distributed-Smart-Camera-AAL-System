@@ -117,7 +117,8 @@ class MessageHandler:
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.node.public_key)
 
         message_json = json.dumps(data, indent=2)
-        logging.info(f"GENERAL MESSAGE: {message_json}")
+        logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
+        logging.info(f"\nBLOCKCHAIN STATE: {self.node.blockchain.chain}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
@@ -137,8 +138,9 @@ class MessageHandler:
         while self.node.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                print("DATA: ", data)
+
                 if not data:
+                    logging.info(f"Data not found {data}")
                     self.node.service_info.priority = random.randint(1, 100)
                     self.node.zeroconf.update_service(self.node.service_info)
                     break
