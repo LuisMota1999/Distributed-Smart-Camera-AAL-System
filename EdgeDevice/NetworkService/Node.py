@@ -103,21 +103,17 @@ class Node(threading.Thread):
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
 
-        threading.Thread(target=self.handle_detection).start()
-
         if len(self.connections) == 0:
             time.sleep(2)
             self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
 
-
     def handle_detection(self):
         """
 
         :return:
         """
-        tries = 5
         audio_model = {
             'name': 'yamnet_retrained',
             'frequency': 16000,  # sample rate in Hz
@@ -129,12 +125,11 @@ class Node(threading.Thread):
         audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
 
-        while tries > 0:
+        while self.running and self.coordinator == self.id:
             inferred_class = audio_inference.inference(waveform)
             self.blockchain.pending_transactions.append(inferred_class)
-            print(self.blockchain.chain)
-            time.sleep(1)
-            tries -= tries
+            break
+
 
     def handle_reconnects(self):
         """
@@ -272,6 +267,8 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
+                threading.Thread(target=self.handle_detection).start()
+                time.sleep(1)
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:

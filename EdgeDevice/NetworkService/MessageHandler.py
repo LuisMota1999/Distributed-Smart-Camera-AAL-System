@@ -118,7 +118,6 @@ class MessageHandler:
 
         message_json = json.dumps(data, indent=2)
         logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
-        logging.info(f"\nBLOCKCHAIN STATE: {self.node.blockchain.chain}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
