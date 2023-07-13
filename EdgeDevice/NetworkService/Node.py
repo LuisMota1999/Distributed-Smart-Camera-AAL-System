@@ -103,13 +103,14 @@ class Node(threading.Thread):
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
 
+        threading.Thread(target=self.handle_detection).start()
+
         if len(self.connections) == 0:
             time.sleep(2)
             self.start_election()
 
         threading.Thread(target=self.handle_reconnects).start()
 
-        threading.Thread(target=self.handle_detection).start()
 
     def handle_detection(self):
         """
@@ -131,7 +132,8 @@ class Node(threading.Thread):
         while tries > 0:
             inferred_class = audio_inference.inference(waveform)
             self.blockchain.pending_transactions.append(inferred_class)
-            time.sleep(90)
+            print(self.blockchain.chain)
+            time.sleep(1)
             tries -= tries
 
     def handle_reconnects(self):
