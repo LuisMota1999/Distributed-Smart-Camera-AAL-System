@@ -128,7 +128,6 @@ class Node(threading.Thread):
             self.blockchain.pending_transactions.append(inferred_class)
             time.sleep(120)
 
-
     def handle_reconnects(self):
         """
         The ``handle_reconnects`` method is a background thread that monitors the node's connections and attempts to
