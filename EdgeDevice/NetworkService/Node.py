@@ -95,7 +95,7 @@ class Node(threading.Thread):
         time.sleep(2)
 
         try:
-            logging.info("\n[DISCOVERY] Starting the discovery service . . .\n")
+            logging.info("[DISCOVERY] Starting the discovery service . . .")
             ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
@@ -137,10 +137,10 @@ class Node(threading.Thread):
                 break
 
         try:
-            logging.info("\n[DISCOVERY] Starting the discovery service . . .\n")
+            logging.info("[DISCOVERY] Starting the discovery service . . .")
             ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
-            logging.error(f"\n[DISCOVERY] Machine {Network.HOST_NAME} is shutting down.\n")
+            logging.error(f"[DISCOVERY] Machine {Network.HOST_NAME} is shutting down.")
             self.stop()
 
     def accept_connections(self):
@@ -154,7 +154,7 @@ class Node(threading.Thread):
         """
         while self.running:
             conn, addr = self.socket.accept()
-            logging.info(f"\n[CONNECTION] Connected to {addr[0]}:{addr[1]}\n")
+            logging.info(f"[CONNECTION] Connected to {addr[0]}:{addr[1]}")
             threading.Thread(target=self.messageHandler.handle_messages, args=(conn,)).start()
 
     def connect_to_peer(self, client_host, client_port, client_id, node_local):
@@ -174,7 +174,7 @@ class Node(threading.Thread):
         :return: None
         """
         if validate(self.connections, client_host, client_port) is not True or self.ip == client_host:
-            logging.info(f"\n[CONNECTION] Already connected to {client_host, client_port, client_id, node_local}\n")
+            logging.info(f"[CONNECTION] Already connected to {client_host, client_port, client_id, node_local}")
             return
 
         while self.running:
@@ -234,16 +234,16 @@ class Node(threading.Thread):
                     for ip in higher_nodes:
                         for node in self.connections:
                             if node.getpeername()[0] == ip:
-                                logging.info(f"[ELECTION] \nNode {self.ip} sent ELECTION message to {ip}\n")
+                                logging.info(f"[ELECTION] Node {self.ip} sent ELECTION message to {ip}")
                 else:
                     self.coordinator = self.id
                     self.broadcast_message(f"COORDINATOR {self.coordinator}")
-                    logging.info(f"\n[ELECTION] Node {self.id} is the new coordinator\n")
+                    logging.info(f"[ELECTION] Node {self.id} is the new coordinator")
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
                 self.blockchain.add_block(self.blockchain.new_block())
-                logging.info(f"\n[ELECTION] Node {self.id} is the coordinator. \n")
+                logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
             logging.error(f"SSLZero Return Error {e.strerror}")
             return
@@ -307,7 +307,7 @@ class Node(threading.Thread):
             new_public_key = None
             self.neighbours[new_client_id] = {'IP': new_ip, 'PUBLIC_KEY': new_public_key, 'LOCAL': node_local}
 
-            logging.info(f"\nNode [{conn.getpeername()[0]}] added to the network\n")
+            logging.info(f"Node [{conn.getpeername()[0]}] added to the network")
             logging.info(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
 
     def remove_node(self, conn, function):
@@ -324,5 +324,5 @@ class Node(threading.Thread):
         if conn in self.connections:
             logging.info(f"Node {conn} removed from the network")
             self.connections.remove(conn)
-        logging.info(f"\nNodes still available:")
+        logging.info(f"Nodes still available:")
         self.list_peers()

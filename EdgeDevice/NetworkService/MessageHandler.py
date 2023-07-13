@@ -7,7 +7,7 @@ import time
 import uuid
 
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
-from EdgeDevice.utils.constants import Messages, Config
+from EdgeDevice.utils.constants import Messages, BUFFER_SIZE
 
 from EdgeDevice.utils.helper import load_public_key_from_json, public_key_to_json, create_general_message
 
@@ -46,7 +46,7 @@ class MessageHandler:
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.node.keep_alive_timeout)
             except Exception as ex:  # Catch the specific exception you want to handle
-                logging.error(f"\nException error in Keep Alive: {ex.args}\n")
+                logging.error(f"Exception error in Keep Alive: {ex.args}")
                 break
 
         if conn in self.node.connections:
@@ -99,7 +99,7 @@ class MessageHandler:
         message_type = Messages.MESSAGE_TYPE_PONG.value
         if self.node.coordinator is None:
             self.node.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
-            logging.info(f"\nNetwork Coordinator is {self.node.coordinator}\n")
+            logging.info(f"Network Coordinator is {self.node.coordinator}")
             message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
 
         neighbour = self.node.neighbours.get(neighbour_id)
@@ -117,7 +117,7 @@ class MessageHandler:
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.node.public_key)
 
         message_json = json.dumps(data, indent=2)
-        logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
+        logging.info(f"GENERAL MESSAGE: {message_json}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
@@ -136,12 +136,12 @@ class MessageHandler:
         """
         while self.node.running:
             try:
-                data = conn.recv(Config.BUFFER_SIZE).decode()
+                data = conn.recv(BUFFER_SIZE).decode()
                 message = json.loads(data)
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
-                logging.info(f"\nMESSAGE TYPE: {message_type}\n")
+                logging.info(f"[MESSAGE TYPE]: {message_type}")
 
                 if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)

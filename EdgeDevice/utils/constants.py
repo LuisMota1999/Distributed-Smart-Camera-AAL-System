@@ -3,6 +3,7 @@ import socket
 from enum import Enum
 
 HOST_PORT = random.randint(5000, 6000)
+BUFFER_SIZE = 8192
 
 
 class Network(Enum):
@@ -22,7 +23,3 @@ class Messages(Enum):
     MESSAGE_TYPE_GET_CHAIN = "GET_CHAIN"
     MESSAGE_TYPE_CHAIN_RESPONSE = "CHAIN_RESPONSE"
     MESSAGE_TYPE_BLOCK = "BLOCK"
-
-
-class Config(Enum):
-    BUFFER_SIZE = 8192
