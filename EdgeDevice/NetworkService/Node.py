@@ -50,13 +50,15 @@ class Node(threading.Thread):
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
         )
+        node_number = int(self.name.split('-')[1].strip())  # Extrai o número do nó removendo o prefixo 'node-'
+        self.local = 'Sala' if node_number % 2 == 0 else 'Cozinha' if node_number == 1 else 'Quarto'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key}}
+        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key, 'LOCAL': self.local}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -68,7 +70,7 @@ class Node(threading.Thread):
             port=HOST_PORT,
             weight=0,
             priority=0,
-            properties={'IP': self.ip, 'ID': self.id},
+            properties={'IP': self.ip, 'ID': self.id, 'LOCAL': self.local},
         )
         self.blockchain.register_node({self.ip: time.time()})
 

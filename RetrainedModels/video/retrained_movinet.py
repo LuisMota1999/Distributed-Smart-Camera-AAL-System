@@ -62,7 +62,7 @@ print(np.allclose(result[:, :5, :], first_half))
 print(np.allclose(result[:, 5:, :], second_half))
 
 model_id = 'a0'
-resolution = 224
+resolution = 172
 
 tf.keras.backend.clear_session()
 

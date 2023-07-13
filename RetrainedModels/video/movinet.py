@@ -1,111 +1,273 @@
-# Import libraries
+import os
 import pathlib
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import mediapy as media
+import imageio
 import numpy as np
-import PIL
-
+import seaborn as sns
+import matplotlib.pyplot as plt
+from tensorflow_docs.vis import embed
 import tensorflow as tf
-import tensorflow_hub as hub
-import tqdm
+from official.projects.movinet.modeling import movinet
+from official.projects.movinet.modeling import movinet_model
+from official.projects.movinet.tools import export_saved_model
 
-mpl.rcParams.update({
-    'font.size': 10,
-})
+from RetrainedModels.video.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
 
-labels_path = tf.keras.utils.get_file(
-    fname='labels.txt',
-    origin='https://raw.githubusercontent.com/tensorflow/models/f8af2291cced43fc9f1d9b41ddbf772ae7b0d7d2/official/projects/movinet/files/kinetics_600_labels.txt'
+batch_size = 10
+num_frames = 8
+
+toyota_video_directory = pathlib.Path('datasets/ToyotaSmartHome/mp4/')
+toyota_output_directory = pathlib.Path('datasets/ToyotaSmartHome/')
+
+toyotaSmartHome_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
+
+dataset = toyotaSmartHome_dataset
+subset_paths = toyotaSmartHome_dataset.dirs
+
+output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
+                    tf.TensorSpec(shape=(), dtype=tf.int16))
+
+print(output_signature)
+train_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=dataset, training=True),
+    output_signature=output_signature)
+train_ds = train_ds.batch(batch_size)
+
+test_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=dataset),
+    output_signature=output_signature)
+test_ds = test_ds.batch(batch_size)
+
+val_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=dataset),
+    output_signature=output_signature)
+val_ds = val_ds.batch(batch_size)
+
+for frames, labels in train_ds.take(1):
+    print(f"Shape: {frames.shape}")
+    print(f"Label: {labels.shape}")
+
+model_id = 'a0'
+use_positional_encoding = model_id in {'a3', 'a4', 'a5'}
+resolution = 172
+
+backbone = movinet.Movinet(
+    model_id=model_id,
+    causal=True,
+    conv_type='2plus1d',
+    se_type='2plus3d',
+    activation='hard_swish',
+    gating_activation='hard_sigmoid',
+    use_positional_encoding=use_positional_encoding,
+    use_external_states=False,
 )
-labels_path = pathlib.Path(labels_path)
 
-lines = labels_path.read_text().splitlines()
-KINETICS_600_LABELS = np.array([line.strip() for line in lines])
-selected_classes = ['watching tv']
-KINETICS_600_LABELS = KINETICS_600_LABELS[np.isin(KINETICS_600_LABELS, selected_classes)].tolist()
+# Note: this is a temporary model constructed for the
+# purpose of loading the pre-trained checkpoint. Only
+# the backbone will be used to build the custom classifier.
 
-jumpingjack_url = 'https://media.tenor.com/bkdEZtNUnvAAAAAd/watching-tv-serious.gif'
-jumpingjack_path = tf.keras.utils.get_file(
-    fname='watching-tv-serious.gif',
-    origin=jumpingjack_url,
-    cache_dir='.', cache_subdir='.',
+model = movinet_model.MovinetClassifier(
+    backbone,
+    num_classes=600,
+    output_states=True)
+
+# Create your example input here.
+# Refer to the paper for recommended input shapes.
+inputs = tf.ones([1, 13, 172, 172, 3])
+
+# [Optional] Build the model and load a pretrained checkpoint.
+model.build(inputs.shape)
+
+checkpoint_dir = "movinet_a0_stream"
+checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir)
+checkpoint = tf.train.Checkpoint(model=model)
+status = checkpoint.restore(checkpoint_path)
+status.assert_existing_objects_matched()
+
+# Detect hardware
+try:
+    tpu_resolver = tf.distribute.cluster_resolver.TPUClusterResolver()  # TPU detection
+except ValueError:
+    tpu_resolver = None
+    gpus = tf.config.experimental.list_logical_devices("GPU")
+
+# Select appropriate distribution strategy
+if tpu_resolver:
+    tf.config.experimental_connect_to_cluster(tpu_resolver)
+    tf.tpu.experimental.initialize_tpu_system(tpu_resolver)
+    distribution_strategy = tf.distribute.experimental.TPUStrategy(tpu_resolver)
+    print('Running on TPU ', tpu_resolver.cluster_spec().as_dict()['worker'])
+elif len(gpus) > 1:
+    distribution_strategy = tf.distribute.MirroredStrategy([gpu.name for gpu in gpus])
+    print('Running on multiple GPUs ', [gpu.name for gpu in gpus])
+elif len(gpus) == 1:
+    distribution_strategy = tf.distribute.get_strategy()  # default strategy that works on CPU and single GPU
+    print('Running on single GPU ', gpus[0].name)
+else:
+    distribution_strategy = tf.distribute.get_strategy()  # default strategy that works on CPU and single GPU
+    print('Running on CPU')
+
+print("Number of accelerators: ", distribution_strategy.num_replicas_in_sync)
+
+
+def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
+    """Builds a classifier on top of a backbone model."""
+    model = movinet_model.MovinetClassifier(
+        backbone=backbone,
+        num_classes=num_classes)
+    model.build([batch_size, num_frames, resolution, resolution, 3])
+
+    return model
+
+
+# Construct loss, optimizer and compile the model
+with distribution_strategy.scope():
+    model = build_classifier(batch_size, num_frames, resolution, backbone, 10)
+    loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+    model.compile(loss=loss_obj, optimizer=optimizer, metrics=['accuracy'])
+
+checkpoint_path = "trained_model/cp.ckpt"
+checkpoint_dir = os.path.dirname(checkpoint_path)
+
+# Create a callback that saves the model's weights
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                 save_weights_only=True,
+                                                 verbose=1)
+
+results = model.fit(train_ds,
+                    validation_data=val_ds,
+                    epochs=20,
+                    validation_freq=1,
+                    verbose=1,
+                    callbacks=[cp_callback])
+
+model.evaluate(test_ds)
+
+
+def get_actual_predicted_labels(dataset):
+    """
+      Create a list of actual ground truth values and the predictions from the model.
+
+      Args:
+        dataset: An iterable data structure, such as a TensorFlow Dataset, with features and labels.
+
+      Return:
+        Ground truth and predicted values for a particular dataset.
+    """
+    actual = [labels for _, labels in dataset.unbatch()]
+    predicted = model.predict(dataset)
+
+    actual = tf.stack(actual, axis=0)
+    predicted = tf.concat(predicted, axis=0)
+    predicted = tf.argmax(predicted, axis=1)
+
+    return actual, predicted
+
+
+def plot_confusion_matrix(actual, predicted, labels, ds_type):
+    cm = tf.math.confusion_matrix(actual, predicted)
+    ax = sns.heatmap(cm, annot=True, fmt='g')
+    sns.set(rc={'figure.figsize': (6, 16)})
+    sns.set(font_scale=1.4)
+    ax.set_title('Confusion matrix of action recognition for ' + ds_type)
+    ax.set_xlabel('Predicted Action')
+    ax.set_ylabel('Actual Action')
+    plt.xticks(rotation=90)
+    plt.yticks(rotation=0)
+    ax.xaxis.set_ticklabels(labels)
+    ax.yaxis.set_ticklabels(labels)
+    plt.show()
+
+
+fg = FrameGenerator(subset_paths['train'], num_frames, dataset=dataset, training=True)
+label_names = list(fg.class_ids_for_name.keys())
+
+actual, predicted = get_actual_predicted_labels(test_ds)
+plot_confusion_matrix(actual, predicted, label_names, 'test')
+
+model_id = 'a0'
+use_positional_encoding = model_id in {'a3', 'a4', 'a5'}
+resolution = 172
+
+# Create backbone and model.
+backbone = movinet.Movinet(
+    model_id=model_id,
+    causal=True,
+    conv_type='2plus1d',
+    se_type='2plus3d',
+    activation='hard_swish',
+    gating_activation='hard_sigmoid',
+    use_positional_encoding=use_positional_encoding,
+    use_external_states=True,
 )
 
-print(KINETICS_600_LABELS)
+model = movinet_model.MovinetClassifier(
+    backbone,
+    num_classes=3,
+    output_states=True)
 
-# @title
-# Read and process a video
-def load_gif(file_path, image_size=(224, 224)):
-    """Loads a gif file into a TF tensor.
+# Create your example input here.
+# Refer to the paper for recommended input shapes.
+inputs = tf.ones([1, 13, 172, 172, 3])
 
-    Use images resized to match what's expected by your model.
-    The model pages say the "A2" models expect 224 x 224 images at 5 fps
+# [Optional] Build the model and load a pretrained checkpoint.
+model.build(inputs.shape)
 
-    Args:
-      file_path: path to the location of a gif file.
-      image_size: a tuple of target size.
-
-    Returns:
-      a video of the gif file
-    """
-    # Load a gif file, convert it to a TF tensor
-    raw = tf.io.read_file(file_path)
-    video = tf.io.decode_gif(raw)
-    # Resize the video
-    video = tf.image.resize(video, image_size)
-    # change dtype to a float32
-    # Hub models always want images normalized to [0,1]
-    # ref: https://www.tensorflow.org/hub/common_signatures/images#input
-    video = tf.cast(video, tf.float32) / 255.
-    return video
+# Load weights from the checkpoint to the rebuilt model
+checkpoint_dir_trained = 'trained_model'
+model.load_weights(tf.train.latest_checkpoint(checkpoint_dir_trained))
 
 
-jumpingjack = load_gif(jumpingjack_path)
-
-id = 'a2'
-mode = 'base'
-version = '3'
-hub_url = f'https://tfhub.dev/tensorflow/movinet/{id}/{mode}/kinetics-600/classification/{version}'
-model = hub.load(hub_url)
-
-sig = model.signatures['serving_default']
-print(sig.pretty_printed_signature())
-
-# warmup
-sig(image=jumpingjack[tf.newaxis, :1])
-
-logits = sig(image=jumpingjack[tf.newaxis, ...])
-logits = logits['classifier_head'][0]
-
-print(logits.shape)
-print()
+def to_gif(images):
+    converted_images = np.clip(images * 255, 0, 255).astype(np.uint8)
+    imageio.mimsave('./animation.gif', converted_images, fps=10)
+    return embed.embed_file('./animation.gif')
 
 
-def get_top_k(probs, k=5, label_map=KINETICS_600_LABELS):
-    """Outputs the top k model labels and probabilities on the given video.
-
-    Args:
-      probs: probability tensor of shape (num_frames, num_classes) that represents
-        the probability of each class on each frame.
-      k: the number of top predictions to select.
-      label_map: a list of labels to map logit indices to label strings.
-
-    Returns:
-      a tuple of the top-k labels and probabilities.
-    """
-    # Sort predictions to find top_k
+def get_top_k(probs, k=5, label_map=subset_paths['train']):
+    """Outputs the top k model labels and probabilities on the given video."""
     top_predictions = tf.argsort(probs, axis=-1, direction='DESCENDING')[:k]
-    # collect the labels of top_k predictions
     top_labels = tf.gather(label_map, top_predictions, axis=-1)
-    # decode lablels
     top_labels = [label.decode('utf8') for label in top_labels.numpy()]
-    # top_k probabilities of the predictions
     top_probs = tf.gather(probs, top_predictions, axis=-1).numpy()
     return tuple(zip(top_labels, top_probs))
 
 
-probs = tf.nn.softmax(logits, axis=-1)
-for label, p in get_top_k(probs):
-    print(f'{label:20s}: {p:.3f}')
+# Create initial states for the stream model
+init_states_fn = model.init_states
+init_states = init_states_fn(tf.shape(tf.ones(shape=[1, 1, 172, 172, 3])))
+
+all_logits = []
+
+# To run on a video, pass in one frame at a time
+states = init_states
+for frames, label in test_ds.take(1):
+    for clip in frames[0]:
+        # Input shape: [1, 1, 172, 172, 3]
+        clip = tf.expand_dims(tf.expand_dims(clip, axis=0), axis=0)
+        logits, states = model.predict({**states, 'image': clip}, verbose=0)
+        all_logits.append(logits)
+
+logits = tf.concat(all_logits, 0)
+probs = tf.nn.softmax(logits)
+
+final_probs = probs[-1]
+top_k = get_top_k(final_probs)
+print()
+for label, prob in top_k:
+    print(label, prob)
+
+frames, label = list(test_ds.take(1))[0]
+to_gif(frames[0].numpy())
+
+saved_model_dir = 'model'
+tflite_filename = 'model.tflite'
+input_shape = [1, 1, 172, 172, 3]
+
+# Convert to saved model
+export_saved_model.export_saved_model(
+    model=model,
+    input_shape=input_shape,
+    export_path=saved_model_dir,
+    causal=True,
+    bundle_input_init_states_fn=False)
