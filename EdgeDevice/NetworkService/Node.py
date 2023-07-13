@@ -68,7 +68,7 @@ class Node(threading.Thread):
             port=HOST_PORT,
             weight=0,
             priority=0,
-            properties={'IP': self.ip, 'ID': self.id},
+            properties={'IP': self.ip, 'ID': self.id, 'LOCAL': 'SALA'},
         )
         self.blockchain.register_node({self.ip: time.time()})
 
