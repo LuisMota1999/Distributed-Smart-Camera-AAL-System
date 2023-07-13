@@ -3,7 +3,7 @@ import socket
 from enum import Enum
 
 HOST_PORT = random.randint(5000, 6000)
-BUFFER_SIZE = 8192
+BUFFER_SIZE = 1024
 
 
 class Network(Enum):

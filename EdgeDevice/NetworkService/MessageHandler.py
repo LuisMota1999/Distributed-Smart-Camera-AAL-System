@@ -137,6 +137,12 @@ class MessageHandler:
         while self.node.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
+
+                if not data:
+                    self.node.service_info.priority = random.randint(1, 100)
+                    self.node.zeroconf.update_service(self.node.service_info)
+                    break
+
                 message = json.loads(data)
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
@@ -154,11 +160,6 @@ class MessageHandler:
 
                 elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                if not data:
-                    self.node.service_info.priority = random.randint(1, 100)
-                    self.node.zeroconf.update_service(self.node.service_info)
-                    break
 
             except json.JSONDecodeError as e:
                 logging.error("Error decoding JSON:", e)
