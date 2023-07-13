@@ -111,12 +111,12 @@ class Node(threading.Thread):
             self.zeroconf.update_service(self.service_info)
 
         try:
-            print("[COORDINATOR] Starting the discovery service...")
+            print("\n[DISCOVERY] Starting the discovery service...\n")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
             threading.Thread(target=self.accept_connections).start()
         except KeyboardInterrupt:
-            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            print(f"\nMachine {Network.HOST_NAME} is shutting down...\n")
             self.stop()
 
         if len(self.connections) == 0:
@@ -139,10 +139,10 @@ class Node(threading.Thread):
                 break
 
         try:
-            print("[COORDINATOR] Starting the discovery service...")
+            print("\n[DISCOVERY] Starting the discovery service...\n")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
         except KeyboardInterrupt:
-            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            print(f"\nMachine {Network.HOST_NAME} is shutting down...\n")
             self.stop()
 
     def accept_connections(self):
@@ -156,7 +156,7 @@ class Node(threading.Thread):
         """
         while self.running:
             conn, addr = self.socket.accept()
-            print(f"Connected to {addr[0]}:{addr[1]}")
+            print(f"\nConnected to {addr[0]}:{addr[1]}\n")
 
             # Start a thread to handle incoming messages
             threading.Thread(target=self.handle_messages, args=(conn,)).start()
@@ -198,7 +198,7 @@ class Node(threading.Thread):
         :return: None
         """
         if self.validate(client_host, client_port) is not True or self.ip == client_host:
-            print(f"Already connected to {client_host, client_port, client_id}")
+            print(f"\nAlready connected to {client_host, client_port, client_id}\n")
             return
 
         while self.running:
@@ -265,7 +265,7 @@ class Node(threading.Thread):
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
             except Exception as ex:  # Catch the specific exception you want to handle
-                print(f"Exception error in Keep Alive: {ex.args}")
+                print(f"\nException error in Keep Alive: {ex.args}\n")
                 break
 
         # close connection and remove node from list
@@ -300,17 +300,17 @@ class Node(threading.Thread):
                     for ip in higher_nodes:
                         for node in self.connections:
                             if node.getpeername()[0] == ip:
-                                print(f"Node {self.ip} sent ELECTION message to {ip}")
+                                print(f"\nNode {self.ip} sent ELECTION message to {ip}\n")
 
                 else:
                     self.coordinator = self.id
                     self.broadcast_message(f"COORDINATOR {self.coordinator}")
-                    print(f"Node {self.id} is the new coordinator")
+                    print(f"\nNode {self.id} is the new coordinator\n")
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
                 self.blockchain.add_block(self.blockchain.new_block())
-                print(f"Node {self.id} is the coordinator")
+                print(f"\nNode {self.id} is the coordinator\n")
         except ssl.SSLZeroReturnError as e:
             print(f"SSLZero Return Error {e.strerror}")
             return
@@ -327,12 +327,12 @@ class Node(threading.Thread):
                 # If there are no connections and reconnection is required, update the node's last seen time and wait
                 # for the specified amount of time before attempting to reconnect
                 self.blockchain.nodes[self.ip] = time.time()
-                print("Attempting to reconnect...")
-                time.sleep(self.keep_alive_timeout)
+                print("\nAttempting to reconnect...\n")
+                time.sleep(self.keep_alive_timeout * 2)
             elif len(self.connections) > 0 and self.recon_state is True:
                 # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
                 # and wait for a short amount of time before continuing
-                print("Coordinator not seen for a while. Starting new election...")
+                print("\nCoordinator not seen for a while. Starting new election...\n")
                 self.coordinator = None
                 self.start_election()
                 self.recon_state = False
@@ -396,7 +396,7 @@ class Node(threading.Thread):
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
-        print(f"GENERAL MESSAGE: {message_json}")
+        print(f"\nGENERAL MESSAGE: {message_json}\n")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
@@ -416,12 +416,17 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
+
+                if data == '':
+                    print("WRONG DATA: ", data)
+                    break
+
                 message = json.loads(data)
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
-                print(f"MESSAGE TYPE: {message_type}")
-                # print(f"\nMESSAGE JSON: {data}\n")
+                print(f"\nMESSAGE TYPE: {message_type}\n")
+
                 if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)
 

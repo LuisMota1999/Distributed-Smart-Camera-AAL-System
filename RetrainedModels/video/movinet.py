@@ -136,7 +136,7 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 
 results = model.fit(train_ds,
                     validation_data=val_ds,
-                    epochs=20,
+                    epochs=15,
                     validation_freq=1,
                     verbose=1,
                     callbacks=[cp_callback])
@@ -176,6 +176,7 @@ def plot_confusion_matrix(actual, predicted, labels, ds_type):
     plt.yticks(rotation=0)
     ax.xaxis.set_ticklabels(labels)
     ax.yaxis.set_ticklabels(labels)
+    plt.savefig('plot.png')
     plt.show()
 
 
@@ -271,3 +272,37 @@ export_saved_model.export_saved_model(
     export_path=saved_model_dir,
     causal=True,
     bundle_input_init_states_fn=False)
+
+converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+tflite_model = converter.convert()
+
+with open(tflite_filename, 'wb') as f:
+    f.write(tflite_model)
+
+# Create the interpreter and signature runner
+interpreter = tf.lite.Interpreter(model_path=tflite_filename)
+runner = interpreter.get_signature_runner()
+
+init_states = {
+    name: tf.zeros(x['shape'], dtype=x['dtype'])
+    for name, x in runner.get_input_details().items()
+}
+del init_states['image']
+
+# To run on a video, pass in one frame at a time
+states = init_states
+for frames, label in test_ds.take(1):
+    for clip in frames[0]:
+        # Input shape: [1, 1, 172, 172, 3]
+        outputs = runner(**states, image=clip)
+        logits = outputs.pop('logits')[0]
+        states = outputs
+
+probs = tf.nn.softmax(logits)
+top_k = get_top_k(probs)
+print()
+for label, prob in top_k:
+    print(label, prob)
+
+frames, label = list(test_ds.take(1))[0]
+to_gif(frames[0].numpy())
