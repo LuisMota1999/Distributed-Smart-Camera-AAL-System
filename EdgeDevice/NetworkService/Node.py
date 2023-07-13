@@ -262,13 +262,11 @@ class Node(threading.Thread):
                                 logging.info(f"[ELECTION] Node {self.ip} sent ELECTION message to {ip}")
                 else:
                     self.coordinator = self.id
-                    self.broadcast_message(f"COORDINATOR {self.coordinator}")
                     logging.info(f"[ELECTION] Node {self.id} is the new coordinator")
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
                 self.handle_detection()
-                time.sleep(1)
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
