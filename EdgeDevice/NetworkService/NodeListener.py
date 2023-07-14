@@ -69,7 +69,7 @@ class NodeListener:
                         print(f"    {key}: {value}")
                 else:
                     print("  No properties")
-                # self.add_service(zeroconf, service_type, name)
+                self.add_service(zeroconf, service_type, name)
             else:
                 print("  No info")
             print('\n')
