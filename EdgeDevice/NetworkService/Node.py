@@ -1,4 +1,3 @@
-import argparse
 import logging
 import socket
 import ssl
@@ -9,7 +8,7 @@ import soundfile as sf
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 
-from EdgeDevice.InferenceService.audio import AudioInference
+# from EdgeDevice.InferenceService.audio import AudioInference
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.NetworkService.MessageHandler import MessageHandler
 from EdgeDevice.NetworkService.NodeListener import NodeListener
@@ -41,26 +40,27 @@ class Node(threading.Thread):
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
-        # Create the socket with TLS encryption
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        self.messageHandler = MessageHandler(self)
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # Create the socket with TLS encryption
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
         self.retries = 5
-        # Disable hostname verification for the server-side socket
-        self.context.check_hostname = False
+        self.context.check_hostname = False  # Disable hostname verification for the server-side
         self.context.verify_mode = ssl.CERT_NONE
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
         )
+        node_number = int(self.name.split('-')[1].strip())
+        self.local = 'SALA' if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key}}
+        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key, 'LOCAL': self.local}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -72,7 +72,7 @@ class Node(threading.Thread):
             port=HOST_PORT,
             weight=0,
             priority=0,
-            properties={'IP': self.ip, 'ID': self.id, 'LOCAL': 'SALA'},
+            properties={'IP': self.ip, 'ID': self.id, 'LOCAL': self.local},
         )
         self.blockchain.register_node({self.ip: time.time()})
 
@@ -85,49 +85,33 @@ class Node(threading.Thread):
 
         :return: None
         """
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--debug', action='store_true')
-        parser.add_argument('--find', action='store_true', help='Browse all available services')
-        parser.add_argument('-src', '--source', dest='video_source', type=int,
-                            default=0, help='Device index of the camera.')
-        parser.add_argument('-wd', '--width', dest='width', type=int,
-                            default=480, help='Width of the frames in the video stream.')
-        parser.add_argument('-ht', '--height', dest='height', type=int,
-                            default=360, help='Height of the frames in the video stream.')
-        parser.add_argument('-num-w', '--num-workers', dest='num_workers', type=int,
-                            default=4, help='Number of workers.')
-        parser.add_argument('-q-size', '--queue-size', dest='queue_size', type=int,
-                            default=5, help='Size of the queue.')
-        version_group = parser.add_mutually_exclusive_group()
-        version_group.add_argument('--v6', action='store_true')
-        version_group.add_argument('--v6-only', action='store_true')
-        args = parser.parse_args()
-
-        if args.debug:
-            logging.getLogger('NetworkService').setLevel(logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
 
         try:
             self.zeroconf.register_service(self.service_info)
-        except NonUniqueNameException:
+        except NonUniqueNameException as n:
+            logging.error(f"Non Unique Name Exception Error: {n.args}")
+
             self.zeroconf.update_service(self.service_info)
 
         try:
-            print("[COORDINATOR] Starting the discovery service...")
+            logging.info("[DISCOVERY] Starting the discovery service . . .")
+
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
-            # threading.Thread(target=self.accept_connections).start()
+            threading.Thread(target=self.accept_connections).start()
+
         except KeyboardInterrupt:
-            print(f"Machine {Network.HOST_NAME} is shutting down...")
+            logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
 
+        time.sleep(1)
+
         if len(self.connections) == 0:
-            time.sleep(5)
-            #self.start_election()
+            time.sleep(2)
+            self.start_election()
 
-        #threading.Thread(target=self.handle_reconnects).start()
-
-        # threading.Thread(target=self.handle_detection).start()
+        threading.Thread(target=self.handle_reconnects).start()
 
     def handle_detection(self):
         """
