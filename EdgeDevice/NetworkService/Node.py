@@ -96,7 +96,6 @@ class Node(threading.Thread):
 
         try:
             logging.info("[DISCOVERY] Starting the discovery service . . .")
-
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
             threading.Thread(target=self.accept_connections).start()
@@ -125,14 +124,14 @@ class Node(threading.Thread):
             'threshold': 0.85  # confidence threshold for classification
         }
 
-        audio_inference = AudioInference(audio_model)
-        audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
-        waveform, _ = sf.read(audio_file_path, dtype='float32')
+        # audio_inference = AudioInference(audio_model)
+        # audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
+        # waveform, _ = sf.read(audio_file_path, dtype='float32')
 
-        while self.running and self.coordinator == self.id:
-            inferred_class = audio_inference.inference(waveform)
-            self.blockchain.pending_transactions.append(inferred_class)
-            break
+        # while self.running and self.coordinator == self.id:
+        #     inferred_class = audio_inference.inference(waveform)
+        #     self.blockchain.pending_transactions.append(inferred_class)
+        #    break
 
     def handle_reconnects(self):
         """
