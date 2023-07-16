@@ -1,4 +1,4 @@
-# import soundfile as sf
+import soundfile as sf
 import logging
 import random
 import socket
@@ -8,14 +8,13 @@ import ssl
 import uuid
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
+from EdgeDevice.InferenceService.audio import AudioInference
 from EdgeDevice.NetworkService.NodeListener import NodeListener
-from EdgeDevice.BlockchainService.Transaction import validate_transaction
+from EdgeDevice.BlockchainService.Transaction import validate_transaction, create_transaction
 from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages
 import json
 from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json, \
     get_interface_ip, create_general_message
-# from EdgeDevice.InferenceService.audio import AudioInference
-
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +83,8 @@ class Node(threading.Thread):
         :return: None
         """
 
+        global handle_discovery
+        global handle_connections
         try:
             self.zeroconf.register_service(self.service_info)
         except NonUniqueNameException as n:
@@ -92,9 +93,10 @@ class Node(threading.Thread):
 
         try:
             logging.info("[DISCOVERY] Starting the discovery service . . .")
-            ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+            handle_discovery = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
 
-            threading.Thread(target=self.accept_connections).start()
+            handle_connections = threading.Thread(target=self.accept_connections)
+            handle_connections.start()
         except KeyboardInterrupt:
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
             self.stop()
@@ -103,7 +105,16 @@ class Node(threading.Thread):
             time.sleep(3)
             self.handle_election()
 
-        threading.Thread(target=self.handle_reconnects).start()
+        handle_reconects = threading.Thread(target=self.handle_reconnects)
+        handle_reconects.start()
+
+        try:
+            if not self.running:
+                handle_reconects.join()
+                handle_discovery.join()
+                handle_connections.join()
+        except Exception as e:
+            logging.error(f"Machine {Network.HOST_NAME} is shutting down with errors {e.args}")
 
     def accept_connections(self):
         """
@@ -238,14 +249,18 @@ class Node(threading.Thread):
             'threshold': 0.85  # confidence threshold for classification
         }
 
-        # audio_inference = AudioInference(audio_model)
-        # audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
-        # waveform, _ = sf.read(audio_file_path, dtype='float32')
+        audio_inference = AudioInference(audio_model)
+        audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
+        waveform, _ = sf.read(audio_file_path, dtype='float32')
 
-        # while self.running and self.coordinator == self.id:
-        #     inferred_class = audio_inference.inference(waveform)
-        #     self.blockchain.pending_transactions.append(inferred_class)
-        #    break
+        while self.running and self.coordinator == self.id:
+            # Perform audio inference and create a transaction for each detected class
+            inferred_classes = audio_inference.inference(waveform)
+            for inferred_class in inferred_classes:
+                transaction = create_transaction(
+                    self.private_key, self.public_key, str(self.id), inferred_class
+                )
+                self.blockchain.pending_transactions.append(transaction)
 
     def handle_reconnects(self):
         """
