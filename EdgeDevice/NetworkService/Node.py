@@ -169,6 +169,26 @@ class Node(threading.Thread):
             logging.info(f"[CONNECTION] Connected to {addr[0]}:{addr[1]}")
             threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
+    def validate(self, ip, port):
+        """
+        The ``validate`` method checks if a given IP address and port number are already in use by any of the
+        existing connections in the node. If the IP address and port number are unique, the method returns True.
+        Otherwise, it returns False.
+
+        :param ip: The IP address to validate.
+        :type ip: <str>
+        :param port: The port number to validate.
+        :type port: <int>
+        :return: True if the IP address and port number are unique, False otherwise.
+        """
+        flag = True
+        for connection in self.connections:
+            if ip != connection.getpeername()[0] and port != connection.getpeername()[1]:
+                flag = True
+            else:
+                flag = False
+        return flag
+
     def connect_to_peer(self, client_host, client_port, client_id, node_local):
         """
         The `connect_to_peer` method is used to create a TLS-encrypted socket connection with the specified client.
@@ -188,7 +208,7 @@ class Node(threading.Thread):
 
         logging.info(f"[CONNECTION] Node Information: {client_host, client_port, client_id, node_local}")
 
-        if validate(self.connections, client_host, client_port) is not True or self.ip == client_host:
+        if self.validate(client_host, client_port) is not True or self.ip == client_host:
             logging.info(f"[CONNECTION] Already connected to {client_host, client_port, client_id, node_local}")
             return
 
