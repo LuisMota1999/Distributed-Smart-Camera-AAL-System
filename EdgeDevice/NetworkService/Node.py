@@ -182,6 +182,9 @@ class Node(threading.Thread):
         :type client_port: <int>
         :return: None
         """
+
+        logging.info(f"[CONNECTION] Node Information: {client_host, client_port, client_id, node_local}")
+
         if validate(self.connections, client_host, client_port) is not True or self.ip == client_host:
             logging.info(f"[CONNECTION] Already connected to {client_host, client_port, client_id, node_local}")
             return

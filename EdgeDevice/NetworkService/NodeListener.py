@@ -1,5 +1,5 @@
 import logging
-
+import time
 from zeroconf import Zeroconf, ServiceStateChange
 from typing import cast
 
@@ -35,7 +35,8 @@ class NodeListener:
             for ip in ip_list:
                 if ip != self.node.ip:
                     logging.info(f"[ADD SERVICE] Service info: {info}")
-                    # self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
+                    time.sleep(1)
+                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
