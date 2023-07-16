@@ -87,6 +87,8 @@ class Node(threading.Thread):
         """
         logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
 
+        threading.Thread(target=self.accept_connections).start()
+
         try:
             self.zeroconf.register_service(self.service_info)
         except NonUniqueNameException as n:
@@ -97,8 +99,6 @@ class Node(threading.Thread):
         try:
             logging.info("[DISCOVERY] Starting the discovery service . . .")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
-
-            threading.Thread(target=self.accept_connections).start()
 
         except KeyboardInterrupt:
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
