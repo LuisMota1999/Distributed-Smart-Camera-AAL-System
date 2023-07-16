@@ -203,8 +203,9 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
-                                                              args=(conn, client_id))
+                handle_keep_alive_messages = threading.Thread(
+                    target=self.messageHandler.handle_keep_alive_messages(conn=conn, client_id=client_id),
+                    args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
                 break
