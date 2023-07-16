@@ -167,7 +167,7 @@ class Node(threading.Thread):
         while self.running:
             conn, addr = self.socket.accept()
             logging.info(f"[CONNECTION] Connected to {addr[0]}:{addr[1]}")
-            threading.Thread(target=self.messageHandler.handle_messages, args=(conn,)).start()
+            threading.Thread(target=self.handle_messages, args=(conn,)).start()
 
     def connect_to_peer(self, client_host, client_port, client_id, node_local):
         """
@@ -210,12 +210,12 @@ class Node(threading.Thread):
 
                 time.sleep(1)
 
-                handle_messages = threading.Thread(target=self.messageHandler.handle_messages, args=(conn,))
+                handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
                 time.sleep(1)
 
-                handle_keep_alive_messages = threading.Thread(target=self.messageHandler.handle_keep_alive_messages,
+                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
