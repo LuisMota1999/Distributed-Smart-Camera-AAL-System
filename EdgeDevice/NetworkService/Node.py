@@ -1,25 +1,21 @@
 import logging
-import random
 import socket
 import ssl
 import threading
 import time
 import uuid
 import soundfile as sf
-import json
+
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 
 # from EdgeDevice.InferenceService.audio import AudioInference
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
-from EdgeDevice.BlockchainService.Transaction import validate_transaction
-from EdgeDevice.utils.constants import Messages, BUFFER_SIZE
-
 from EdgeDevice.NetworkService.MessageHandler import MessageHandler
 from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.utils.constants import Network, HOST_PORT
 from EdgeDevice.utils.helper import (
     get_keys, get_tls_keys,
-    get_interface_ip, validate, create_general_message, public_key_to_json, load_public_key_from_json
+    get_interface_ip, validate
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +40,7 @@ class Node(threading.Thread):
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
+        self.messageHandler = MessageHandler(self)
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # Create the socket with TLS encryption
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
@@ -90,8 +87,6 @@ class Node(threading.Thread):
         """
         logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
 
-        threading.Thread(target=self.accept_connections).start()
-
         try:
             self.zeroconf.register_service(self.service_info)
         except NonUniqueNameException as n:
@@ -102,6 +97,8 @@ class Node(threading.Thread):
         try:
             logging.info("[DISCOVERY] Starting the discovery service . . .")
             browser = ServiceBrowser(self.zeroconf, "_node._tcp.local.", [self.listener.update_service])
+
+            threading.Thread(target=self.accept_connections).start()
 
         except KeyboardInterrupt:
             logging.error(f"Machine {Network.HOST_NAME} is shutting down")
@@ -167,27 +164,7 @@ class Node(threading.Thread):
         while self.running:
             conn, addr = self.socket.accept()
             logging.info(f"[CONNECTION] Connected to {addr[0]}:{addr[1]}")
-            threading.Thread(target=self.handle_messages, args=(conn,)).start()
-
-    def validate(self, ip, port):
-        """
-        The ``validate`` method checks if a given IP address and port number are already in use by any of the
-        existing connections in the node. If the IP address and port number are unique, the method returns True.
-        Otherwise, it returns False.
-
-        :param ip: The IP address to validate.
-        :type ip: <str>
-        :param port: The port number to validate.
-        :type port: <int>
-        :return: True if the IP address and port number are unique, False otherwise.
-        """
-        flag = True
-        for connection in self.connections:
-            if ip != connection.getpeername()[0] and port != connection.getpeername()[1]:
-                flag = True
-            else:
-                flag = False
-        return flag
+            threading.Thread(target=self.messageHandler.handle_messages, args=(conn,)).start()
 
     def connect_to_peer(self, client_host, client_port, client_id, node_local):
         """
@@ -205,10 +182,7 @@ class Node(threading.Thread):
         :type client_port: <int>
         :return: None
         """
-
-        logging.info(f"[CONNECTION] Node Information: {client_host, client_port, client_id, node_local}")
-
-        if self.validate(client_host, client_port) is not True or self.ip == client_host:
+        if validate(self.connections, client_host, client_port) is not True or self.ip == client_host:
             logging.info(f"[CONNECTION] Already connected to {client_host, client_port, client_id, node_local}")
             return
 
@@ -230,17 +204,14 @@ class Node(threading.Thread):
 
                 time.sleep(1)
 
-                handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
+                handle_messages = threading.Thread(target=self.messageHandler.handle_messages, args=(conn,))
                 handle_messages.start()
 
                 time.sleep(1)
 
-                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
+                handle_keep_alive_messages = threading.Thread(target=self.messageHandler.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
-
-                handle_keep_alive_messages.join()
-                handle_messages.join()
 
                 break
             except ConnectionRefusedError as e:
@@ -361,189 +332,3 @@ class Node(threading.Thread):
             self.connections.remove(conn)
         logging.info(f"Nodes still available:")
         self.list_peers()
-
-    def handle_keep_alive_messages(self, conn, client_id):
-        """
-        The ``handle_keep_alive_messages`` method sends keep-alive messages to the specified connection periodically
-        to maintain the connection. The keep-alive message
-        includes information such as the sender's metadata, message type, last time alive, coordinator information, and
-        public key. If an exception occurs during the process, the function breaks the loop and closes the connection.
-
-        :param conn: Socket connection object representing the connection to the peer node.
-        :type conn: <socket.socket>
-        :param client_id: The unique identifier of the connected peer node.
-        :type client_id: <bytes>
-        :return: None
-        """
-        neighbour_id = uuid.UUID(client_id.decode('utf-8'))
-        neighbour = self.neighbours.get(neighbour_id)
-        while self.running:
-            try:
-                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                              conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_PING.value)
-
-                if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-                    data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
-
-                time.sleep(2)
-                # Convert JSON data to string
-                message = json.dumps(data, indent=2)
-                conn.send(bytes(message, encoding="utf-8"))
-                time.sleep(self.keep_alive_timeout)
-            except Exception as ex:  # Catch the specific exception you want to handle
-                print(f"Exception error in Keep Alive: {ex.args}")
-                break
-
-        # close connection and remove node from list
-        if conn in self.connections:
-            self.recon_state = True
-            self.remove_node(conn, "KAlive")
-            client_id_str = client_id.decode('utf-8')
-            client_uuid = uuid.UUID(client_id_str)
-            if client_uuid in self.neighbours:
-                self.neighbours.pop(client_uuid)
-            conn.close()
-
-    def handle_chain_message(self, message, conn, neighbour_id, message_type):
-        if message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
-            if self.coordinator == uuid.UUID(message["PAYLOAD"].get("COORDINATOR")):
-                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                              conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value)
-
-                data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
-
-                message_json = json.dumps(data, indent=2)
-                print(f"CHAIN MESSAGE: {message_json}")
-                conn.send(bytes(message_json, encoding="utf-8"))
-        elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
-            self.blockchain.chain = message["PAYLOAD"].get("CHAIN")
-            print(f"IP: {self.ip} , CHAIN: {self.blockchain.chain}")
-            logging.info("Blockchain chain was updated with information from coordinator")
-
-    def handle_transaction_message(self, message, conn, neighbour_id):
-        tx = message["PAYLOAD"]["PENDING"]
-
-        if validate_transaction(tx):
-            if tx not in self.blockchain.pending_transactions:
-                self.blockchain.pending_transactions.append(tx)
-                data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
-                                              conn.getpeername()[1],
-                                              str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_TRANSACTION.value)
-
-                data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
-
-                message = json.dumps(data, indent=2)
-                self.broadcast_message(message)
-        else:
-            print("Received invalid transaction")
-            return
-
-    def handle_general_message(self, message, conn, neighbour_id):
-        message_type = Messages.MESSAGE_TYPE_PONG.value
-        if self.coordinator is None:
-            self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
-            print(f"\nNetwork Coordinator is {self.coordinator}\n")
-            message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
-
-        neighbour = self.neighbours.get(neighbour_id)
-        if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-            public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
-            public_key = load_public_key_from_json(public_key_base64)
-            if public_key is not None:
-                self.neighbours[neighbour_id]['PUBLIC_KEY'] = public_key
-
-        data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0], conn.getpeername()[1],
-                                      str(neighbour_id), str(self.coordinator), message_type)
-
-        if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-            data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
-
-        message_json = json.dumps(data, indent=2)
-        print(f"GENERAL MESSAGE: {message_json}")
-        conn.send(bytes(message_json, encoding="utf-8"))
-
-    def handle_messages(self, conn):
-        """
-
-        The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
-        connection object and responds to them appropriately. If the received message is a valid JSON message,
-        it extracts the message type and processes it accordingly. If the message is empty, it updates the node's
-        priority and breaks the loop. If there is a socket timeout or OSError, the method sets the ``recon_state``
-        flag to True and removes the node from the list of connections. If the connection is reset, it also removes
-        the node from the list and closes the connection.
-
-        :param conn: socket connection object representing the connection to the peer node
-        :type conn: <socket.socket>
-        :return: None
-        """
-        while self.running:
-            try:
-                data = conn.recv(BUFFER_SIZE).decode()
-                message = json.loads(data)
-                message_type = message.get("TYPE")
-                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-
-                print(f"MESSAGE TYPE: {message_type}")
-                # print(f"\nMESSAGE JSON: {data}\n")
-                if message_type == Messages.MESSAGE_TYPE_PING.value:
-                    self.handle_general_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
-                    self.handle_transaction_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                if not data:
-                    self.service_info.priority = random.randint(1, 100)
-                    self.zeroconf.update_service(self.service_info)
-                    break
-
-            except json.JSONDecodeError as e:
-                print("Error decoding JSON:", e)
-                print(f"Retrying attempts left {self.retries}...")
-                self.retries -= 1
-                time.sleep(1)
-                if self.retries <= 0:
-                    break
-
-            except ssl.SSLZeroReturnError as e:
-                print(f"SSLZero Return Error {e.strerror}")
-                break
-
-            except socket.timeout as e:
-                print("Error timeout:", e)
-                self.recon_state = True
-                if conn in self.connections:
-                    self.remove_node(conn, "Timeout")
-                    conn.close()
-                break
-
-            except ConnectionResetError as c:
-                print(f"Connection Reset Error {c.strerror}")
-                if conn in self.connections:
-                    self.remove_node(conn, "ConnectionResetError")
-                    conn.close()
-                break
-
-            except OSError as e:
-                print(f"System Error {e.strerror}")
-                if conn in self.connections:
-                    self.remove_node(conn, "OSError")
-                    conn.close()
-                break
-
-            except Exception as ex:
-                print(f"Exception Error {ex.args}")
-                if conn in self.connections:
-                    self.remove_node(conn, "Exception")
-                    conn.close()
-                break
