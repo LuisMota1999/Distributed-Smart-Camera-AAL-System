@@ -1,13 +1,10 @@
-import random
 import json
 import logging
-import ssl
-import socket
 import time
 import uuid
 
 from EdgeDevice.BlockchainService.Transaction import validate_transaction
-from EdgeDevice.utils.constants import Messages, BUFFER_SIZE
+from EdgeDevice.utils.constants import Messages
 
 from EdgeDevice.utils.helper import load_public_key_from_json, public_key_to_json, create_general_message
 
@@ -120,85 +117,3 @@ class MessageHandler:
         # logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
         conn.send(bytes(message_json, encoding="utf-8"))
 
-    def handle_messages(self, conn):
-        """
-
-        The ``handle_messages`` method handles incoming messages from a peer node. It listens for messages on the
-        connection object and responds to them appropriately. If the received message is a valid JSON message,
-        it extracts the message type and processes it accordingly. If the message is empty, it updates the node's
-        priority and breaks the loop. If there is a socket timeout or OSError, the method sets the ``recon_state``
-        flag to True and removes the node from the list of connections. If the connection is reset, it also removes
-        the node from the list and closes the connection.
-
-        :param conn: socket connection object representing the connection to the peer node
-        :type conn: <socket.socket>
-        :return: None
-        """
-        while self.node.running:
-            try:
-                data = conn.recv(BUFFER_SIZE).decode()
-                # logging.info(f"Data found {data}")
-                if not data:
-                    logging.info(f"Data not found {data}")
-                    self.node.service_info.priority = random.randint(1, 100)
-                    self.node.zeroconf.update_service(self.node.service_info)
-                    break
-
-                message = json.loads(data)
-                message_type = message.get("TYPE")
-                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-
-                # logging.info(f"[MESSAGE TYPE]: {message_type}")
-
-                if message_type == Messages.MESSAGE_TYPE_PING.value:
-                    self.handle_general_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
-                    self.handle_transaction_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-            except json.JSONDecodeError as e:
-                logging.error("Error decoding JSON:", e)
-                logging.info(f"Retrying attempts left {self.node.retries}...")
-                self.node.retries -= 1
-                time.sleep(1)
-                if self.node.retries <= 0:
-                    break
-
-            except ssl.SSLZeroReturnError as e:
-                logging.error(f"SSLZero Return Error {e.strerror}")
-                break
-
-            except socket.timeout as e:
-                logging.error("Error timeout:", e)
-                self.node.recon_state = True
-                if conn in self.node.connections:
-                    self.node.remove_node(conn, "Timeout")
-                    conn.close()
-                break
-
-            except ConnectionResetError as c:
-                logging.error(f"Connection Reset Error {c.strerror}")
-                if conn in self.node.connections:
-                    self.node.remove_node(conn, "ConnectionResetError")
-                    conn.close()
-                break
-
-            except OSError as e:
-                logging.error(f"System Error {e.strerror}")
-                if conn in self.node.connections:
-                    self.node.remove_node(conn, "OSError")
-                    conn.close()
-                break
-
-            except Exception as ex:
-                logging.error(f"Exception Error {ex.args}")
-                if conn in self.node.connections:
-                    self.node.remove_node(conn, "Exception")
-                    conn.close()
-                break
