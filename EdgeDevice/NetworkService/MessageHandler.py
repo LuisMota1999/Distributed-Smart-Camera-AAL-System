@@ -148,7 +148,7 @@ class MessageHandler:
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
-                logging.info(f"[MESSAGE TYPE]: {message_type}")
+                # logging.info(f"[MESSAGE TYPE]: {message_type}")
 
                 if message_type == Messages.MESSAGE_TYPE_PING.value:
                     self.handle_general_message(message, conn, neighbour_id)
