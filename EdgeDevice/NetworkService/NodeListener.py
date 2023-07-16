@@ -27,12 +27,16 @@ class NodeListener:
         :param name: The name of the service, e.g. "Node-X".
         :type name: <str>
         """
+
         info = zeroconf.get_service_info(service_type, name)
+        logging.info(f"[ADD SERVICE] Service info: {info}")
+
         if info:
             ip_list = info.parsed_addresses()
             for ip in ip_list:
                 if ip != self.node.ip:
-                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
+                    pass
+                    # self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -69,7 +73,7 @@ class NodeListener:
                         print(f"    {key}: {value}")
                 else:
                     print("  No properties")
-                # self.add_service(zeroconf, service_type, name)
+                self.add_service(zeroconf, service_type, name)
             else:
                 print("  No info")
             print('\n')
