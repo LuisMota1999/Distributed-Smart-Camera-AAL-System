@@ -40,27 +40,24 @@ class Node(threading.Thread):
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
-        self.messageHandler = MessageHandler(self)
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # Create the socket with TLS encryption
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
         self.retries = 5
-        self.context.check_hostname = False  # Disable hostname verification for the server-side
+        self.context.check_hostname = False
         self.context.verify_mode = ssl.CERT_NONE
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
         )
-        node_number = int(self.name.split('-')[1].strip())
-        self.local = 'SALA' if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
         self.state = Network.FOLLOWER
         self.coordinator = None
         self.running = True
-        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key, 'LOCAL': self.local}}
+        self.neighbours = {self.id: {'IP': self.ip, 'PUBLIC_KEY': self.public_key}}
         self.connections = []
         self.blockchain = Blockchain()
         self.recon_state = False
@@ -72,9 +69,10 @@ class Node(threading.Thread):
             port=HOST_PORT,
             weight=0,
             priority=0,
-            properties={'IP': self.ip, 'ID': self.id, 'LOCAL': self.local},
+            properties={'IP': self.ip, 'ID': self.id},
         )
         self.blockchain.register_node({self.ip: time.time()})
+        self.messageHandler = MessageHandler(self)
 
     def run(self):
         """
