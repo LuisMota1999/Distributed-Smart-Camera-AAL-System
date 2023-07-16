@@ -35,8 +35,7 @@ class NodeListener:
             ip_list = info.parsed_addresses()
             for ip in ip_list:
                 if ip != self.node.ip:
-                    pass
-                    # self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
+                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
@@ -63,16 +62,16 @@ class NodeListener:
         if state_change is ServiceStateChange.Added or ServiceStateChange.Updated:
             info = zeroconf.get_service_info(service_type, name)
             if info:
-                addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_addresses()]
-                print("  Addresses: %s" % ", ".join(addresses))
-                print("  Weight: %d, priority: %d" % (info.weight, info.priority))
-                print(f"  Server: {info.server}")
-                if info.properties:
-                    print("  Properties are:")
-                    for key, value in info.properties.items():
-                        print(f"    {key}: {value}")
-                else:
-                    print("  No properties")
+                # addresses = ["%s:%d" % (addr, cast(int, info.port)) for addr in info.parsed_addresses()]
+                # print("  Addresses: %s" % ", ".join(addresses))
+                # print("  Weight: %d, priority: %d" % (info.weight, info.priority))
+                # print(f"  Server: {info.server}")
+                # if info.properties:
+                # print("  Properties are:")
+                # for key, value in info.properties.items():
+                # print(f"    {key}: {value}")
+                # else:
+                # print("  No properties")
                 self.add_service(zeroconf, service_type, name)
             else:
                 print("  No info")
