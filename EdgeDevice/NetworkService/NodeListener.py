@@ -36,7 +36,7 @@ class NodeListener:
                 if ip != self.node.ip:
                     logging.info(f"[ADD SERVICE] Service info: {info}")
                     time.sleep(1)
-                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
+                    self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
