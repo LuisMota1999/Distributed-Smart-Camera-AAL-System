@@ -4,7 +4,7 @@ import random
 import datetime
 
 from pydub import AudioSegment
-from cryptography.hazmat.backends import default_backend
+
 from EdgeDevice.InferenceService.audio import AudioInference
 import rsa
 from collections import deque
@@ -236,38 +236,37 @@ def get_tls_keys():
 
 def load_key_from_json(public_key_json):
     """
-    Loads a public key object from a JSON-compatible representation.
+    The `load_public_key_from_json` method loads a public key object from a JSON-compatible representation.
 
-    Deserializes a public key object from a JSON-compatible representation.
-    The provided JSON string is first decoded from Base64 to obtain the corresponding bytes.
-    The bytes are then loaded as a PEM-formatted public key using the RSA algorithm.
-    The resulting public key object is returned.
+    Deserializes a public key object from a JSON-compatible representation. The provided JSON string is first decoded
+    from Base64 to obtain the corresponding bytes. The bytes are then loaded as a PKCS#1 formatted public key using
+    the RSA algorithm. The resulting public key object is returned.
 
     :param public_key_json: The JSON-compatible representation of the public key.
     :type public_key_json: str
     :return: The loaded public key object.
-    :rtype: cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey
+    :rtype: RSA.RSAPublicKey
     """
     public_key_bytes = base64.b64decode(public_key_json.encode('utf-8'))
-    public_key = serialization.load_pem_public_key(public_key_bytes, backend=default_backend())
+    public_key = rsa.PublicKey.load_pkcs1(public_key_bytes, format='PEM')
     return public_key
 
 
 def key_to_json(public_key):
     """
-    Converts a public key object to a JSON-compatible representation.
+    The `public_key_to_json` method converts a public key object to a JSON-compatible representation.
 
-    Serializes the provided public key object to a JSON-compatible representation.
-    The public key is first serialized in the PEM format, then encoded using Base64 to obtain a string representation.
-    The resulting Base64 string representation of the public key is returned.
+    Serializes the provided public key object to a JSON-compatible representation. The public key is first saved in the
+    PKCS#1 format as bytes, then encoded using Base64 to obtain a string representation. The resulting Base64 string
+    representation of the public key is returned.
 
     :param public_key: The public key object to be converted.
-    :type public_key: cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey
+    :type public_key: RSA.RSAPublicKey
     :return: The JSON-compatible representation of the public key.
     :rtype: str
     """
-    public_key_pem = public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
-    public_key_base64 = base64.b64encode(public_key_pem).decode('utf-8')
+    public_key_bytes = public_key.save_pkcs1(format='PEM')
+    public_key_base64 = base64.b64encode(public_key_bytes).decode('utf-8')
     return public_key_base64
 
 
