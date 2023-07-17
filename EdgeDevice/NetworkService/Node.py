@@ -6,7 +6,7 @@ import threading
 import time
 import ssl
 import uuid
-
+from cryptography.hazmat.primitives import serialization
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
@@ -351,32 +351,21 @@ class Node(threading.Thread):
             logging.info(f"Handle transaction message {message_type}")
 
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                private_key = key_to_json(self.private_key).encode()
-                public_key = key_to_json(self.public_key)
-
-                tx = create_transaction(private_key, public_key, str(self.id),
-                                        f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
+                tx = create_transaction(self.private_key,
+                                        self.public_key.public_bytes(encoding=serialization.Encoding.PEM,
+                                                                     format=serialization.PublicFormat.SubjectPublicKeyInfo).decode(),
+                                        str(self.id), f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
-                    data = create_general_message(
-                        str(self.id),
-                        self.ip,
-                        self.port,
-                        conn.getpeername()[0],
-                        conn.getpeername()[1],
-                        str(neighbour_id),
-                        str(self.coordinator),
-                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value
-                    )
+                    data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
+                                                  conn.getpeername()[1], str(neighbour_id), str(self.coordinator),
+                                                  Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value)
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
-
                     message = json.dumps(data, indent=2)
                     logging.info(f"\nTRANSACTION SEND MESSAGE: {message}\n")
                     conn.send(bytes(message, encoding="utf-8"))
-
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx = message["PAYLOAD"]["PENDING"]
-
                 if validate_transaction(tx):
                     if tx not in self.blockchain.pending_transactions:
                         self.blockchain.pending_transactions.append(tx)
