@@ -347,6 +347,7 @@ class Node(threading.Thread):
 
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
         try:
+            logging.info(f"Handle transaction message {message_type}")
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx = {
                     "sender": self.public_key,
