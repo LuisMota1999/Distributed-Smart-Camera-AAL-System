@@ -2,7 +2,7 @@ import rsa
 import time
 import json
 
-from EdgeDevice.utils.helper import key_to_json, load_key_from_json
+from EdgeDevice.utils.helper import NetworkUtils
 
 
 def create_transaction(private_key, public_key, receiver, action):
@@ -21,7 +21,7 @@ def create_transaction(private_key, public_key, receiver, action):
     :rtype: dict
     """
     tx = {
-        "sender": key_to_json(public_key),
+        "sender": NetworkUtils.key_to_json(public_key),
         "receiver": receiver,
         "action": action,
         "timestamp": int(time.time()),
@@ -44,7 +44,7 @@ def validate_transaction(tx):
     :rtype: bool
     """
     public_key_pem = tx["sender"].encode()
-    public_key = load_key_from_json(public_key_pem)
+    public_key = NetworkUtils.load_key_from_json(public_key_pem)
 
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
 

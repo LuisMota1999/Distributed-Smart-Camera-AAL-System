@@ -357,12 +357,7 @@ class Node(threading.Thread):
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
-                    data = MessageHandlerUtils.create_general_message(str(self.id), self.ip, self.port,
-                                                                      conn.getpeername()[0],
-                                                                      conn.getpeername()[1],
-                                                                      str(neighbour_id), str(self.coordinator),
-                                                                      Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value)
-
+                    data = MessageHandlerUtils.create_transaction_message(Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value)
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                     message = json.dumps(data, indent=2)
