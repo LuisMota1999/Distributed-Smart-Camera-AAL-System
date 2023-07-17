@@ -350,8 +350,9 @@ class Node(threading.Thread):
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
         try:
             logging.info(f"Handle transaction message {message_type}")
+
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                tx = create_transaction(self.private_key, self.public_key.encode(Base64Encoder).decode(), str(self.id),
+                tx = create_transaction(self.private_key, public_key_to_json(self.public_key), str(self.id),
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
@@ -383,7 +384,7 @@ class Node(threading.Thread):
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
             logging.info(f"Network Coordinator is {self.coordinator}")
-            message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
+            message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
