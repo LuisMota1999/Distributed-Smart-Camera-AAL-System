@@ -6,6 +6,8 @@ import threading
 import time
 import ssl
 import uuid
+
+from nacl.encoding import HexEncoder
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
@@ -350,7 +352,7 @@ class Node(threading.Thread):
             logging.info(f"Handle transaction message {message_type}")
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx = {
-                    "sender": self.public_key,
+                    "sender": self.public_key.encode(encoder=HexEncoder).decode(),
                     "receiver": neighbour_id,
                     "action": f"NEW_NETWORK_NODE:{self.ip}:{self.port}",
                     "timestamp": int(time.time())
@@ -378,7 +380,7 @@ class Node(threading.Thread):
                     logging.warning("Received invalid transaction")
                     return
         except Exception as e:
-            logging.error(f"Handle transaction message error: {e.args}")
+            logging.error(f"Handle transaction message error: {e}")
 
     def handle_general_message(self, message, conn, neighbour_id):
         message_type = Messages.MESSAGE_TYPE_PONG.value
