@@ -66,9 +66,10 @@ class MessageHandlerUtils(object):
         }
 
     @staticmethod
-    def create_transaction_message(message_type):
+    def create_transaction_message(message_type, from_id):
         return {
             "TYPE": message_type,
+            "FROM_ID": from_id,
             "PAYLOAD": {
                 "LAST_TIME_ALIVE": time.time(),
             },

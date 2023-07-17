@@ -357,7 +357,7 @@ class Node(threading.Thread):
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
-                    data = MessageHandlerUtils.create_transaction_message(Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value)
+                    data = MessageHandlerUtils.create_transaction_message(Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, neighbour_id)
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                     message = json.dumps(data, indent=2)
@@ -369,7 +369,7 @@ class Node(threading.Thread):
                 if validate_transaction(tx):
                     if tx not in self.blockchain.pending_transactions:
                         self.blockchain.pending_transactions.append(tx)
-                        logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {tx}\n")
+                        logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
                 else:
                     logging.warning("Received invalid transaction")
                     return
@@ -427,7 +427,10 @@ class Node(threading.Thread):
 
                 message = json.loads(data)
                 message_type = message.get("TYPE")
-                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
+                if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+                    neighbour_id = uuid.UUID(message['FROM_ID'])
+                else:
+                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
                 logging.info(f"[MESSAGE TYPE]: {message_type}")
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
