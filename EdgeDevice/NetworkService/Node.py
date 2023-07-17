@@ -7,7 +7,7 @@ import time
 import ssl
 import uuid
 
-from nacl.encoding import HexEncoder
+from nacl.encoding import Base64Encoder
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
@@ -351,7 +351,7 @@ class Node(threading.Thread):
         try:
             logging.info(f"Handle transaction message {message_type}")
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                tx = create_transaction(self.private_key, self.public_key, str(self.id),
+                tx = create_transaction(self.private_key, self.public_key.encode(Base64Encoder).decode(), str(self.id),
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
