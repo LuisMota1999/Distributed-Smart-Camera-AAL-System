@@ -192,9 +192,14 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
+                handle_transaction_message = threading.Thread(target=self.handle_transaction_message, args=(conn,))
+                handle_transaction_message.start()
+                handle_transaction_message.join()
+
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
+
 
                 break
             except ConnectionRefusedError:
@@ -345,24 +350,34 @@ class Node(threading.Thread):
             logging.info(f"IP: {self.ip} , CHAIN: {self.blockchain.chain}")
             logging.info("Blockchain chain was updated with information from coordinator")
 
-    def handle_transaction_message(self, message, conn, neighbour_id):
-        tx = message["PAYLOAD"]["PENDING"]
-
-        if validate_transaction(tx):
+    def handle_transaction_message(self, message, conn, neighbour_id, message_type):
+        if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+            tx = {
+                "sender": self.public_key,
+                "receiver": neighbour_id,
+                "action": f"NEW_NETWORK_NODE:{self.ip}:{self.port}",
+                "timestamp": int(time.time())
+            }
             if tx not in self.blockchain.pending_transactions:
                 self.blockchain.pending_transactions.append(tx)
                 data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
                                               conn.getpeername()[1],
                                               str(neighbour_id), str(self.coordinator),
-                                              Messages.MESSAGE_TYPE_TRANSACTION.value)
+                                              Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value)
 
                 data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
-        else:
-            logging.warning("Received invalid transaction")
-            return
+        elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
+            tx = message["PAYLOAD"]["PENDING"]
+
+            if validate_transaction(tx):
+                if tx not in self.blockchain.pending_transactions:
+                    self.blockchain.pending_transactions.append(tx)
+            else:
+                logging.warning("Received invalid transaction")
+                return
 
     def handle_general_message(self, message, conn, neighbour_id):
         message_type = Messages.MESSAGE_TYPE_PONG.value
