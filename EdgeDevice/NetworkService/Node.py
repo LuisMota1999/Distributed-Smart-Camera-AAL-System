@@ -427,8 +427,8 @@ class Node(threading.Thread):
 
                 message = json.loads(data)
                 message_type = message.get("TYPE")
-                if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                    neighbour_id = uuid.UUID(message['FROM_ID'])
+                if message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
+                    neighbour_id = uuid.UUID(message.get("FROM_ID"))
                 else:
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
