@@ -6,7 +6,7 @@ import json
 
 
 def create_transaction(
-    private_key: str, public_key: str, receiver: str, action: str
+    private_key: bytes, public_key: str, receiver: str, action: str
 ) -> dict:
     """
     Creates a transaction from a sender's public key to a receiver's public key

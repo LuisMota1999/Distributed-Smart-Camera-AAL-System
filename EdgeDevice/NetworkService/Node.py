@@ -7,7 +7,6 @@ import time
 import ssl
 import uuid
 
-from nacl.encoding import Base64Encoder
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
@@ -15,7 +14,7 @@ from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.BlockchainService.Transaction import validate_transaction, create_transaction
 from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages
 import json
-from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_public_key_from_json, public_key_to_json, \
+from EdgeDevice.utils.helper import get_keys, get_tls_keys, load_key_from_json, key_to_json, \
     get_interface_ip, create_general_message
 
 logger = logging.getLogger(__name__)
@@ -310,7 +309,7 @@ class Node(threading.Thread):
                                               Messages.MESSAGE_TYPE_PING.value)
 
                 if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-                    data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
+                    data["PAYLOAD"]["PUBLIC_KEY"] = key_to_json(self.public_key)
 
                 time.sleep(2)
                 message = json.dumps(data, indent=2)
@@ -352,7 +351,8 @@ class Node(threading.Thread):
             logging.info(f"Handle transaction message {message_type}")
 
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                tx = create_transaction(self.private_key, public_key_to_json(self.public_key), str(self.id),
+                tx = create_transaction(key_to_json(self.private_key).encode(), key_to_json(self.public_key),
+                                        str(self.id),
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
@@ -389,7 +389,7 @@ class Node(threading.Thread):
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
-            public_key = load_public_key_from_json(public_key_base64)
+            public_key = load_key_from_json(public_key_base64)
             if public_key is not None:
                 self.neighbours[neighbour_id]['PUBLIC_KEY'] = public_key
 
@@ -398,7 +398,7 @@ class Node(threading.Thread):
                                       str(neighbour_id), str(self.coordinator), message_type)
 
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
-            data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
+            data["PAYLOAD"]["PUBLIC_KEY"] = key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
         logging.info(f"\nGENERAL MESSAGE: {message_json}\n")

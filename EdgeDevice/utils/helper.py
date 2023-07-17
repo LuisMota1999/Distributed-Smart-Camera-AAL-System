@@ -234,7 +234,7 @@ def get_tls_keys():
     return cert_pem, key_pem
 
 
-def load_public_key_from_json(public_key_json):
+def load_key_from_json(public_key_json):
     """
     The `load_public_key_from_json` method loads a public key object from a JSON-compatible representation.
 
@@ -252,7 +252,7 @@ def load_public_key_from_json(public_key_json):
     return public_key
 
 
-def public_key_to_json(public_key):
+def key_to_json(public_key):
     """
     The `public_key_to_json` method converts a public key object to a JSON-compatible representation.
 
