@@ -438,8 +438,11 @@ class Node(threading.Thread):
                 elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
 
-                elif message_type == Messages.MESSAGE_TYPE_TRANSACTION.value:
-                    self.handle_transaction_message(message, conn, neighbour_id)
+                elif message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+                    self.handle_transaction_message(message, conn, neighbour_id, message_type)
+
+                elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
+                    self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
