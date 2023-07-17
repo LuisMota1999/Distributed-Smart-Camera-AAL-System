@@ -186,11 +186,11 @@ class Node(threading.Thread):
                 conn.connect((client_host, client_port))
                 conn.settimeout(self.keep_alive_timeout * 3)
 
-                self.add_node(conn, client_id, node_local)
-                self.list_peers()
-
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
+
+                self.add_node(conn, client_id, node_local)
+                self.list_peers()
 
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
