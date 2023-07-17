@@ -192,14 +192,9 @@ class Node(threading.Thread):
                 handle_messages = threading.Thread(target=self.handle_messages, args=(conn,))
                 handle_messages.start()
 
-                handle_transaction_message = threading.Thread(target=self.handle_transaction_message, args=(conn,))
-                handle_transaction_message.start()
-                handle_transaction_message.join()
-
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
-
 
                 break
             except ConnectionRefusedError:
@@ -545,6 +540,11 @@ class Node(threading.Thread):
             new_ip = conn.getpeername()[0]
             new_public_key = None
             self.neighbours[new_client_id] = {'IP': new_ip, 'PUBLIC_KEY': new_public_key, 'LOCAL': node_local}
+
+            handle_transaction_message = threading.Thread(target=self.handle_transaction_message, args=(
+                '', conn, client_id, Messages.MESSAGE_TYPE_SEND_TRANSACTION))
+            handle_transaction_message.start()
+            handle_transaction_message.join()
 
             logging.info(f"Node [{conn.getpeername()[0]}] added to the network")
             logging.info(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
