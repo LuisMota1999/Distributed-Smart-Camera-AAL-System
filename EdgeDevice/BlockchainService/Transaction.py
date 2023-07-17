@@ -12,7 +12,7 @@ def create_transaction(
     Creates a transaction from a sender's public key to a receiver's public key
 
     :param private_key: The Sender's private key
-    :type private_key: <str>
+    :type private_key: <bytes>
     :param public_key: The Sender's public key
     :type  public_key: <str>
     :param receiver: The Receiver's public key
@@ -31,13 +31,14 @@ def create_transaction(
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
 
     # Generate a signing key from the private key
-    signing_key = SigningKey(private_key, encoder=HexEncoder)
+    signing_key = SigningKey(private_key[:32], encoder=HexEncoder)
 
     # Now add the signature to the original transaction
     signature = signing_key.sign(tx_bytes).signature
     tx["signature"] = HexEncoder.encode(signature).decode("ascii")
 
     return tx
+
 
 
 def validate_transaction(tx: dict) -> bool:

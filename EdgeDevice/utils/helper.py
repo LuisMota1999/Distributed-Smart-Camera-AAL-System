@@ -4,7 +4,9 @@ import random
 import datetime
 
 from pydub import AudioSegment
-
+from nacl.signing import VerifyKey
+from nacl.encoding import Base64Encoder, HexEncoder
+from nacl.public import PrivateKey
 from EdgeDevice.InferenceService.audio import AudioInference
 import rsa
 from collections import deque
@@ -164,30 +166,37 @@ def predict_on_video(model, video_file_path, SEQUENCE_LENGTH):
 
 def generate_keys():
     """
-    The `generate_keys` method generates a pair of RSA public and private keys and saves them as PEM files in the
-    'Keys' folder.
+    Generates a pair of public and private keys using the NaCl library and saves them as PEM files in the 'Keys' folder.
 
     The function first obtains the current directory. It creates a folder named 'Keys' within the current directory
-    if it doesn't already exist. Then, it generates a new pair of RSA public and private keys using the RSA algorithm
-    with a specified key size (BUFFER_SIZE). The public and private keys are obtained as separate objects.
+    if it doesn't already exist. Then, it generates a new pair of public and private keys using the NaCl library.
 
     Next, the function saves the public key to a file named 'public.pem' in the 'Keys' folder. The public key is
-    serialized in the PEM format and written to the file.
+    serialized as a hex-encoded string and written to the file.
 
     Similarly, the function saves the private key to a file named 'private.pem' in the 'Keys' folder. The private key
-    is also serialized in the PEM format and written to the file.
+    is also serialized as a hex-encoded string and written to the file.
 
     :return: None
     """
     current_directory = os.getcwd()
     keys_folder = os.path.join(current_directory, 'Keys')
-    public_key, private_key = rsa.newkeys(BUFFER_SIZE)
 
-    with open(os.path.join(keys_folder, 'public.pem'), "wb") as f:
-        f.write(public_key.save_pkcs1("PEM"))
+    # Create the 'Keys' folder if it doesn't exist
+    if not os.path.exists(keys_folder):
+        os.makedirs(keys_folder)
 
-    with open(os.path.join(keys_folder, 'private.pem'), "wb") as f:
-        f.write(private_key.save_pkcs1("PEM"))
+    # Generate a new pair of public and private keys
+    private_key = PrivateKey.generate()
+    public_key = private_key.public_key
+
+    # Save the public key to 'public.pem'
+    with open(os.path.join(keys_folder, 'public.pem'), 'w') as f:
+        f.write(public_key.encode(encoder=HexEncoder).decode())
+
+    # Save the private key to 'private.pem'
+    with open(os.path.join(keys_folder, 'private.pem'), 'w') as f:
+        f.write(private_key.encode(encoder=HexEncoder).decode())
 
 
 def get_keys():
@@ -236,37 +245,37 @@ def get_tls_keys():
 
 def load_key_from_json(public_key_json):
     """
-    The `load_public_key_from_json` method loads a public key object from a JSON-compatible representation.
+    Loads a public key object from a JSON-compatible representation.
 
-    Deserializes a public key object from a JSON-compatible representation. The provided JSON string is first decoded
-    from Base64 to obtain the corresponding bytes. The bytes are then loaded as a PKCS#1 formatted public key using
-    the RSA algorithm. The resulting public key object is returned.
+    Deserializes a public key object from a JSON-compatible representation.
+    The provided JSON string is decoded from Base64 to obtain the corresponding bytes.
+    The bytes are then loaded as a VerifyKey object using the nacl.signing.VerifyKey class.
+    The resulting VerifyKey object is returned.
 
     :param public_key_json: The JSON-compatible representation of the public key.
     :type public_key_json: str
     :return: The loaded public key object.
-    :rtype: RSA.RSAPublicKey
+    :rtype: nacl.signing.VerifyKey
     """
     public_key_bytes = base64.b64decode(public_key_json.encode('utf-8'))
-    public_key = rsa.PublicKey.load_pkcs1(public_key_bytes, format='PEM')
+    public_key = VerifyKey(public_key_bytes, encoder=Base64Encoder)
     return public_key
 
 
 def key_to_json(public_key):
     """
-    The `public_key_to_json` method converts a public key object to a JSON-compatible representation.
+    Converts a public key object to a JSON-compatible representation.
 
-    Serializes the provided public key object to a JSON-compatible representation. The public key is first saved in the
-    PKCS#1 format as bytes, then encoded using Base64 to obtain a string representation. The resulting Base64 string
-    representation of the public key is returned.
+    Serializes the provided public key object to a JSON-compatible representation.
+    The public key is encoded using the Base64Encoder from the nacl.encoding module.
+    The resulting Base64-encoded string representation of the public key is returned.
 
     :param public_key: The public key object to be converted.
-    :type public_key: RSA.RSAPublicKey
+    :type public_key: nacl.signing.VerifyKey
     :return: The JSON-compatible representation of the public key.
     :rtype: str
     """
-    public_key_bytes = public_key.save_pkcs1(format='PEM')
-    public_key_base64 = base64.b64encode(public_key_bytes).decode('utf-8')
+    public_key_base64 = public_key.encode(encoder=Base64Encoder).decode('utf-8')
     return public_key_base64
 
 
@@ -462,7 +471,7 @@ def get_public_key_by_ip(node_neighbours, ip_address):
 def remove_middle_silence(sound):
     """
         Removes silence from the middle of an audio signal.
-        :param sound (pydub.AudioSegment): An audio signal to process.
+        :param sound: An audio signal to process.
         :returns pydub.AudioSegment: A copy of the input signal with middle silence removed.
     """
     silence_threshold = -45.0  # dB
