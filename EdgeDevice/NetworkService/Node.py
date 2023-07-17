@@ -351,12 +351,8 @@ class Node(threading.Thread):
         try:
             logging.info(f"Handle transaction message {message_type}")
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                tx = {
-                    "sender": self.public_key.encode(encoder=HexEncoder).decode(),
-                    "receiver": neighbour_id,
-                    "action": f"NEW_NETWORK_NODE:{self.ip}:{self.port}",
-                    "timestamp": int(time.time())
-                }
+                tx = create_transaction(self.private_key, self.public_key, str(self.id),
+                                        f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
                     data = create_general_message(str(self.id), self.ip, self.port, conn.getpeername()[0],
