@@ -385,7 +385,7 @@ class Node(threading.Thread):
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
             logging.info(f"Network Coordinator is {self.coordinator}")
-            message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
+            message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -548,11 +548,6 @@ class Node(threading.Thread):
             new_ip = conn.getpeername()[0]
             new_public_key = None
             self.neighbours[new_client_id] = {'IP': new_ip, 'PUBLIC_KEY': new_public_key, 'LOCAL': node_local}
-
-            handle_transaction_message = threading.Thread(target=self.handle_transaction_message, args=(
-                '', conn, client_id, Messages.MESSAGE_TYPE_SEND_TRANSACTION))
-            handle_transaction_message.start()
-            handle_transaction_message.join()
 
             logging.info(f"Node [{conn.getpeername()[0]}] added to the network")
             logging.info(f"Nodes in Blockchain: [IP:TIMESTAMP]{self.blockchain.nodes}")
