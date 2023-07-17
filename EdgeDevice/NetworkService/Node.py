@@ -384,7 +384,7 @@ class Node(threading.Thread):
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
             logging.info(f"Network Coordinator is {self.coordinator}")
-            message_type = Messages.MESSAGE_TYPE_GET_CHAIN.value
+            message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
