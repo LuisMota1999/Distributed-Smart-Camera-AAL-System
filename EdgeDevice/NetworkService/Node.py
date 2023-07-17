@@ -364,6 +364,7 @@ class Node(threading.Thread):
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                     message = json.dumps(data, indent=2)
+                    logging.info(f"\nTRANSACTION SEND MESSAGE: {message}\n")
                     conn.send(bytes(message, encoding="utf-8"))
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx = message["PAYLOAD"]["PENDING"]
@@ -371,6 +372,7 @@ class Node(threading.Thread):
                 if validate_transaction(tx):
                     if tx not in self.blockchain.pending_transactions:
                         self.blockchain.pending_transactions.append(tx)
+                        logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {tx}\n")
                 else:
                     logging.warning("Received invalid transaction")
                     return
@@ -399,7 +401,7 @@ class Node(threading.Thread):
             data["PAYLOAD"]["PUBLIC_KEY"] = public_key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
-        # logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
+        logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
