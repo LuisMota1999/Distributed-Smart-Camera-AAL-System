@@ -422,7 +422,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                # logging.info(f"Data found {data}")
+                logging.info(f"Data found {data}")
                 if not data:
                     logging.info(f"Data not found {data}")
                     self.service_info.priority = random.randint(1, 100)
@@ -433,22 +433,21 @@ class Node(threading.Thread):
                 message_type = message.get("TYPE")
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
-                # logging.info(f"[MESSAGE TYPE]: {message_type}")
-
-                if message_type == Messages.MESSAGE_TYPE_PING.value:
-                    self.handle_general_message(message, conn, neighbour_id)
-
-                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
-                    self.handle_chain_message(message, conn, neighbour_id, message_type)
-
-                elif message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+                logging.info(f"[MESSAGE TYPE]: {message_type}")
+                if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
+                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
+                    self.handle_chain_message(message, conn, neighbour_id, message_type)
+
                 elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
+
+                elif message_type == Messages.MESSAGE_TYPE_PING.value:
+                    self.handle_general_message(message, conn, neighbour_id)
 
             except json.JSONDecodeError as e:
                 logging.error("Error decoding JSON:", e)
