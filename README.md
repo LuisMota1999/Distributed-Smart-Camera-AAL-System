@@ -68,6 +68,14 @@ Para mais informações consultar a [documentação](https://www.home-assistant.
 
         docker compose up -d 
 
+### Video Explicativo
+
+<video width="320" height="240" controls>
+  <source src="assets/videos/SystemExperiment.mp4" type="video/mp4">
+Your browser does not support the video tag.
+</video>
+
+
 ### Para Desenvolvedores
 
 - Usar Python 3.9.

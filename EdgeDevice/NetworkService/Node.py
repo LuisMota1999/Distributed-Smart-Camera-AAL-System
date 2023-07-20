@@ -213,7 +213,6 @@ class Node(threading.Thread):
         """
         try:
             if self.coordinator is None and len(self.connections) > 0:
-                pass
                 self.election_in_progress = True
                 higher_nodes = []
                 for neighbour_id, neighbour in self.neighbours.items():
