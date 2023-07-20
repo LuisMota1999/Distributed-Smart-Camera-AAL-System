@@ -49,6 +49,7 @@ class Node(threading.Thread):
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             server_side=True,
         )
+
         node_number = int(self.name.split('-')[1].strip())
         self.local = 'SALA' if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -177,6 +178,9 @@ class Node(threading.Thread):
                 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 5)
 
                 context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
                 context.check_hostname = False
@@ -356,7 +360,8 @@ class Node(threading.Thread):
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
-                    data = MessageHandlerUtils.create_transaction_message(Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, neighbour_id)
+                    data = MessageHandlerUtils.create_transaction_message(
+                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, neighbour_id)
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                     message = json.dumps(data, indent=2)
