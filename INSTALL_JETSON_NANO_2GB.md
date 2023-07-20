@@ -25,16 +25,26 @@ Colocar o cartão microSD num dos Jetson Nano e fazer setup inicial, definindo o
     sudo apt upgrade
 
 ##### 4. Instalar packages necessárias
-    sudo apt install python3-venv  
+    sudo apt install python3-venv
+    sudo apt install libportaudio2  
+    sudo apt install libatlas-base-dev
+    sudo apt install opencv-contrib-python
 
-##### 5. Instalar o docker
+##### 5. Instalar as drivers do HAT
+    git clone https://github.com/respeaker/seeed-voicecard.git  
+    cd seeed-voicecard  
+    sudo ./install.sh --compat-kernel  
+    sudo reboot  
+    arecord -L # Verificar se ficou bem instalado  
+
+##### 6. Instalar o docker
     curl -fsSL https://get.docker.com -o get-docker.sh  
     sudo sh get-docker.sh
 
-##### 6. Instalar e configurar Home Assistant (via Docker)
+##### 7. Instalar e configurar Home Assistant (via Docker)
 Seguir as configurações no [README.md](https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System/blob/master/README.md) referentes ao Home Assistant.
 
-##### 7. Testar a camera
+##### 8. Testar a camera (Opcional)
     mkdir python-camera-example
     cd ./python-camera-example
     wget https://raw.githubusercontent.com/spatialaudio/python-sounddevice/0.4.1/examples/wire.py
@@ -45,12 +55,16 @@ Seguir as configurações no [README.md](https://github.com/LuisMota1999/Distrib
     python3 wire.py # CTRL+C para terminar processo
     deactivate
 
-##### 8. Instalar Edge Device
-    git clone https://github.com/LuisMota1999/Distributed-Smart-Camera-AAL-System.git
-    cd Distributed-Smart-Camera-AAL-System
+##### 9. Testar o microfone (Opcional)
+    mkdir python-audio-example
+    cd ./python-audio-example
+    wget https://raw.githubusercontent.com/spatialaudio/python-sounddevice/0.4.1/examples/wire.py
     python3 -m venv ./venv
     source ./venv/bin/activate
-    pip install opencv-contrib-python
+    pip install sounddevice
     pip install numpy
-    python3 main.py         !Nota: CTRL+C para terminar processo
+    python3 wire.py # CTRL+C para terminar processo
     deactivate
+
+##### 10. Instalar Edge Device
+    docker pull luis38186/distributed-aal-sys
