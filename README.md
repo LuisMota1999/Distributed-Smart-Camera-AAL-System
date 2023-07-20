@@ -71,12 +71,11 @@ Para mais informações consultar a [documentação](https://www.home-assistant.
 ### Video Explicativo
 
 
+### Video Explicativo
 
-<video width="640" height="480" controls>
-  <source src="assets/videos/SystemExperiment.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[Click here to watch the Video](assets/videos/SystemExperiment.mp4)
 
+Your browser does not support the video tag.
 
 ### Para Desenvolvedores
 
