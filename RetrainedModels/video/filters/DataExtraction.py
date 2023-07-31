@@ -371,24 +371,36 @@ def frames_from_video_file(video_path, n_frames, dataset, output_size=(172, 172)
 
 
 class FrameGenerator:
-    def __init__(self, path, n_frames, dataset, training=False):
+    def __init__(self, path, n_frames, dataset, subset_size=None, training=False):
         """ Returns a set of frames with their associated label.
 
           Args:
             path: Video file paths.
             n_frames: Number of frames.
-            training: Boolean to determine if training dataset is being created.
+            dataset: The dataset object.
+            subset_size: Number of files to be used in each subset (train, val, test).
+            training: Boolean to determine if the training dataset is being created.
         """
         self.dataset = dataset
         self.path = path
         self.n_frames = n_frames
+        self.subset_size = subset_size
         self.training = training
         self.class_names = sorted(set(p.name for p in self.path.iterdir() if p.is_dir()))
         self.class_ids_for_name = dict((name, idx) for idx, name in enumerate(self.class_names))
 
+
     def get_files_and_class_names(self):
         video_paths = list(self.path.glob('*/*.avi'))
         classes = [p.parent.name for p in video_paths]
+
+        if self.subset_size is not None:
+            # Shuffle the data first to get random samples for each subset
+            pairs = list(zip(video_paths, classes))
+            random.shuffle(pairs)
+
+            video_paths, classes = zip(*pairs[:self.subset_size])
+
         return video_paths, classes
 
     def __call__(self):

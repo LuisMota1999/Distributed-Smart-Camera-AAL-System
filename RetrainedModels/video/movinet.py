@@ -14,8 +14,15 @@ from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaS
 batch_size = 10
 num_frames = 8
 
+# Define the subset sizes
+train_subset_size = 250
+val_subset_size = 50
+test_subset_size = 50
+
 toyota_video_directory = 'datasets/ToyotaSmartHome/mp4/'
 toyota_output_directory = 'datasets/ToyotaSmartHome/'
+
+CLASSES_LABEL = sorted(os.listdir('./datasets/ToyotaSmartHome/train'))
 
 toyotaSmartHome_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
 
@@ -25,21 +32,21 @@ subset_paths = toyotaSmartHome_dataset.dirs
 output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
                     tf.TensorSpec(shape=(), dtype=tf.int16))
 
-print(output_signature)
+# Load data for the train, validation, and test sets
 train_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=dataset, training=True),
+    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=dataset, subset_size=train_subset_size, training=True),
     output_signature=output_signature)
 train_ds = train_ds.batch(batch_size)
 
-test_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=dataset),
-    output_signature=output_signature)
-test_ds = test_ds.batch(batch_size)
-
 val_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=dataset),
+    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=dataset, subset_size=val_subset_size),
     output_signature=output_signature)
 val_ds = val_ds.batch(batch_size)
+
+test_ds = tf.data.Dataset.from_generator(
+    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=dataset, subset_size=test_subset_size),
+    output_signature=output_signature)
+test_ds = test_ds.batch(batch_size)
 
 for frames, labels in train_ds.take(1):
     print(f"Shape: {frames.shape}")
@@ -135,7 +142,7 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 
 results = model.fit(train_ds,
                     validation_data=val_ds,
-                    epochs=1,
+                    epochs=5,
                     validation_freq=1,
                     verbose=1,
                     callbacks=[cp_callback])
@@ -203,7 +210,7 @@ backbone = movinet.Movinet(
 
 model = movinet_model.MovinetClassifier(
     backbone,
-    num_classes=3,
+    num_classes=4,
     output_states=True)
 
 # Create your example input here.
@@ -224,7 +231,7 @@ def to_gif(images):
     return embed.embed_file('./animation.gif')
 
 
-def get_top_k(probs, k=5, label_map=subset_paths['train']):
+def get_top_k(probs, k=5, label_map=CLASSES_LABEL):
     """Outputs the top k model labels and probabilities on the given video."""
     top_predictions = tf.argsort(probs, axis=-1, direction='DESCENDING')[:k]
     top_labels = tf.gather(label_map, top_predictions, axis=-1)
@@ -261,7 +268,7 @@ frames, label = list(test_ds.take(1))[0]
 to_gif(frames[0].numpy())
 
 saved_model_dir = 'model'
-tflite_filename = 'model.tflite'
+tflite_filename = '../../EdgeDevice/models/movinet_retrained.tflite'
 input_shape = [1, 1, 172, 172, 3]
 
 # Convert to saved model
@@ -302,6 +309,3 @@ top_k = get_top_k(probs)
 print()
 for label, prob in top_k:
     print(label, prob)
-
-frames, label = list(test_ds.take(1))[0]
-to_gif(frames[0].numpy())
