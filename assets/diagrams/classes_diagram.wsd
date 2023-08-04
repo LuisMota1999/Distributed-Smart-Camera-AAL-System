@@ -1,13 +1,20 @@
 @startuml
-node node1
-node node2
-node node3
-node node4
-node node5
-node1 -- node2 : label1
-node3 -- node5
-node1 -- node3 : label2
-node3 -- node4 : label3
-node4 -- node1
-node5 -- node2
+skinparam componentStyle uml2
+
+node "Peer 1" {
+  component Component1
+}
+
+node "Peer 2" {
+  component Component2
+}
+
+node "Peer 3" {
+  component Component3
+}
+
+Component1 --> Component2
+Component2 --> Component3
+Component3 --> Component1
+
 @enduml
