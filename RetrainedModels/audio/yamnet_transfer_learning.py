@@ -53,9 +53,9 @@ Loading a model from TensorFlow Hub is straightforward: choose the model, copy i
 Note: to read the documentation of the model, use the model url in the browser.
 """
 
-#yamnet_model_handle = 'https://tfhub.dev/google/yamnet/1'
-#yamnet_model = hub.load(yamnet_model_handle)
-yamnet_model_handle = '../models/tf2'
+# yamnet_model_handle = 'https://tfhub.dev/google/yamnet/1'
+# yamnet_model = hub.load(yamnet_model_handle)
+yamnet_model_handle = 'models/tf2'
 yamnet_model = tf.saved_model.load(yamnet_model_handle)
 
 """ Function to load the audio files. Will also be used later when working with the training data. Note: The returned 
@@ -91,9 +91,9 @@ Finally, in order to find the top-scored class at the clip-level, we take the ma
 """ The metadata for each file is specified in the csv file at `./datasets/AUDIO-GENERATED/mappings.csv` and 
 all the audio files are in `./datasets/AUDIO-GENERATED/audio/` """
 
-saved_model_path = '../models/yamnet_retrained'
+saved_model_path = 'models/yamnet_retrained'
 saved_model_name = "yamnet_retrained"
-tflite_models_dir = "../edge_device/models"
+tflite_models_dir = "models"
 dataset_names = ['GENERATED-SOUNDS', 'ESC-50', 'FSD50k']
 DATASET_NAME = dataset_names[0]
 EPOCHS_NUM = 20
@@ -226,16 +226,18 @@ callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=3, restore_
 # history = my_model.fit(train_ds, epochs=50, validation_data=val_ds, callbacks=callback)
 history = my_model.fit(train_ds, epochs=EPOCHS_NUM, callbacks=callback)
 
+
 def plot_accuracy_loss(history):
     # summarize history for accuracy-loss oscilation
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['loss'])
-    plt.title('Model Accuracy - Loss')
+    plt.title('Model Accuracy - Loss (Áudio)')
     plt.ylabel(' ')
     plt.xlabel('epoch')
     plt.xlim([0, EPOCHS_NUM])
     plt.legend(['accuracy', 'loss'], loc='best')
-    plt.savefig('../assets/model_imgs/retraining_epoch_progress.png')
+    plt.savefig(
+        'C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\assets\\images\\retraining_audio_epoch_progress.png')
     plt.show()
 
 
@@ -283,16 +285,17 @@ filename = test_pd.sample(1)['filename'].item()
 print('Predicting the sound in -> ' + filename)
 waveform = load_wav_16k_mono(filename)
 
-def plot_waveform(waveform,spectrogram,filename):
+
+def plot_waveform(waveform, spectrogram, filename):
     # Plot the waveform.
     plt.subplot(2, 1, 1)
     plt.plot(waveform)
     plt.xlim([0, len(waveform)])
-    plt.suptitle("Waveform - '" + DATASET_NAME+'/audio/'+filename.split('/')[-1]+"'")
+    plt.suptitle("Waveform - '" + DATASET_NAME + '/audio/' + filename.split('/')[-1] + "'")
     # Plot the log-mel spectrogram (returned by the model).
     plt.subplot(2, 1, 2)
     plt.imshow(spectrogram.numpy().T, aspect='auto', interpolation='nearest', origin='lower')
-    plt.savefig('../assets/model_imgs/waveform.png')
+    plt.savefig('C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\assets\\images\\waveform.png')
 
 
 # Run the model, check the output.
@@ -311,9 +314,8 @@ class_probabilities = tf.nn.softmax(reloaded_results, axis=-1)
 your_top_score = class_probabilities[your_top_class]
 print(f'[Your model] The main sound is: {your_infered_class} ({your_top_score})')
 
+plot_waveform(waveform, spectrogram, filename)
 
-
-plot_waveform(waveform,spectrogram, filename)
 
 def save_classes_to_csv(file):
     with open(file, 'w', newline='') as file:
@@ -324,7 +326,7 @@ def save_classes_to_csv(file):
 
 
 print(f"\nSaving '{saved_model_name}' classes to .csv file...")
-save_classes_to_csv(saved_model_path + '/assets/yamnet_class_map.csv')
+save_classes_to_csv(saved_model_path + '/' + 'yamnet_class_map.csv')
 save_classes_to_csv(tflite_models_dir + "/" + saved_model_name + '_class_map.csv')
 
 """
@@ -334,7 +336,7 @@ print(f"\nConverting '{saved_model_name}' to TFLite...")
 converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_path)  # path to the SavedModel directory
 converter.target_spec.supported_ops = [
     tf.lite.OpsSet.TFLITE_BUILTINS,  # enable TensorFlow Lite ops.
-    #tf.lite.OpsSet.SELECT_TF_OPS  # enable TensorFlow ops.
+    # tf.lite.OpsSet.SELECT_TF_OPS  # enable TensorFlow ops.
 ]
 tflite_model = converter.convert()
 

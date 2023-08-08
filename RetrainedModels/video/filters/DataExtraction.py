@@ -10,7 +10,7 @@ import remotezip as rz
 import tensorflow as tf
 import tqdm
 from tensorflow_docs.vis import embed
-from RetrainedModels.video.utils.helper import get_directory_lengths, convert_mp4_to_avi_recursive, get_existing_splits
+from RetrainedModels.video.utils.helper import get_directory_lengths, get_existing_splits
 
 
 class CharadesDataset:
@@ -299,7 +299,6 @@ class UCF101Dataset:
             remainder[cls] = files_for_class[cls][count:]
         return split_files, remainder
 
-
     @staticmethod
     def format_frames(frame, output_size):
         """
@@ -388,7 +387,6 @@ class FrameGenerator:
         self.training = training
         self.class_names = sorted(set(p.name for p in self.path.iterdir() if p.is_dir()))
         self.class_ids_for_name = dict((name, idx) for idx, name in enumerate(self.class_names))
-
 
     def get_files_and_class_names(self):
         video_paths = list(self.path.glob('*/*.avi'))

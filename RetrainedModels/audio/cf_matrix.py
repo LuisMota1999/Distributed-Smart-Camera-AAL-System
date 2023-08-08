@@ -14,7 +14,7 @@ parser.add_argument('-d', '--dataset', dest='datasets_path',
 args = parser.parse_args()
 DATASETS_PATH = args.datasets_path
 
-interpreter = Interpreter(f'../edge_device/models/yamnet_retrained.tflite')
+interpreter = Interpreter(f'../EdgeDevice/models/yamnet_retrained.tflite')
 inputs = interpreter.get_input_details()
 outputs = interpreter.get_output_details()
 waveform_input_index = inputs[0]['index']
@@ -78,7 +78,7 @@ def plot_confusion_matrix(cm, class_names):
       cm (array, shape = [n, n]): a confusion matrix of integer classes
       class_names (array, shape = [n]): String names of the integer classes
     """
-    figure = plt.figure(figsize=(8, 8))
+    figure = plt.figure(figsize=(10, 10))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
     plt.title("Confusion Matrix")
     plt.colorbar()
@@ -100,7 +100,7 @@ def plot_confusion_matrix(cm, class_names):
     plt.xlabel('Predicted label')
 
     figure.show()
-    figure.savefig('../assets/model_audio_imgs/confusion_matrix.png')
+    figure.savefig('../assets/model_imgs/confusion_matrix.png')
     return figure
 
 
@@ -108,5 +108,3 @@ class_names = read_classes('classes_to_retrain.csv')
 expected, predicted = runModelonValidation(DATASETS_PATH + 'GENERATED-SOUNDS')
 confusion_matrix = tf.math.confusion_matrix(expected, predicted)
 figure = plot_confusion_matrix(confusion_matrix.numpy(), class_names)
-
-
