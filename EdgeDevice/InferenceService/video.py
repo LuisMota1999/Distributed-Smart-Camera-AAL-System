@@ -5,17 +5,14 @@ import os
 
 CWD_PATH = os.getcwd()
 
-# Path to frozen detection graph. This is the actual model that is used for the classification.
 PATH_TO_CKPT = os.path.join(CWD_PATH, '../models/charades/frozen_model.pb')
 PREDICTION_DECAY = 0.6  # [0,1) How slowly to update the predictions (0.99 is slowest, 0 is instant)
-
 
 class VideoInference:
 
     def __init__(self):
         self.accumulator = np.zeros(157, )
 
-        # Load a (frozen) Tensorflow model into memory.
         self.detection_graph = tf.Graph()
         with self.detection_graph.as_default():
             od_graph_def = tf.compat.v1.GraphDef()
@@ -30,7 +27,6 @@ class VideoInference:
         self.category_object = self.loadlabels('Charades_v1_objectclasses.txt')
         self.category_verbclasses = self.loadlabels('Charades_v1_verbclasses.txt')
         self.mapclasses(self.category_classes, self.category_object, self.category_verbclasses)
-        # print(self.category_classes)
 
     def inference(self, frame):
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -61,19 +57,17 @@ class VideoInference:
                 classes[clsint]['obj'] = {'id': objint, 'name': objects[objint]['name']}
                 classes[clsint]['verb'] = {'id': verbint, 'name': verbs[verbint]['name']}
 
-    def prepare_im(self, image_np):
-        # Normalize image and fix dimensions
-        image_np = cv2.resize(image_np, dsize=(224, 224)).astype(np.float32) / 255.0
+    def process_image_inference(self, image_np):
+        image_np = cv2.resize(image_np, dsize=(172, 172)).astype(np.float32) / 255.0
         mean = np.array([0.485, 0.456, 0.406])
         std = np.array([0.229, 0.224, 0.225])
         image_np = (image_np - mean) / std
 
-        # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
         image_np_expanded = np.expand_dims(image_np, axis=0)
         return image_np_expanded
 
     def recognize_activity(self, image_np, sess, detection_graph, accumulator):
-        image_np_expanded = self.prepare_im(image_np)
+        image_np_expanded = self.process_image_inference(image_np)
         image_tensor = detection_graph.get_tensor_by_name('input_image:0')
         classes = detection_graph.get_tensor_by_name('classifier/Reshape:0')
 
