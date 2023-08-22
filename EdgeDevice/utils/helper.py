@@ -3,14 +3,26 @@ import uuid
 import random
 import datetime
 
-
+from pydub import AudioSegment
 
 from EdgeDevice.InferenceService.audio import AudioInference
 import rsa
 from collections import deque
 import cv2
 import numpy as np
-
+from moviepy.editor import *
+from pytube import YouTube
+import base64
+from datetime import datetime, timedelta
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa as rsaCripto
+from cryptography.hazmat.primitives import hashes
+from cryptography.x509.oid import NameOID
+import json
+import logging
+from hashlib import sha256
+import netifaces as ni
 import platform
 
 # Specify the height and width to which each video frame will be resized in our dataset
