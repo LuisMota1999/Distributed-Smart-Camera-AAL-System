@@ -8,6 +8,7 @@ import tensorflow as tf
 from official.projects.movinet.modeling import movinet
 from official.projects.movinet.modeling import movinet_model
 from official.projects.movinet.tools import export_saved_model
+from sklearn.metrics import precision_recall_fscore_support
 
 from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
 
@@ -151,7 +152,6 @@ results = model.fit(train_ds,
 
 model.evaluate(test_ds)
 
-
 def plot_accuracy_loss(history):
     # summarize history for accuracy-loss oscilation
     plt.plot(history.history['accuracy'])
@@ -188,6 +188,19 @@ def get_actual_predicted_labels(dataset):
 
     return actual, predicted
 
+y_true = []
+y_pred = []
+
+for frames, labels in test_ds:
+    actual, predicted = get_actual_predicted_labels(frames)
+    y_true.extend(actual)
+    y_pred.extend(predicted.numpy())
+
+precision, recall, f1_score, _ = precision_recall_fscore_support(y_true, y_pred, average='macro')
+
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
+print(f"F1-score: {f1_score:.4f}")
 
 def plot_confusion_matrix(actual, predicted, labels, ds_type):
     cm = tf.math.confusion_matrix(actual, predicted)

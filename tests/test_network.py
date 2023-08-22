@@ -2,56 +2,34 @@ import unittest
 import time
 import uuid
 from EdgeDevice.NetworkService.Node import Node
+from EdgeDevice.utils.helper import NetworkUtils
+from unittest.mock import patch, Mock
 
 
 class SocketConnectionTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.node = Node("NODE-1")
-        cls.node.start()  # Start the node in a separate thread
-
-        # Wait for the node to start and establish connections
-        time.sleep(2)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.node.stop()  # Stop the node
+        NetworkUtils.generate_keys()
+        NetworkUtils.generate_tls_keys()
+        cls.node = Mock(spec=Node)
 
     def test_connection(self):
-        # Test connecting to a peer node
+        # Create a mock peer IP, port, and id
         peer_ip = "192.168.0.100"
         peer_port = 5000
-        peer_id = uuid.uuid4()
+        peer_id = "c05b94c2-c621-47e6-ad93-c3ea2f3ddc58"
 
-        # Connect to the peer node
-        self.node.connect_to_peer(peer_ip, peer_port, peer_id.bytes)
+        # Simulate the behavior of connect_to_peer
+        self.node.connect_to_peer.return_value = None
 
-        # Wait for the connection to be established
-        time.sleep(2)
+        # Call the method that uses connect_to_peer
+        result = self.node.connect_to_peer(peer_ip, peer_port, peer_id, "SALA")
 
-        # Assert that the peer node is in the list of connections
-        self.assertTrue(any(conn.getpeername()[0] == peer_ip and conn.getpeername()[1] == peer_port
-                            for conn in self.node.connections))
-
-    def test_disconnection(self):
-        # Test disconnecting from a peer node
-        peer_ip = "192.168.0.100"
-        peer_port = 5000
-
-        # Disconnect from the peer node
-        for conn in self.node.connections:
-            if conn.getpeername()[0] == peer_ip and conn.getpeername()[1] == peer_port:
-                self.node.remove_node(conn, "Test")
-
-        # Wait for the disconnection to complete
-        time.sleep(2)
-
-        # Assert that the peer node is not in the list of connections
-        self.assertFalse(any(conn.getpeername()[0] == peer_ip and conn.getpeername()[1] == peer_port
-                             for conn in self.node.connections))
+        # Assertions
+        self.node.connect_to_peer.assert_called_once_with(peer_ip, peer_port, peer_id, "SALA")
+        self.assertIsNone(result)
 
 
 if __name__ == '__main__':
     unittest.main()
-

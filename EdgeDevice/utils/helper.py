@@ -1,8 +1,10 @@
+import socket
 import time
 import uuid
 import random
 import datetime
 
+import psutil
 from pydub import AudioSegment
 
 from EdgeDevice.InferenceService.audio import AudioInference
@@ -237,9 +239,22 @@ class NetworkUtils(object):
     @staticmethod
     def get_interface_ip():
         if platform.system() == 'Windows':
-            interface = 'Ethernet'  # Replace with the actual interface name in Windows
+            interface = 'Wi-fi'
+            try:
+                interfaces = psutil.net_if_addrs()
+                if interface in interfaces:
+                    addresses = interfaces[interface]
+                    for address in addresses:
+                        if address.family == socket.AF_INET:
+                            return address.address
+                else:
+                    return None
+            except Exception as e:
+                print("Error:", e)
+                return None
         elif platform.system() == 'Linux':
-            interface = 'eth0'  # Replace with the actual interface name in Linux
+            interface = 'eth0'
+            # Replace with the actual interface name in Linux
         else:
             return None
         return ni.ifaddresses(interface)[ni.AF_INET][0]['addr']

@@ -1,13 +1,16 @@
+import threading
+
 import paho.mqtt.client as mqtt
 import json
 import time
-
+import threading
 from EdgeDevice.utils.constants import Homeassistant as HA
 from EdgeDevice.utils.helper import MessageHandlerUtils
 
 
-class Homeassistant(object):
+class Homeassistant(threading.Thread):
     def __init__(self):
+        super().__init__()
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
 
@@ -25,7 +28,6 @@ class Homeassistant(object):
             else:
                 print("MQTT Connection is active")
 
-                # Publica a mensagem no tópico configurado
                 mensagem = MessageHandlerUtils.create_homeassistant_message("07b4ab99-504a-40d9-ad2a-69e4c47e21c8",
                                                                             "192.168.122.94", 5929, "Watching_TV",
                                                                             "SALA")
@@ -47,4 +49,3 @@ class Homeassistant(object):
             print("Connection established with success!")
         else:
             print(f"Error Establishing connection: {rc}")
-
