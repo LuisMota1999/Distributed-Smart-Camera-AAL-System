@@ -152,6 +152,7 @@ results = model.fit(train_ds,
 
 model.evaluate(test_ds)
 
+
 def plot_accuracy_loss(history):
     # summarize history for accuracy-loss oscilation
     plt.plot(history.history['accuracy'])
@@ -188,6 +189,7 @@ def get_actual_predicted_labels(dataset):
 
     return actual, predicted
 
+
 y_true = []
 y_pred = []
 
@@ -201,6 +203,7 @@ precision, recall, f1_score, _ = precision_recall_fscore_support(y_true, y_pred,
 print(f"Precision: {precision:.4f}")
 print(f"Recall: {recall:.4f}")
 print(f"F1-score: {f1_score:.4f}")
+
 
 def plot_confusion_matrix(actual, predicted, labels, ds_type):
     cm = tf.math.confusion_matrix(actual, predicted)
