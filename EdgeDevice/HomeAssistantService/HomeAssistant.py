@@ -1,49 +1,48 @@
 import paho.mqtt.client as mqtt
 import json
+import time
 
-# Configurações do MQTT
-MQTT_BROKER = "homeassistant"
-MQTT_PORT = 1883
-MQTT_USERNAME = "mqttc"  # Se o broker requer autenticação
-MQTT_PASSWORD = "mqtt123"  # Se o broker requer autenticação
-MQTT_TOPIC = "casa/mensagem"  # O mesmo tópico configurado no Home Assistant
+from EdgeDevice.utils.constants import Homeassistant
+from EdgeDevice.utils.helper import MessageHandlerUtils
 
 
-# Função de callback para quando a conexão com o broker MQTT for estabelecida
 def on_connect(client, userdata, flags, rc):
-    print("Conectado com o código de resultado: " + str(rc))
+    if rc == 0:
+        print("Connection established with success!")
+    else:
+        print(f"Error Establishing connection: {rc}")
 
 
-# Cria um cliente MQTT
 client = mqtt.Client()
 
-# Define as funções de callback
 client.on_connect = on_connect
 
-# Se o broker MQTT requer autenticação, insira o nome do utilizador e a senha
-if MQTT_USERNAME and MQTT_PASSWORD:
-    client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+if Homeassistant.MQTT_USERNAME and Homeassistant.MQTT_PASSWORD:
+    client.username_pw_set(Homeassistant.MQTT_USERNAME.value, Homeassistant.MQTT_PASSWORD.value)
 
-# Conecta ao broker MQTT
-client.connect(MQTT_BROKER, MQTT_PORT)
+try:
+    client.connect(Homeassistant.MQTT_BROKER.value, Homeassistant.MQTT_PORT.value)
+    client.loop_start()
 
-# Publica a mensagem no tópico configurado
-mensagem = {
-    "META": {
-        "CLIENT": "0.0.1",
-        "FROM_ADDRESS": {
-            "UUID": "07b4ab99-504a-40d9-ad2a-69e4c47e21c8",
-            "IP": "192.168.122.94",
-            "PORT": 5929
-        },
-    },
-    "PAYLOAD": {
-        "TIME": 1689886629.4676633,
-        "EVENT": "Watching_TV",
-        "LOCAL": "SALA",
-    }
-}
-client.publish(MQTT_TOPIC, json.dumps(mensagem, indent=2))
+    time.sleep(2)
 
-# Encerra a conexão com o broker MQTT
-client.disconnect()
+    if not client.is_connected():
+        print("MQTT Connection was denied")
+    else:
+        print("MQTT Connection is active")
+
+        # Publica a mensagem no tópico configurado
+        mensagem = MessageHandlerUtils.create_homeassistant_message("07b4ab99-504a-40d9-ad2a-69e4c47e21c8",
+                                                                    "192.168.122.94", 5929, "Watching_TV", "SALA")
+        try:
+            client.publish(Homeassistant.MQTT_TOPIC.value, json.dumps(mensagem, indent=2))
+            print("Message published successfully")
+        except mqtt.MQTT_LOG_ERR as e:
+            print("Error publishing message:", e)
+
+except Exception as e:
+    print("Error:", e)
+
+finally:
+    client.loop_stop()
+    client.disconnect()

@@ -24,3 +24,11 @@ class Messages(Enum):
     MESSAGE_TYPE_GET_CHAIN = "GET_CHAIN"
     MESSAGE_TYPE_CHAIN_RESPONSE = "CHAIN_RESPONSE"
     MESSAGE_TYPE_BLOCK = "BLOCK"
+
+
+class Homeassistant(Enum):
+    MQTT_BROKER = "homeassistant"
+    MQTT_PORT = 1883
+    MQTT_USERNAME = "mqttc"
+    MQTT_PASSWORD = "mqtt123"
+    MQTT_TOPIC = "casa/mensagem"
