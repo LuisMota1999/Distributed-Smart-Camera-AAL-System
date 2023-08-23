@@ -26,22 +26,14 @@ def create_transaction(private_key, public_key, receiver, action):
         "EVENT": action,
         "TIMESTAMP": int(time.time()),
     }
-    tx_bytes = json.dumps(tx, sort_keys=True).encode('utf-8')
-
-    # Compute the hash of the data using SHA-256
-    hash_value = rsa.compute_hash(tx_bytes, 'SHA-256')
+    tx_bytes = json.dumps(tx, sort_keys=True).encode()
 
     # Sign the hash using the private key
-    signature = rsa.sign(hash_value, private_key, 'SHA-256')
+    signature = rsa.sign(tx_bytes, private_key, 'SHA-256')
 
     logging.info(f"Transaction signature creation: {signature}")
     tx["SIGNATURE"] = signature.hex()
-    try:
-        # Verify the signature using the public key
-        rsa.verify(tx_bytes, signature, public_key)
-        print("Signature is valid.")
-    except rsa.VerificationError:
-        print("Signature is invalid.")
+
     return tx
 
 
@@ -57,12 +49,11 @@ def validate_transaction(tx):
 
     public_key_pem = tx['SENDER']
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
-    tx_bytes = json.dumps(tx, sort_keys=True).encode('utf-8')
+    tx_bytes = json.dumps(tx, sort_keys=True).encode()
     signature = bytes.fromhex(tx['SIGNATURE'])
-    hash_value = rsa.compute_hash(tx_bytes, 'SHA-256')
 
     try:
-        rsa.verify(hash_value, signature, public_key)
+        rsa.verify(tx_bytes, signature, public_key)
         logging.info(f"Transaction validated!")
         return True
     except rsa.VerificationError as e:
