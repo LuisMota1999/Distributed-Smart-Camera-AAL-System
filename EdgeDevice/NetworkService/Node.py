@@ -368,7 +368,7 @@ class Node(threading.Thread):
                     logging.info(f"Transaction message: {message}")
                     conn.send(bytes(message, encoding="utf-8"))
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
-                tx = message["PAYLOAD"]["PENDING"]
+                tx = message["PAYLOAD"]["PENDING"][0]
 
                 if validate_transaction(tx):
                     logging.info(f"Transaction was validated with success! ")

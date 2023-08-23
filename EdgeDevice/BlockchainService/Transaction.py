@@ -49,10 +49,10 @@ def validate_transaction(tx):
     :return: True if the transaction is valid, False otherwise
     :rtype: bool
     """
-    tx = tx[0]
+
     public_key_pem = tx['sender']
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
-    tx_bytes = json.dumps(tx[0], sort_keys=True).encode("utf-8")
+    tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
     signature = bytes.fromhex(tx['signature'])
 
     try:
