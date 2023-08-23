@@ -1,7 +1,7 @@
 import rsa
 import time
 import json
-
+import logging
 from EdgeDevice.utils.helper import NetworkUtils
 
 
@@ -43,6 +43,8 @@ def validate_transaction(tx):
     :return: True if the transaction is valid, False otherwise
     :rtype: bool
     """
+    logging.info(f"Transaction message validation: {tx}")
+
     public_key_pem = tx["sender"].encode()
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
 
