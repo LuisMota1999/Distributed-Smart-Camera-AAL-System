@@ -50,10 +50,10 @@ def validate_transaction(tx):
     :rtype: bool
     """
     tx = tx[0]
-    public_key_pem = tx["sender"]
+    public_key_pem = tx['sender']
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
-    tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
-    signature = bytes.fromhex(tx["signature"])
+    tx_bytes = json.dumps(tx[0], sort_keys=True).encode("utf-8")
+    signature = bytes.fromhex(tx['signature'])
 
     try:
         rsa.verify(tx_bytes, signature, public_key)
