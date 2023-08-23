@@ -43,8 +43,8 @@ def validate_transaction(tx):
     :return: True if the transaction is valid, False otherwise
     :rtype: bool
     """
-    logging.info(f"Transaction message validation: {tx}")
-
+    logging.info(f"Transaction message validation: {tx[0]}")
+    tx = tx[0]
     public_key_pem = tx["sender"].encode()
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
 
