@@ -43,7 +43,6 @@ def validate_transaction(tx):
     :return: True if the transaction is valid, False otherwise
     :rtype: bool
     """
-    logging.info(f"Transaction message validation: {tx[0]}")
     tx = tx[0]
     public_key_pem = tx["sender"]
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
@@ -58,4 +57,5 @@ def validate_transaction(tx):
         rsa.verify(tx_bytes, signature, public_key)
         return True
     except rsa.pkcs1.VerificationError:
+        logging.error(f"Handle validation error: {rsa.pkcs1.VerificationError}")
         return False
