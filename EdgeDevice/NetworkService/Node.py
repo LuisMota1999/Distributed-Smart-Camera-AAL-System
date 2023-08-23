@@ -358,6 +358,7 @@ class Node(threading.Thread):
                 tx = create_transaction(self.private_key, self.public_key,
                                         str(self.id),
                                         f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
+                logging.info(f"Transaction created with success!")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
                     data = MessageHandlerUtils.create_transaction_message(
@@ -422,7 +423,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                logging.info(f"Data found {data}")
+
                 if not data:
                     logging.info(f"Data not found {data}")
                     self.service_info.priority = random.randint(1, 100)
@@ -438,9 +439,11 @@ class Node(threading.Thread):
 
                 logging.info(f"[MESSAGE TYPE]: {message_type}")
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+                    logging.info(f"{data}")
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
+                    logging.info(f"{data}")
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:

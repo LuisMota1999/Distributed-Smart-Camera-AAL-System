@@ -1,9 +1,7 @@
 import unittest
-import time
-import uuid
 from EdgeDevice.NetworkService.Node import Node
 from EdgeDevice.utils.helper import NetworkUtils
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 
 
 class SocketConnectionTest(unittest.TestCase):
