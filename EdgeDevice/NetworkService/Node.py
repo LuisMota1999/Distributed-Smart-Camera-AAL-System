@@ -369,9 +369,9 @@ class Node(threading.Thread):
                     conn.send(bytes(message, encoding="utf-8"))
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx = message["PAYLOAD"]["PENDING"]
-
+                logging.info(f"Transaction for validation:{tx} ")
                 if validate_transaction(tx):
-                    logging.info(f"Transaction was validated with success! ")
+
                     if tx not in self.blockchain.pending_transactions:
                         self.blockchain.pending_transactions.append(tx)
                         logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
