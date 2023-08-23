@@ -438,7 +438,6 @@ class Node(threading.Thread):
 
                 logging.info(f"[MESSAGE TYPE]: {message_type}")
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                    logging.info(f"{data}")
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
