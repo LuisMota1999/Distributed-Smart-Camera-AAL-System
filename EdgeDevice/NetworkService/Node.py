@@ -364,7 +364,6 @@ class Node(threading.Thread):
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
-
                     message = json.dumps(data, indent=2)
                     logging.info(f"Transaction message: {message}")
                     conn.send(bytes(message, encoding="utf-8"))
@@ -372,7 +371,7 @@ class Node(threading.Thread):
                 tx = message["PAYLOAD"]["PENDING"]
 
                 if validate_transaction(tx):
-                    logging.info(f"Transaction was validated with sucess! ")
+                    logging.info(f"Transaction was validated with success! ")
                     if tx not in self.blockchain.pending_transactions:
                         self.blockchain.pending_transactions.append(tx)
                         logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
