@@ -78,6 +78,14 @@ class MessageHandlerUtils(object):
         }
 
     @staticmethod
+    def create_event_message(event_action, event_type):
+        return {
+            "EVENT_ACTION": event_action,
+            "EVENT_TYPE": event_type,
+        }
+
+
+    @staticmethod
     def create_homeassistant_message(external_id, external_ip, external_port, event, local, version="0.0.1"):
         return {
             "META": {

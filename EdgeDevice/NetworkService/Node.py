@@ -357,7 +357,9 @@ class Node(threading.Thread):
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
-                                                   f"NEW_NETWORK_NODE:[{str(self.ip)}:{self.port}]")
+                                                   MessageHandlerUtils.create_event_message(
+                                                       f"{str(self.ip)}:{self.port}", "New Network Node")
+                                                   )
 
                 logging.info(f"Transaction created with success!")
 
@@ -384,7 +386,7 @@ class Node(threading.Thread):
 
                             if item not in self.blockchain.pending_transactions:
                                 self.blockchain.pending_transactions.append(item)
-                                logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
+                                logging.info(f"Pending Transactions: {self.blockchain.pending_transactions}\n")
                         else:
                             logging.warning("Received invalid transaction")
                             return
