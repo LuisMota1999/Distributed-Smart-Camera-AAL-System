@@ -403,7 +403,6 @@ class Node(threading.Thread):
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
-        logging.info(f"[MESSAGE TYPE]: {message_type}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
