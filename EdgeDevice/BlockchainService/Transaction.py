@@ -57,5 +57,5 @@ def validate_transaction(tx):
         rsa.verify(tx_bytes, signature, public_key)
         return True
     except rsa.pkcs1.VerificationError:
-        logging.error(f"Handle validation error: {rsa.pkcs1.VerificationError}")
+        logging.error(f"Handle validation error: {rsa.pkcs1.VerificationError.args}")
         return False
