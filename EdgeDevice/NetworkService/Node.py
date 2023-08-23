@@ -368,16 +368,21 @@ class Node(threading.Thread):
                     logging.info(f"Transaction message: {message}")
                     conn.send(bytes(message, encoding="utf-8"))
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
-                tx = message["PAYLOAD"]["PENDING"][0]
+                tx = message["PAYLOAD"]["PENDING"]
 
-                if validate_transaction(tx):
-                    logging.info(f"Transaction was validated with success! ")
-                    if tx not in self.blockchain.pending_transactions:
-                        self.blockchain.pending_transactions.append(tx)
-                        logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
+                if isinstance(tx, list):
+                    logging.info("Transaction proocessing validation")
+                    for item in tx:
+                        if validate_transaction(item):
+                            logging.info("Transaction was validated with success!")
+                            if item not in self.blockchain.pending_transactions:
+                                self.blockchain.pending_transactions.append(item)
+                                logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
+                        else:
+                            logging.warning("Received invalid transaction")
+                            return
                 else:
-                    logging.warning("Received invalid transaction")
-                    return
+                    logging.warning("Invalid transaction format")
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
