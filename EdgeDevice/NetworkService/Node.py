@@ -447,9 +447,10 @@ class Node(threading.Thread):
                 else:
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
-                if message_type != Messages.MESSAGE_TYPE_PING or message_type != Messages.MESSAGE_TYPE_PONG:
+                if message_type != Messages.MESSAGE_TYPE_PING and message_type != Messages.MESSAGE_TYPE_PONG:
                     logging.info(f"[MESSAGE TYPE]: {message_type}")
                     logging.info(f"[MESSAGE DATA]: {data}")
+
 
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
