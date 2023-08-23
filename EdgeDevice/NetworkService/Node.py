@@ -235,6 +235,10 @@ class Node(threading.Thread):
                 self.coordinator = self.id
                 # self.handle_detection()
                 self.blockchain.add_block(self.blockchain.new_block())
+                tx, signature = create_transaction(self.private_key, self.public_key, str(self.id), 'Network',
+                                        f"[{self.ip}:{self.port}]")
+                #Signature needs to be implemented somehow
+                self.blockchain.pending_transactions.append(tx)
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
             logging.error(f"SSLZero Return Error {e.strerror}")
