@@ -357,7 +357,7 @@ class Node(threading.Thread):
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx = create_transaction(self.private_key, self.public_key,
                                         str(self.id),
-                                        f"NEW_NETWORK_NODE:{self.ip}:{self.port}")
+                                        f"NEW_NETWORK_NODE:{str(self.ip)}:{self.port}")
                 logging.info(f"Transaction created with success!")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
@@ -403,7 +403,7 @@ class Node(threading.Thread):
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
 
         message_json = json.dumps(data, indent=2)
-        logging.info(f"\nGENERAL MESSAGE: {message_json}\n")
+        logging.info(f"[MESSAGE TYPE]: {message_type}")
         conn.send(bytes(message_json, encoding="utf-8"))
 
     def handle_messages(self, conn):
