@@ -362,7 +362,7 @@ class Node(threading.Thread):
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
                     data = MessageHandlerUtils.create_transaction_message(
-                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, neighbour_id)
+                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                     message = json.dumps(data, indent=2)
