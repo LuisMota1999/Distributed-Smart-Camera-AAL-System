@@ -433,6 +433,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
+                logging.info(f"Data {data}")
 
                 if not data:
                     logging.info(f"Data not found {data}")
