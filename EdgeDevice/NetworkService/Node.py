@@ -356,10 +356,7 @@ class Node(threading.Thread):
 
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx, signature = create_transaction(self.private_key, self.public_key,
-                                                   str(self.id),
-                                                   MessageHandlerUtils.create_event_message(
-                                                       f"{str(self.ip)}:{self.port}", "New Network Node")
-                                                   )
+                                                   str(self.id), f"{str(self.ip)}:{self.port}", "New Network Node")
 
                 logging.info(f"Transaction created with success!")
 
