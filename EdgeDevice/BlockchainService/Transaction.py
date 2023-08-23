@@ -43,7 +43,7 @@ def validate_transaction(tx):
     :return: True if the transaction is valid, False otherwise
     :rtype: bool
     """
-    public_key_pem = tx["sender"]
+    public_key_pem = tx["sender"].encode()
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
 
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")

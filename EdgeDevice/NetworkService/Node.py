@@ -366,12 +366,13 @@ class Node(threading.Thread):
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
 
                     message = json.dumps(data, indent=2)
-                    logging.info(f"\nTRANSACTION SEND MESSAGE: {message}\n")
+                    logging.info(f"Transaction message: {message}")
                     conn.send(bytes(message, encoding="utf-8"))
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx = message["PAYLOAD"]["PENDING"]
 
                 if validate_transaction(tx):
+                    logging.info(f"Transaction was validated with sucess! ")
                     if tx not in self.blockchain.pending_transactions:
                         self.blockchain.pending_transactions.append(tx)
                         logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
@@ -515,10 +516,9 @@ class Node(threading.Thread):
 
         :return: None
         """
-        print("\n\nPeers:")
+        print("\nPeers:")
         for i, conn in enumerate(self.connections):
             print(f"[{i}] <{conn.getpeername()[0]}:{conn.getpeername()[1]}>")
-        print("\n\n")
 
     def stop(self):
         """
