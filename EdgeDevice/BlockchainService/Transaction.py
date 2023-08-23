@@ -28,7 +28,12 @@ def create_transaction(private_key, public_key, receiver, action):
     }
     tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
 
-    signature = rsa.sign(tx_bytes, private_key, "SHA-256")
+    # Compute the hash of the data using SHA-256
+    hash_value = rsa.compute_hash(tx_bytes, 'SHA-256')
+
+    # Sign the hash using the private key
+    signature = rsa.sign(hash_value, private_key, 'SHA-256')
+
     logging.info(f"Transaction signature creation: {signature}")
     tx["signature"] = signature.hex()
     try:
@@ -54,9 +59,10 @@ def validate_transaction(tx):
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
     tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
     signature = bytes.fromhex(tx['signature'])
+    hash_value = rsa.compute_hash(tx_bytes, 'SHA-256')
 
     try:
-        rsa.verify(tx_bytes, signature, public_key)
+        rsa.verify(hash_value, signature, public_key)
         return True
     except (KeyError, json.JSONDecodeError, rsa.pkcs1.VerificationError) as e:
         logging.error(f"Transaction validation error: {e}")
