@@ -21,12 +21,12 @@ def create_transaction(private_key, public_key, receiver, action):
     :rtype: dict
     """
     tx = {
-        "sender": NetworkUtils.key_to_json(public_key),
-        "receiver": receiver,
-        "action": action,
-        "timestamp": int(time.time()),
+        "SENDER": NetworkUtils.key_to_json(public_key),
+        "RECEIVER": receiver,
+        "EVENT": action,
+        "TIMESTAMP": int(time.time()),
     }
-    tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
+    tx_bytes = json.dumps(tx, sort_keys=True).encode('utf-8')
 
     # Compute the hash of the data using SHA-256
     hash_value = rsa.compute_hash(tx_bytes, 'SHA-256')
@@ -35,7 +35,7 @@ def create_transaction(private_key, public_key, receiver, action):
     signature = rsa.sign(hash_value, private_key, 'SHA-256')
 
     logging.info(f"Transaction signature creation: {signature}")
-    tx["signature"] = signature.hex()
+    tx["SIGNATURE"] = signature.hex()
     try:
         # Verify the signature using the public key
         rsa.verify(tx_bytes, signature, public_key)
@@ -55,10 +55,10 @@ def validate_transaction(tx):
     :rtype: bool
     """
 
-    public_key_pem = tx['sender']
+    public_key_pem = tx['SENDER']
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
-    tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
-    signature = bytes.fromhex(tx['signature'])
+    tx_bytes = json.dumps(tx, sort_keys=True).encode('utf-8')
+    signature = bytes.fromhex(tx['SIGNATURE'])
     hash_value = rsa.compute_hash(tx_bytes, 'SHA-256')
 
     try:

@@ -353,20 +353,26 @@ class Node(threading.Thread):
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
         try:
             logging.info(f"Handle transaction message {message_type}")
-            private_key, public_key = NetworkUtils.get_keys()
+
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                tx = create_transaction(private_key, public_key,
+                tx = create_transaction(self.private_key, self.public_key,
                                         str(self.id),
                                         f"NEW_NETWORK_NODE:[{str(self.ip)}:{self.port}]")
+
                 logging.info(f"Transaction created with success!")
+
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
+
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
+
                     message = json.dumps(data, indent=2)
                     logging.info(f"Transaction message: {message}")
+
                     conn.send(bytes(message, encoding="utf-8"))
+
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx = message["PAYLOAD"]["PENDING"]
 
@@ -375,6 +381,7 @@ class Node(threading.Thread):
                     for item in tx:
                         if validate_transaction(item):
                             logging.info("Transaction was validated with success!")
+
                             if item not in self.blockchain.pending_transactions:
                                 self.blockchain.pending_transactions.append(item)
                                 logging.info(f"\nTRANSACTION RECEIVE MESSAGE: {self.blockchain.pending_transactions}\n")
