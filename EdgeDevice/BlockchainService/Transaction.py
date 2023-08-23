@@ -32,7 +32,7 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
         },
         "TIMESTAMP": int(time.time()),
     }
-    tx_bytes = json.dumps(tx, sort_keys=True).encode()
+    tx_bytes = json.dumps(tx, indent=2, sort_keys=True).encode()
 
     # Sign the hash using the private key
     signature = rsa.sign(tx_bytes, private_key, 'SHA-256')
