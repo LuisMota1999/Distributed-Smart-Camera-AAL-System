@@ -357,7 +357,7 @@ class Node(threading.Thread):
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
-                                                   f"[{str(self.ip)}:{self.port}]", "New Network Node")
+                                                   f"[{str(self.ip)}:{self.port}]", "NETWORK")
 
                 logging.info(f"Transaction created with success!")
 
@@ -377,10 +377,9 @@ class Node(threading.Thread):
                 tx = message["PAYLOAD"]["PENDING"]
                 signature = message["PAYLOAD"]["SIGNATURE"]
                 if isinstance(tx, list):
-                    logging.info("Transaction proocessing validation")
                     for item in tx:
                         if validate_transaction(item, signature):
-                            logging.info("Transaction was validated with success!")
+                            logging.info("Transaction receveived is valid!")
 
                             if item not in self.blockchain.pending_transactions:
                                 self.blockchain.pending_transactions.append(item)
