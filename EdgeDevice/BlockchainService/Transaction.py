@@ -63,7 +63,9 @@ def validate_transaction(tx):
 
     try:
         rsa.verify(hash_value, signature, public_key)
+        logging.info(f"Transaction validated!")
         return True
-    except (KeyError, json.JSONDecodeError, rsa.pkcs1.VerificationError) as e:
-        logging.error(f"Transaction validation error: {e}")
+    except rsa.VerificationError as e:
+        logging.error(f"Transaction error validating:{e.args}")
         return False
+

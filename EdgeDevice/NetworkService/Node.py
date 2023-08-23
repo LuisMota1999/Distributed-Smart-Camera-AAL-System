@@ -353,11 +353,11 @@ class Node(threading.Thread):
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
         try:
             logging.info(f"Handle transaction message {message_type}")
-
+            private_key, public_key = NetworkUtils.get_keys()
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                tx = create_transaction(self.private_key, self.public_key,
+                tx = create_transaction(private_key, public_key,
                                         str(self.id),
-                                        f"NEW_NETWORK_NODE:{str(self.ip)}:{self.port}")
+                                        f"NEW_NETWORK_NODE:[{str(self.ip)}:{self.port}]")
                 logging.info(f"Transaction created with success!")
                 if tx not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(tx)
