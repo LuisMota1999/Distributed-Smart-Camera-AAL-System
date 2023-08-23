@@ -31,7 +31,12 @@ def create_transaction(private_key, public_key, receiver, action):
     signature = rsa.sign(tx_bytes, private_key, "SHA-256")
     logging.info(f"Transaction signature creation: {signature}")
     tx["signature"] = signature.hex()
-
+    try:
+        # Verify the signature using the public key
+        rsa.verify(tx_bytes, signature, public_key)
+        print("Signature is valid.")
+    except rsa.VerificationError:
+        print("Signature is invalid.")
     return tx
 
 
