@@ -29,7 +29,7 @@ def create_transaction(private_key, public_key, receiver, action):
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
 
     signature = rsa.sign(tx_bytes, private_key, "SHA-256")
-    tx["signature"] = signature.hex()
+    tx["signature"] = signature
 
     return tx
 
@@ -50,7 +50,7 @@ def validate_transaction(tx):
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
 
     # Retrieve the signature from the transaction
-    signature = bytes.fromhex(tx["signature"])
+    signature = tx["signature"]
     logging.info(f"Transaction signature: {signature}")
     logging.info(f"Transaction public_key: {public_key}")
     logging.info(f"Transaction tx: {tx_bytes}")
