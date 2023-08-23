@@ -356,7 +356,8 @@ class Node(threading.Thread):
 
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx, signature = create_transaction(self.private_key, self.public_key,
-                                                   str(self.id), f"{str(self.ip)}:{self.port}", "New Network Node")
+                                                   str(self.id),
+                                                   f"NEW_NETWORK_NODE:[{str(self.ip)}:{self.port}]")
 
                 logging.info(f"Transaction created with success!")
 
@@ -433,7 +434,6 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                logging.info(f"Data {data}")
 
                 if not data:
                     logging.info(f"Data not found {data}")
