@@ -51,7 +51,9 @@ def validate_transaction(tx):
 
     # Retrieve the signature from the transaction
     signature = bytes.fromhex(tx["signature"])
-
+    logging.info(f"Transaction signature: {signature}")
+    logging.info(f"Transaction public_key: {public_key}")
+    logging.info(f"Transaction tx: {tx_bytes}")
     # Verify the signature using the public key
     try:
         rsa.verify(tx_bytes, signature, public_key)
