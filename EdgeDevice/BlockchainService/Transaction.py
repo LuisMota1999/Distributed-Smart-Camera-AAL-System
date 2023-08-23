@@ -26,7 +26,7 @@ def create_transaction(private_key, public_key, receiver, action):
         "action": action,
         "timestamp": int(time.time()),
     }
-    tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
+    tx_bytes = json.dumps(tx, sort_keys=True).encode("utf-8")
 
     signature = rsa.sign(tx_bytes, private_key, "SHA-256")
     logging.info(f"Transaction signature creation: {signature}")
@@ -47,15 +47,9 @@ def validate_transaction(tx):
     tx = tx[0]
     public_key_pem = tx["sender"]
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
-
     tx_bytes = json.dumps(tx, sort_keys=True).encode("ascii")
-
-    # Retrieve the signature from the transaction
     signature = bytes.fromhex(tx["signature"])
-    logging.info(f"Transaction signature: {signature}")
-    logging.info(f"Transaction public_key: {public_key}")
-    logging.info(f"Transaction tx: {tx_bytes}")
-    # Verify the signature using the public key
+
     try:
         rsa.verify(tx_bytes, signature, public_key)
         return True
