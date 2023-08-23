@@ -28,7 +28,7 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
         "RECEIVER": receiver,
         "EVENT": {
             "TYPE": event_type,
-            "ACTION": event_action
+            "ACTION": event_action,
         },
         "TIMESTAMP": int(time.time()),
     }

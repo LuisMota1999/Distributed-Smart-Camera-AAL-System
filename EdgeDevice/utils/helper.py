@@ -73,7 +73,6 @@ class MessageHandlerUtils(object):
             "TYPE": message_type,
             "FROM_ID": from_id,
             "PAYLOAD": {
-                "LAST_TIME_ALIVE": time.time(),
             },
         }
 
