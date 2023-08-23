@@ -5,7 +5,7 @@ import logging
 from EdgeDevice.utils.helper import NetworkUtils
 
 
-def create_transaction(private_key, public_key, receiver, action):
+def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str):
     """
     Creates a transaction from a sender's public key to a receiver's public key
 
@@ -32,25 +32,26 @@ def create_transaction(private_key, public_key, receiver, action):
     signature = rsa.sign(tx_bytes, private_key, 'SHA-256')
 
     logging.info(f"Transaction signature creation: {signature}")
-    tx["SIGNATURE"] = signature.hex()
 
-    return tx
+    return tx, signature.hex()
 
 
-def validate_transaction(tx):
+def validate_transaction(transaction: dict, signature_hex: str):
     """
     Verifies that a given transaction was sent from the sender
 
-    :param tx: The transaction dict
-    :type tx: dict
+    :param signature_hex: The signature of transaction
+    :type signature_hex: str
+    :param transaction: The transaction dict
+    :type transaction: dict
     :return: True if the transaction is valid, False otherwise
     :rtype: bool
     """
 
-    public_key_pem = tx['SENDER']
+    public_key_pem = transaction['SENDER']
     public_key = NetworkUtils.load_key_from_json(public_key_pem)
-    tx_bytes = json.dumps(tx, sort_keys=True).encode()
-    signature = bytes.fromhex(tx['SIGNATURE'])
+    tx_bytes = json.dumps(transaction, sort_keys=True).encode()
+    signature = bytes.fromhex(signature_hex)
 
     try:
         rsa.verify(tx_bytes, signature, public_key)
