@@ -367,16 +367,16 @@ class Node(threading.Thread):
                 }
                 if transaction_with_signature not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(transaction_with_signature)
+                    for tx in self.blockchain.pending_transactions:
+                        data = MessageHandlerUtils.create_transaction_message(
+                            Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
 
-                    data = MessageHandlerUtils.create_transaction_message(
-                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
+                        data["PAYLOAD"]["PENDING"] = [tx]
+                        message = json.dumps(data, indent=2)
 
-                    data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
-                    message = json.dumps(data, indent=2)
+                        logging.info(f"Transaction message: {message}")
 
-                    logging.info(f"Transaction message: {message}")
-
-                    conn.send(bytes(message, encoding="utf-8"))
+                        conn.send(bytes(message, encoding="utf-8"))
 
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx_list = message["PAYLOAD"]["PENDING"]
