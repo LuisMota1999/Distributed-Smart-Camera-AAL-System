@@ -233,7 +233,7 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                # self.handle_detection()
+                self.handle_detection()
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
@@ -249,7 +249,7 @@ class Node(threading.Thread):
             'name': 'yamnet_retrained',
             'frequency': 16000,  # sample rate in Hz
             'duration': 0.96,  # duration of each input signal in seconds
-            'threshold': 0.85  # confidence threshold for classification
+            'threshold': 0.90  # confidence threshold for classification
         }
 
         audio_inference = AudioInference(audio_model)
@@ -260,10 +260,24 @@ class Node(threading.Thread):
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
             for inferred_class in inferred_classes:
-                transaction = create_transaction(
-                    self.private_key, self.public_key, str(self.id), "INFERENCE", inferred_class
+                message_tx = {
+                    "EVENT_TYPE": 'INFERENCE',
+                    "EVENT_ACTION": f'{inferred_class}'
+                }
+
+                tx, signature = create_transaction(
+                    self.private_key, self.public_key, str(self.id), message_tx["EVENT_TYPE"],
+                    message_tx["EVENT_ACTION"]
                 )
-                self.blockchain.pending_transactions.append(transaction)
+
+                transaction_with_signature = {
+                    "DATA": tx,
+                    "SIGNATURE": signature,
+
+                }
+                self.blockchain.pending_transactions.append(transaction_with_signature)
+                transaction_with_signature["TYPE"] = Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value
+                self.broadcast_message(transaction_with_signature)
 
     def handle_reconnects(self):
         """
@@ -413,7 +427,7 @@ class Node(threading.Thread):
 
             message_tx = {
                 "EVENT_TYPE": 'NETWORK',
-                "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]}'
+                "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]} JOINED'
             }
 
         neighbour = self.neighbours.get(neighbour_id)
@@ -460,14 +474,13 @@ class Node(threading.Thread):
 
                 message = json.loads(data)
                 message_type = message.get("TYPE")
+
+                logging.info(f"[MESSAGE TYPE]: {message_type}")
+
                 if message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                     neighbour_id = uuid.UUID(message.get("FROM_ID"))
                 else:
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-
-                if message_type != Messages.MESSAGE_TYPE_PING and message_type != Messages.MESSAGE_TYPE_PONG:
-                    logging.info(f"[MESSAGE TYPE]: {message_type}")
-                    logging.info(f"[MESSAGE DATA]: {data}")
 
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
@@ -536,7 +549,7 @@ class Node(threading.Thread):
         :return: None
         """
         for peer in self.connections:
-            peer.sendall(message.encode())
+            peer.sendall(bytes(message, encoding="utf-8"))
 
     def list_peers(self):
         """Prints a list of all connected peers.
