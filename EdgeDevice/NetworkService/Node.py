@@ -333,6 +333,7 @@ class Node(threading.Thread):
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
+                logging.error(f"Keep Alive Pinging")
             except Exception as ex:
                 logging.error(f"Exception error in Keep Alive: {ex.args}")
                 break
