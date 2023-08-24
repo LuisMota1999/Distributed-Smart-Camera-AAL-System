@@ -196,7 +196,9 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
 
-
+                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
+                                                              args=(conn, client_id))
+                handle_keep_alive_messages.start()
 
                 break
             except ConnectionRefusedError:
@@ -364,6 +366,15 @@ class Node(threading.Thread):
             logging.info("Blockchain chain was updated with information from coordinator")
 
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
+        """
+            Handle transaction-related messages.
+
+            Args:
+                message (dict): The incoming message.
+                conn: The connection object.
+                neighbour_id (str): Identifier of the neighboring node.
+                message_type (str): Type of the incoming message.
+        """
         try:
             logging.info(f"Handle transaction message {message_type}")
 
@@ -414,9 +425,8 @@ class Node(threading.Thread):
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
-    def handle_general_message(self, message, conn, neighbour_id):
-        message_type = Messages.MESSAGE_TYPE_PONG.value
-        message_tx = ""
+    def handle_general_message(self, message, conn, neighbour_id,  message_data, message_type=Messages.MESSAGE_TYPE_PONG):
+
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
 
@@ -424,10 +434,18 @@ class Node(threading.Thread):
 
             message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
 
-            message_tx = {
+            message_data = {
                 "EVENT_TYPE": 'NETWORK',
                 "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]} JOINED'
             }
+
+        if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+            message_data = {
+                "EVENT_TYPE": message_data["EVENT_TYPE"],
+                "EVENT_ACTION": message_data["EVENT_ACTION"]
+            }
+        else:
+            message_data = ""
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -443,7 +461,7 @@ class Node(threading.Thread):
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
 
-        data["PAYLOAD"]["EVENT"] = message_tx
+        data["PAYLOAD"]["EVENT"] = message_data
         message_json = json.dumps(data, indent=2)
         conn.send(bytes(message_json, encoding="utf-8"))
 
@@ -485,7 +503,6 @@ class Node(threading.Thread):
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
-                    logging.info(f"{data}")
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
