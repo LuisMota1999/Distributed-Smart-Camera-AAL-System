@@ -196,6 +196,15 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
 
+                message = {
+                    "EVENT_TYPE": 'NETWORK',
+                    "EVENT_ACTION": f'{client_host}:{client_port}'
+                }
+                handle_transaction_messages = threading.Thread(target=self.handle_transaction_message,
+                                                               args=(message, conn, client_id,
+                                                                     Messages.MESSAGE_TYPE_SEND_TRANSACTION.value))
+                handle_transaction_messages.start()
+
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
@@ -236,9 +245,14 @@ class Node(threading.Thread):
                 # self.handle_detection()
                 self.blockchain.add_block(self.blockchain.new_block())
                 tx, signature = create_transaction(self.private_key, self.public_key, str(self.id), 'Network',
-                                        f"[{self.ip}:{self.port}]")
-                #Signature needs to be implemented somehow
-                self.blockchain.pending_transactions.append(tx)
+                                                   f"[{self.ip}:{self.port}]")
+
+                transaction_with_signature = {
+                    "DATA": tx,
+                    "SIGNATURE": signature
+                }
+
+                self.blockchain.pending_transactions.append(transaction_with_signature)
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
             logging.error(f"SSLZero Return Error {e.strerror}")
@@ -247,7 +261,7 @@ class Node(threading.Thread):
     def handle_detection(self):
         """
 
-        :return:
+        :return: None
         """
         audio_model = {
             'name': 'yamnet_retrained',
@@ -265,7 +279,7 @@ class Node(threading.Thread):
             inferred_classes = audio_inference.inference(waveform)
             for inferred_class in inferred_classes:
                 transaction = create_transaction(
-                    self.private_key, self.public_key, str(self.id), inferred_class
+                    self.private_key, self.public_key, str(self.id), "INFERENCE", inferred_class
                 )
                 self.blockchain.pending_transactions.append(transaction)
 
@@ -361,36 +375,44 @@ class Node(threading.Thread):
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
-                                                   f"[{str(self.ip)}:{self.port}]", "NETWORK")
+                                                   message["EVENT_ACTION"], message["EVENT_TYPE"])
 
                 logging.info(f"Transaction created with success!")
-
-                if tx not in self.blockchain.pending_transactions:
-                    self.blockchain.pending_transactions.append(tx)
+                transaction_with_signature = {
+                    "DATA": tx,
+                    "SIGNATURE": signature
+                }
+                if transaction_with_signature not in self.blockchain.pending_transactions:
+                    self.blockchain.pending_transactions.append(transaction_with_signature)
 
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
+
                     data["PAYLOAD"]["PENDING"] = self.blockchain.pending_transactions
-                    data["PAYLOAD"]["SIGNATURE"] = signature
                     message = json.dumps(data, indent=2)
+
                     logging.info(f"Transaction message: {message}")
 
                     conn.send(bytes(message, encoding="utf-8"))
 
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
-                tx = message["PAYLOAD"]["PENDING"]
-                signature = message["PAYLOAD"]["SIGNATURE"]
-                if isinstance(tx, list):
-                    for item in tx:
-                        if validate_transaction(item, signature):
-                            logging.info("Transaction receveived is valid!")
+                tx_list = message["PAYLOAD"]["PENDING"]
 
-                            if item not in self.blockchain.pending_transactions:
-                                self.blockchain.pending_transactions.append(item)
-                                logging.info(f"Pending Transactions: {self.blockchain.pending_transactions}\n")
+                if isinstance(tx_list, list):
+                    for transaction_with_signature in tx_list:
+                        tx = transaction_with_signature["DATA"]
+                        signature = transaction_with_signature["SIGNATURE"]
+                        if transaction_with_signature not in self.blockchain.pending_transactions:
+                            if validate_transaction(tx, signature):
+                                logging.info("Transaction received is valid!")
+
+                                self.blockchain.pending_transactions.append(transaction_with_signature)
+                                logging.info(f"Pending Transactions: {self.blockchain.pending_transactions}")
+                            else:
+                                logging.warning("Received invalid transaction")
+                                return
                         else:
-                            logging.warning("Received invalid transaction")
-                            return
+                            logging.warning(f"Transaction {tx} already in pending transactions!")
                 else:
                     logging.warning("Invalid transaction format")
         except Exception as e:
@@ -401,7 +423,6 @@ class Node(threading.Thread):
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
             logging.info(f"Network Coordinator is {self.coordinator}")
-            message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
