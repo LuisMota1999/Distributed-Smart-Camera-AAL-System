@@ -198,7 +198,8 @@ class Node(threading.Thread):
 
                 message = {
                     "EVENT_TYPE": 'NETWORK',
-                    "EVENT_ACTION": f'{client_host}:{client_port}'
+                    "EVENT_ACTION": f'{client_host}:{client_port}',
+                    "EVENT_OCCURRENCE": "INITIAL"
                 }
                 handle_transaction_messages = threading.Thread(target=self.handle_transaction_message,
                                                                args=(message, conn, client_id,
@@ -382,7 +383,17 @@ class Node(threading.Thread):
                     "DATA": tx,
                     "SIGNATURE": signature
                 }
-                if transaction_with_signature not in self.blockchain.pending_transactions:
+                if message["EVENT_OCCURRENCE"] == "INITIAL":
+                    for tx in self.blockchain.pending_transactions:
+                        data = MessageHandlerUtils.create_transaction_message(
+                            Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
+                        data["PAYLOAD"]["PENDING"] = [tx]
+                        message = json.dumps(data, indent=2)
+
+                        logging.info(f"Transaction message: {message}")
+                        conn.send(bytes(message, encoding="utf-8"))
+
+                elif transaction_with_signature not in self.blockchain.pending_transactions:
                     self.blockchain.pending_transactions.append(transaction_with_signature)
 
                     data = MessageHandlerUtils.create_transaction_message(
