@@ -199,17 +199,6 @@ class Node(threading.Thread):
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
-
-                message = {
-                    "EVENT_TYPE": 'NETWORK',
-                    "EVENT_ACTION": f'{client_host}:{client_port}'
-                }
-
-                handle_transaction_messages = threading.Thread(target=self.handle_transaction_message,
-                                                               args=(message, conn, client_id,
-                                                                     Messages.MESSAGE_TYPE_SEND_TRANSACTION.value))
-                handle_transaction_messages.start()
-
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
