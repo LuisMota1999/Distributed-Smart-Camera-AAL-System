@@ -429,8 +429,8 @@ class Node(threading.Thread):
 
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
-            data["PAYLOAD"]["EVENT"] = message_tx
 
+        data["PAYLOAD"]["EVENT"] = message_tx
         message_json = json.dumps(data, indent=2)
         conn.send(bytes(message_json, encoding="utf-8"))
 
