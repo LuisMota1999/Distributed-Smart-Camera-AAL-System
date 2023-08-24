@@ -32,18 +32,18 @@ class Node(threading.Thread):
         self.id = uuid.uuid4()
         self.private_key, self.public_key = NetworkUtils.get_keys()
         self.name = name
-        self.ip = NetworkUtils.get_interface_ip()  # ni.ifaddresses('eth0')[ni.AF_INET][0]['addr']
+        self.ip = NetworkUtils.get_interface_ip()
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
         self.keep_alive_timeout = 20
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # Create the socket with TLS encryption
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         self.context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         cert, key = NetworkUtils.get_tls_keys()
         self.context.load_cert_chain(certfile=cert, keyfile=key)
         self.retries = 5
-        self.context.check_hostname = False  # Disable hostname verification for the server-side
+        self.context.check_hostname = False
         self.context.verify_mode = ssl.CERT_NONE
         self.socket = self.context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM),
@@ -355,10 +355,7 @@ class Node(threading.Thread):
             logging.info(f"Handle transaction message {message_type}")
 
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                message_tx = {
-                    "EVENT_TYPE": 'NETWORK',
-                    "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]}'
-                }
+                message_tx = message["PAYLOAD"]["EVENT"]
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
                                                    message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"])
@@ -406,12 +403,18 @@ class Node(threading.Thread):
 
     def handle_general_message(self, message, conn, neighbour_id):
         message_type = Messages.MESSAGE_TYPE_PONG.value
+        message_tx = ""
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
 
             logging.info(f"Network Coordinator is {self.coordinator}")
 
             message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
+
+            message_tx = {
+                "EVENT_TYPE": 'NETWORK',
+                "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]}'
+            }
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -426,6 +429,7 @@ class Node(threading.Thread):
 
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
+            data["PAYLOAD"]["EVENT"] = message_tx
 
         message_json = json.dumps(data, indent=2)
         conn.send(bytes(message_json, encoding="utf-8"))
