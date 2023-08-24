@@ -196,10 +196,15 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
 
+                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
+                                                              args=(conn, client_id))
+                handle_keep_alive_messages.start()
+
                 message = {
                     "EVENT_TYPE": 'NETWORK',
                     "EVENT_ACTION": f'{client_host}:{client_port}'
                 }
+
                 handle_transaction_messages = threading.Thread(target=self.handle_transaction_message,
                                                                args=(message, conn, client_id,
                                                                      Messages.MESSAGE_TYPE_SEND_TRANSACTION.value))
