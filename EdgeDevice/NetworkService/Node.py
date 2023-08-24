@@ -199,6 +199,7 @@ class Node(threading.Thread):
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
+
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
@@ -354,9 +355,13 @@ class Node(threading.Thread):
             logging.info(f"Handle transaction message {message_type}")
 
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+                message_tx = {
+                    "EVENT_TYPE": 'NETWORK',
+                    "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]}'
+                }
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
-                                                   message["EVENT_ACTION"], message["EVENT_TYPE"])
+                                                   message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"])
 
                 logging.info(f"Transaction created with success!")
                 transaction_with_signature = {
@@ -403,7 +408,10 @@ class Node(threading.Thread):
         message_type = Messages.MESSAGE_TYPE_PONG.value
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
+
             logging.info(f"Network Coordinator is {self.coordinator}")
+
+            message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
