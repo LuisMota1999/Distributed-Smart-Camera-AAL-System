@@ -231,7 +231,7 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                self.handle_detection()
+                # self.handle_detection()
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
@@ -276,6 +276,7 @@ class Node(threading.Thread):
                 self.blockchain.pending_transactions.append(transaction_with_signature)
                 transaction_with_signature["TYPE"] = Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value
                 self.broadcast_message(transaction_with_signature)
+                time.sleep(5)
 
     def handle_reconnects(self):
         """
