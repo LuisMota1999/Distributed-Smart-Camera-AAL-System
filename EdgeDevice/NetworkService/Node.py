@@ -259,26 +259,25 @@ class Node(threading.Thread):
         while self.running and self.coordinator == self.id:
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
-            for inferred_class in inferred_classes:
-                message_tx = {
-                    "EVENT_TYPE": 'INFERENCE',
-                    "EVENT_ACTION": f'{inferred_class}'
-                }
+            message_tx = {
+                "EVENT_TYPE": 'INFERENCE',
+                "EVENT_ACTION": f'{inferred_classes}'
+            }
 
-                tx, signature = create_transaction(
-                    self.private_key, self.public_key, str(self.id), message_tx["EVENT_TYPE"],
-                    message_tx["EVENT_ACTION"]
-                )
+            tx, signature = create_transaction(
+                self.private_key, self.public_key, str(self.id), message_tx["EVENT_TYPE"],
+                message_tx["EVENT_ACTION"]
+            )
 
-                transaction_with_signature = {
-                    "DATA": tx,
-                    "SIGNATURE": signature,
+            transaction_with_signature = {
+                "DATA": tx,
+                "SIGNATURE": signature,
 
-                }
-                self.blockchain.pending_transactions.append(transaction_with_signature)
-                transaction_with_signature["TYPE"] = Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value
-                self.broadcast_message(transaction_with_signature)
-                time.sleep(5)
+            }
+            self.blockchain.pending_transactions.append(transaction_with_signature)
+            transaction_with_signature["TYPE"] = Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value
+            self.broadcast_message(transaction_with_signature)
+            time.sleep(5)
 
     def handle_reconnects(self):
         """
@@ -333,7 +332,6 @@ class Node(threading.Thread):
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout)
-                logging.error(f"Keep Alive Pinging")
             except Exception as ex:
                 logging.error(f"Exception error in Keep Alive: {ex.args}")
                 break
