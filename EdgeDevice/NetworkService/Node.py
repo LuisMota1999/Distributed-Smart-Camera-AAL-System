@@ -426,7 +426,8 @@ class Node(threading.Thread):
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
-    def handle_general_message(self, message, conn, neighbour_id,  message_data = "", message_type=Messages.MESSAGE_TYPE_PONG):
+    def handle_general_message(self, message, conn, neighbour_id, message_data="",
+                               message_type=Messages.MESSAGE_TYPE_PONG.value):
 
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
