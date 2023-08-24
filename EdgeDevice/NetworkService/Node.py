@@ -205,9 +205,9 @@ class Node(threading.Thread):
                                                                      Messages.MESSAGE_TYPE_SEND_TRANSACTION.value))
                 handle_transaction_messages.start()
 
-                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
-                                                              args=(conn, client_id))
-                handle_keep_alive_messages.start()
+                #handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
+                #                                              args=(conn, client_id))
+                #handle_keep_alive_messages.start()
 
                 break
             except ConnectionRefusedError:
@@ -465,16 +465,14 @@ class Node(threading.Thread):
                     self.zeroconf.update_service(self.service_info)
                     break
 
+                logging.info(f"[MESSAGE DATA]: {data}")
+
                 message = json.loads(data)
                 message_type = message.get("TYPE")
                 if message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                     neighbour_id = uuid.UUID(message.get("FROM_ID"))
                 else:
                     neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-
-                if message_type != Messages.MESSAGE_TYPE_PING and message_type != Messages.MESSAGE_TYPE_PONG:
-                    logging.info(f"[MESSAGE TYPE]: {message_type}")
-                    logging.info(f"[MESSAGE DATA]: {data}")
 
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, neighbour_id, message_type)
