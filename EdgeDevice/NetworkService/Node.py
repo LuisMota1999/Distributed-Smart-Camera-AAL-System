@@ -196,9 +196,7 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
 
-                handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
-                                                              args=(conn, client_id))
-                handle_keep_alive_messages.start()
+
 
                 break
             except ConnectionRefusedError:
