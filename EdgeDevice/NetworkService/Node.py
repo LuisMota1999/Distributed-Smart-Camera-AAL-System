@@ -233,9 +233,9 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                self.handle_detection()
-                self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
+                self.blockchain.add_block(self.blockchain.new_block())
+                self.handle_detection()
         except ssl.SSLZeroReturnError as e:
             logging.error(f"SSLZero Return Error {e.strerror}")
             return
@@ -261,7 +261,23 @@ class Node(threading.Thread):
             inferred_classes = audio_inference.inference(waveform)
 
             if inferred_classes != last_class:
-                logging.info(f"Classes detected: {inferred_classes}")
+                logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
+                message_tx = {
+                    "EVENT_TYPE": 'INFERENCE',
+                    "EVENT_ACTION": f'{inferred_classes}'
+                }
+
+                tx, signature = create_transaction(
+                    self.private_key, self.public_key, str(self.id), message_tx["EVENT_TYPE"],
+                    message_tx["EVENT_ACTION"]
+                )
+
+                transaction_with_signature = {
+                    "DATA": tx,
+                    "SIGNATURE": signature,
+                }
+
+                self.blockchain.pending_transactions.append(transaction_with_signature)
 
             last_class = inferred_classes
             time.sleep(5)
