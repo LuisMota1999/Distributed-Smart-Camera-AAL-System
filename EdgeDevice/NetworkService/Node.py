@@ -286,7 +286,7 @@ class Node(threading.Thread):
                 self.blockchain.pending_transactions.append(transaction_with_signature)
 
                 data = MessageHandlerUtils.create_transaction_message(
-                    Messages.MESSAGE_TYPE_SEND_TRANSACTION.value, str(self.id), self.ip, self.port)
+                    Messages.MESSAGE_TYPE_SEND_TRANSACTION.value, str(self.id))
                 message = json.dumps(data, indent=2)
                 self.broadcast_message(message)
 
@@ -407,7 +407,7 @@ class Node(threading.Thread):
                     self.blockchain.pending_transactions.append(transaction_with_signature)
                     for tx in self.blockchain.pending_transactions:
                         data = MessageHandlerUtils.create_transaction_message(
-                            Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id), self.ip, self.port)
+                            Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
 
                         data["PAYLOAD"]["PENDING"] = [tx]
                         message = json.dumps(data, indent=2)
