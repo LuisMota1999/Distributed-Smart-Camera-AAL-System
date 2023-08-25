@@ -9,7 +9,6 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
     """
     Creates a transaction from a sender's public key to a receiver's public key
 
-    :param type:
     :param private_key: The Sender's private key
     :type private_key: rsa.PrivateKey
     :param public_key: The Sender's public key
@@ -18,6 +17,8 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
     :type receiver: str
     :param action: The action performed in real time in a certain point in time by the user
     :type action: str
+    :param local: The local the sensor is at smart home
+    :type local: str
     :return: The transaction dict
     :rtype: dict
     """

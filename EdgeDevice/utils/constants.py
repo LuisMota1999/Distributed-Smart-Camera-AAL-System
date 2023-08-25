@@ -26,6 +26,11 @@ class Messages(Enum):
     MESSAGE_TYPE_BLOCK = "BLOCK"
 
 
+class Transaction(Enum):
+    TYPE_INFERENCE = "INFERENCE"
+    TYPE_NETWORK = "NETWORK"
+
+
 class Homeassistant(Enum):
     MQTT_BROKER = "homeassistant"
     MQTT_PORT = 1883

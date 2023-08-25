@@ -12,7 +12,7 @@ from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
 from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.BlockchainService.Transaction import validate_transaction, create_transaction
-from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages
+from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages, Transaction
 import json
 from EdgeDevice.utils.helper import NetworkUtils, MessageHandlerUtils
 
@@ -390,7 +390,9 @@ class Node(threading.Thread):
         """
         try:
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+
                 message_tx = message["PAYLOAD"]["EVENT"]
+                logging.info(f"Transaction created with success {message_tx}")
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
                                                    message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
@@ -437,8 +439,9 @@ class Node(threading.Thread):
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
-    def handle_general_message(self, message, conn, neighbour_id, message_data="",
+    def handle_general_message(self, message, conn, neighbour_id,
                                message_type=Messages.MESSAGE_TYPE_PONG.value):
+        message_data = "KEEP ALIVE"
 
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
@@ -448,17 +451,11 @@ class Node(threading.Thread):
             message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
 
             message_data = {
-                "EVENT_TYPE": 'NETWORK',
+                "EVENT_TYPE": Transaction.TYPE_NETWORK.value,
                 "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]} JOINED',
-                "EVENT_LOCAL": "-",
+                "EVENT_LOCAL": "SYSTEM",
             }
 
-        if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-            message_data = {
-                "EVENT_TYPE": message_data["EVENT_TYPE"],
-                "EVENT_ACTION": message_data["EVENT_ACTION"],
-                "EVENT_LOCAL": message_data["LOCAL"],
-            }
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -509,6 +506,7 @@ class Node(threading.Thread):
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
+
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, str(neighbour_id), message_type)
 
@@ -522,6 +520,7 @@ class Node(threading.Thread):
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_PING.value:
+
                     self.handle_general_message(message, conn, neighbour_id)
 
             except json.JSONDecodeError as e:
