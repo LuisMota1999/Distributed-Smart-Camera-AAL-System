@@ -492,7 +492,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-
+                logging.info(f"[MESSAGE TYPE]: {data}")
                 if not data:
                     logging.info(f"Data not found {data}")
                     self.service_info.priority = random.randint(1, 100)
@@ -502,7 +502,7 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
-                logging.info(f"[MESSAGE TYPE]: {message_type}")
+
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
