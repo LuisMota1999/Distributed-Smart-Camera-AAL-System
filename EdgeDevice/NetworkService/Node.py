@@ -233,7 +233,7 @@ class Node(threading.Thread):
                     self.election_in_progress = False
             elif self.coordinator is None and len(self.connections) <= 0:
                 self.coordinator = self.id
-                # self.handle_detection()
+                self.handle_detection()
                 self.blockchain.add_block(self.blockchain.new_block())
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
         except ssl.SSLZeroReturnError as e:
@@ -256,27 +256,13 @@ class Node(threading.Thread):
         audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
 
-        while self.running and self.coordinator == self.id:
+        while self.running:
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
-            message_tx = {
-                "EVENT_TYPE": 'INFERENCE',
-                "EVENT_ACTION": f'{inferred_classes}'
-            }
+            highest_confidence = max(inferred_classes.values())
+            if highest_confidence > audio_model['threshold']:
+                logging.info(f"Highest confidence: {highest_confidence} from {inferred_classes}")
 
-            tx, signature = create_transaction(
-                self.private_key, self.public_key, str(self.id), message_tx["EVENT_TYPE"],
-                message_tx["EVENT_ACTION"]
-            )
-
-            transaction_with_signature = {
-                "DATA": tx,
-                "SIGNATURE": signature,
-
-            }
-            self.blockchain.pending_transactions.append(transaction_with_signature)
-            transaction_with_signature["TYPE"] = Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value
-            self.broadcast_message(transaction_with_signature)
             time.sleep(5)
 
     def handle_reconnects(self):
