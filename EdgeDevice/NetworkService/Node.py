@@ -502,7 +502,7 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
-
+                logging.info(f"[MESSAGE TYPE]: {message_type}")
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 

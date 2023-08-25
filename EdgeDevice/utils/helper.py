@@ -68,11 +68,11 @@ class MessageHandlerUtils(object):
         }
 
     @staticmethod
-    def create_transaction_message(message_type, from_id, from_ip, from_port):
+    def create_transaction_message(message_type, from_id):
         return {
             "TYPE": message_type,
             "META": {
-                "FROM_ADDRESS": {"ID": from_id, "IP": from_ip, "PORT": from_port},
+                "FROM_ADDRESS": {"ID": from_id},
             },
             "PAYLOAD": {
             },
