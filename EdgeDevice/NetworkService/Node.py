@@ -259,9 +259,8 @@ class Node(threading.Thread):
         while self.running:
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
-            highest_confidence = max(inferred_classes.values())
-            if highest_confidence > audio_model['threshold']:
-                logging.info(f"Highest confidence: {highest_confidence} from {inferred_classes}")
+
+            logging.info(f"Classes detected: {inferred_classes}")
 
             time.sleep(5)
 
