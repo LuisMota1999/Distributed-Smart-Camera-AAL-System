@@ -5,7 +5,7 @@ import logging
 from EdgeDevice.utils.helper import NetworkUtils
 
 
-def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str):
+def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str, local:str):
     """
     Creates a transaction from a sender's public key to a receiver's public key
 
@@ -26,6 +26,7 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
         "RECEIVER": receiver,
         "EVENT_TYPE": type,
         "EVENT_ACTION": action,
+        "EVENT_LOCAL": local,
         "TIMESTAMP": int(time.time()),
     }
     tx_bytes = json.dumps(tx, sort_keys=True).encode()
@@ -57,7 +58,6 @@ def validate_transaction(transaction: dict, signature_hex: str):
 
     try:
         rsa.verify(tx_bytes, signature, public_key)
-        logging.info(f"Transaction validated!")
         return True
     except rsa.VerificationError as e:
         logging.error(f"Transaction error validating:{e.args}")

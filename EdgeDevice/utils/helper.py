@@ -68,10 +68,12 @@ class MessageHandlerUtils(object):
         }
 
     @staticmethod
-    def create_transaction_message(message_type, from_id):
+    def create_transaction_message(message_type, from_id, from_ip, from_port):
         return {
             "TYPE": message_type,
-            "FROM_ID": from_id,
+            "META": {
+                "FROM_ADDRESS": {"ID": from_id, "IP": from_ip, "PORT": from_port},
+            },
             "PAYLOAD": {
             },
         }
@@ -82,7 +84,6 @@ class MessageHandlerUtils(object):
             "EVENT_ACTION": event_action,
             "EVENT_TYPE": event_type,
         }
-
 
     @staticmethod
     def create_homeassistant_message(external_id, external_ip, external_port, event, local, version="0.0.1"):
