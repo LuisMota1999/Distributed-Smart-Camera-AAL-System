@@ -260,8 +260,10 @@ class Node(threading.Thread):
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
 
-            logging.info(f"Classes detected: {inferred_classes}")
+            if inferred_classes == last_class:
+                logging.info(f"Classes detected: {inferred_classes}")
 
+            last_class = inferred_classes
             time.sleep(5)
 
     def handle_reconnects(self):

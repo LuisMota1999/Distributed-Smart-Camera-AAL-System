@@ -83,7 +83,7 @@ class AudioInference:
         top_score = class_probabilities[top_class]
         inferred_class = self.class_names[top_class]
 
-        if top_score < self.threshold or inferred_class == self.last_class:
+        if top_score < self.threshold:
             inferred_class = 'Unknown'
 
         self.last_class = inferred_class
