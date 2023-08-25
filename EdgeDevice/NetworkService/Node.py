@@ -260,7 +260,7 @@ class Node(threading.Thread):
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
 
-            if inferred_classes == last_class:
+            if inferred_classes != last_class:
                 logging.info(f"Classes detected: {inferred_classes}")
 
             last_class = inferred_classes
