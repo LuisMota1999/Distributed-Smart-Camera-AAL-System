@@ -255,11 +255,11 @@ class Node(threading.Thread):
         audio_inference = AudioInference(audio_model)
         audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
-
+        last_class = ""
         while self.running:
             # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
-            last_class = ""
+
             if inferred_classes == last_class:
                 logging.info(f"Classes detected: {inferred_classes}")
 
