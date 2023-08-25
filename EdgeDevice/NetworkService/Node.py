@@ -456,7 +456,6 @@ class Node(threading.Thread):
                 "EVENT_LOCAL": "SYSTEM",
             }
 
-
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             public_key_base64 = message['PAYLOAD']['PUBLIC_KEY']
@@ -504,8 +503,10 @@ class Node(threading.Thread):
 
                 logging.info(f"[MESSAGE TYPE]: {message_type}")
 
-                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
-
+                if Messages.MESSAGE_TYPE_SEND_TRANSACTION.value == message_type or Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION == message_type:
+                    neighbour_id = uuid.UUID(message['FROM_ADDRESS_ID'])
+                else:
+                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, str(neighbour_id), message_type)
