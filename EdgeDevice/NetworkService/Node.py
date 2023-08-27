@@ -206,6 +206,10 @@ class Node(threading.Thread):
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
+                handle_chain_messages = threading.Thread(target=self.handle_chain_message,
+                                                         args=("", conn, client_id,
+                                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
@@ -345,7 +349,7 @@ class Node(threading.Thread):
 
     def handle_chain_message(self, message, conn, neighbour_id, message_type):
         if message_type == Messages.MESSAGE_TYPE_REQUEST_CHAIN.value:
-            if self.coordinator == uuid.UUID(message["PAYLOAD"].get("COORDINATOR")):
+            if self.coordinator == self.id:
                 data = MessageHandlerUtils.create_general_message(str(self.id), self.ip, self.port,
                                                                   conn.getpeername()[0],
                                                                   conn.getpeername()[1],
