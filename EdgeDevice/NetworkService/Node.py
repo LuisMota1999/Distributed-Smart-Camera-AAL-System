@@ -463,7 +463,7 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
-                if Messages.MESSAGE_TYPE_PING.value != message_type: logging.info(f"[MESSAGE TYPE]: {message_type}")
+                if Messages.MESSAGE_TYPE_PING.value != message_type and Messages.MESSAGE_TYPE_PONG.value != message_type : logging.info(f"[MESSAGE TYPE]: {message_type}")
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
