@@ -206,6 +206,15 @@ class Node(threading.Thread):
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
+                time.sleep(2)
+
+                new_transaction_created = self.create_blockchain_transaction(Transaction.TYPE_NETWORK.value,
+                                                                             f"{self.ip}:{self.port}", self.local)
+
+                if new_transaction_created:
+                    self.broadcast_pending_transactions(Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value,
+                                                        self.blockchain.pending_transactions)
+
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
@@ -245,55 +254,12 @@ class Node(threading.Thread):
             logging.error(f"SSLZero Return Error {e.strerror}")
             return
 
-    def handle_detection(self):
-        """
-
-        :return: None
-        """
-        audio_model = {
-            'name': 'yamnet_retrained',
-            'frequency': 16000,  # sample rate in Hz
-            'duration': 0.96,  # duration of each input signal in seconds
-            'threshold': 0.90  # confidence threshold for classification
-        }
-
-        audio_inference = AudioInference(audio_model)
-        audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
-        waveform, _ = sf.read(audio_file_path, dtype='float32')
-        last_class = ""
-        while self.running:
-            # Perform audio inference and create a transaction for each detected class
-            inferred_classes = audio_inference.inference(waveform)
-
-            if inferred_classes != last_class:
-                logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
-                message_tx = {
-                    "EVENT_TYPE": 'INFERENCE',
-                    "EVENT_ACTION": f'{inferred_classes}',
-                    "EVENT_LOCAL": f'{self.local}',
-                }
-
-                tx, signature = create_transaction(
-                    self.private_key, self.public_key, str(self.id), message_tx["EVENT_ACTION"],
-                    message_tx["EVENT_TYPE"],
-                    message_tx["EVENT_LOCAL"]
-                )
-
-                transaction_with_signature = {
-                    "DATA": tx,
-                    "SIGNATURE": signature,
-                }
-                self.blockchain.pending_transactions.append(transaction_with_signature)
-
-                data = MessageHandlerUtils.create_transaction_message(
-                    Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(self.id))
-
-                data["PAYLOAD"]["PENDING"] = transaction_with_signature
-                message = json.dumps(data, indent=2)
-                self.broadcast_message(message.encode())
-
-            last_class = inferred_classes
-            time.sleep(5)
+    def broadcast_pending_transactions(self, message_type, content):
+        data = MessageHandlerUtils.create_transaction_message(
+            message_type, str(self.id))
+        data["PAYLOAD"]["CONTENT"] = content
+        message = json.dumps(data, indent=2)
+        self.broadcast_message(message.encode())
 
     def handle_reconnects(self):
         """
@@ -380,6 +346,40 @@ class Node(threading.Thread):
             logging.info(f"IP: {self.ip} , CHAIN: {self.blockchain.chain}")
             logging.info("Blockchain chain was updated with information from coordinator")
 
+    def handle_detection(self):
+        """
+        :return: None
+        """
+        audio_model = {
+            'name': 'yamnet_retrained',
+            'frequency': 16000,  # sample rate in Hz
+            'duration': 0.96,  # duration of each input signal in seconds
+            'threshold': 0.90  # confidence threshold for classification
+        }
+
+        audio_inference = AudioInference(audio_model)
+        audio_file_path = '../RetrainedModels/audio/test_audios/136.wav'
+        waveform, _ = sf.read(audio_file_path, dtype='float32')
+        last_class = ""
+        while self.running:
+            inferred_classes = audio_inference.inference(waveform)
+
+            if inferred_classes != last_class:
+                logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
+
+                transaction_with_signature = self.create_blockchain_transaction("INFERENCE", inferred_classes,
+                                                                                self.local)
+                if transaction_with_signature:
+                    data = MessageHandlerUtils.create_transaction_message(
+                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(self.id))
+
+                    data["PAYLOAD"]["CONTENT"] = self.blockchain.pending_transactions
+                    message = json.dumps(data, indent=2)
+                    self.broadcast_message(message.encode())
+
+            last_class = inferred_classes
+            time.sleep(5)
+
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
         """
             Handle transaction-related messages.
@@ -391,35 +391,10 @@ class Node(threading.Thread):
                 message_type (str): Type of the incoming message.
         """
         try:
-            if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
-                logging.error(f"Handle transaction message: {message}")
-                message_tx = message["PAYLOAD"]["EVENT"]
-
-                tx, signature = create_transaction(self.private_key, self.public_key,
-                                                   str(self.id),
-                                                   message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
-                                                   message_tx["EVENT_LOCAL"])
-
-                logging.info(f"Transaction created with success {message_tx}")
-                transaction_with_signature = {
-                    "DATA": tx,
-                    "SIGNATURE": signature
-                }
-                if transaction_with_signature not in self.blockchain.pending_transactions:
-                    self.blockchain.pending_transactions.append(transaction_with_signature)
-                    for tx in self.blockchain.pending_transactions:
-                        data = MessageHandlerUtils.create_transaction_message(
-                            Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
-
-                        data["PAYLOAD"]["PENDING"] = [tx]
-                        message = json.dumps(data, indent=2)
-
-                        logging.info(f"Transaction message: {message}")
-
-                        conn.send(bytes(message, encoding="utf-8"))
-
+            if message_type == Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value:
+                logging.error(f"Handle Request Transaction Message: {message}")
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
-                tx_list = message["PAYLOAD"]["PENDING"]
+                tx_list = message["PAYLOAD"]["CONTENT"]
 
                 if isinstance(tx_list, list):
                     for transaction_with_signature in tx_list:
@@ -430,7 +405,7 @@ class Node(threading.Thread):
                                 logging.info("[TRANSACTION] Transaction is valid")
 
                                 self.blockchain.pending_transactions.append(transaction_with_signature)
-                                logging.info(f"Pending Transactions: {self.blockchain.pending_transactions}")
+                                logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}\n")
                             else:
                                 logging.warning("Received invalid transaction")
                                 return
@@ -441,22 +416,36 @@ class Node(threading.Thread):
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
+    def create_blockchain_transaction(self, event_action, event_type, event_local):
+        message_tx = {
+            "EVENT_TYPE": event_type,
+            "EVENT_ACTION": event_action,
+            "EVENT_LOCAL": event_local,
+        }
+
+        tx, signature = create_transaction(
+            self.private_key, self.public_key, str(self.id),
+            message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
+            message_tx["EVENT_LOCAL"]
+        )
+
+        transaction_with_signature = {
+            "DATA": tx,
+            "SIGNATURE": signature,
+        }
+
+        if transaction_with_signature not in self.blockchain.pending_transactions:
+            self.blockchain.pending_transactions.append(transaction_with_signature)
+            return True
+
+        return False
+
     def handle_general_message(self, message, conn, neighbour_id,
                                message_type=Messages.MESSAGE_TYPE_PONG.value):
-        message_data = "KEEP ALIVE"
-
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
 
             logging.info(f"Network Coordinator is {self.coordinator}")
-
-            message_type = Messages.MESSAGE_TYPE_SEND_TRANSACTION.value
-
-            message_data = {
-                "EVENT_TYPE": Transaction.TYPE_NETWORK.value,
-                "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]} JOINED',
-                "EVENT_LOCAL": "SYSTEM",
-            }
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -472,7 +461,6 @@ class Node(threading.Thread):
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
 
-        data["PAYLOAD"]["EVENT"] = message_data
         message_json = json.dumps(data, indent=2)
         conn.send(bytes(message_json, encoding="utf-8"))
 
@@ -507,7 +495,7 @@ class Node(threading.Thread):
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
-                if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
+                if message_type == Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, str(neighbour_id), message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
