@@ -403,7 +403,7 @@ class Node(threading.Thread):
                                 logging.info("[TRANSACTION] Transaction is valid")
 
                                 self.blockchain.pending_transactions.append(transaction_with_signature)
-                                logging.info(f"\nPending Transactions: {NetworkUtils.display_list_json(self.blockchain.pending_transactions)}\n")
+
                             else:
                                 logging.warning("Received invalid transaction")
                                 return
@@ -411,6 +411,8 @@ class Node(threading.Thread):
                             logging.warning(f"Transaction {tx} already in pending transactions!")
                 else:
                     logging.warning("Invalid transaction format")
+                logging.info(
+                    f"\nPending Transactions: {NetworkUtils.display_list_json(self.blockchain.pending_transactions)}\n")
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
