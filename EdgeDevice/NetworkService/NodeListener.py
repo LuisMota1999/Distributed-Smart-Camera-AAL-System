@@ -2,6 +2,7 @@ import logging
 import time
 from zeroconf import Zeroconf, ServiceStateChange
 from typing import cast
+from EdgeDevice.utils.constants import Transaction
 
 
 class NodeListener:
@@ -36,6 +37,8 @@ class NodeListener:
                 if ip != self.node.ip:
                     logging.info(f"[ADD SERVICE] Service info: {info}")
                     self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
+                    self.node.create_blockchain_transaction(f"{ip}:{info.port}", Transaction.TYPE_NETWORK,
+                                                            info.properties.get(b'LOCAL').decode('utf-8'))
 
     def update_service(self,
                        zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange

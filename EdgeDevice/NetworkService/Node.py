@@ -267,30 +267,15 @@ class Node(threading.Thread):
 
             if inferred_classes != last_class:
                 logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
-                message_tx = {
-                    "EVENT_TYPE": 'INFERENCE',
-                    "EVENT_ACTION": f'{inferred_classes}',
-                    "EVENT_LOCAL": f'{self.local}',
-                }
-
-                tx, signature = create_transaction(
-                    self.private_key, self.public_key, str(self.id), message_tx["EVENT_ACTION"],
-                    message_tx["EVENT_TYPE"],
-                    message_tx["EVENT_LOCAL"]
-                )
-
-                transaction_with_signature = {
-                    "DATA": tx,
-                    "SIGNATURE": signature,
-                }
-                self.blockchain.pending_transactions.append(transaction_with_signature)
+                transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
+                                                                                Transaction.TYPE_INFERENCE, self.local)
 
                 data = MessageHandlerUtils.create_transaction_message(
                     Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(self.id))
 
                 data["PAYLOAD"]["PENDING"] = transaction_with_signature
                 message = json.dumps(data, indent=2)
-                self.broadcast_message(message.encode())
+                self.broadcast_message(message)
 
             last_class = inferred_classes
             time.sleep(5)
@@ -304,14 +289,10 @@ class Node(threading.Thread):
         """
         while self.running:
             if len(self.connections) < 1 and self.recon_state is True:
-                # If there are no connections and reconnection is required, update the node's last seen time and wait
-                # for the specified amount of time before attempting to reconnect
                 self.blockchain.nodes[self.ip] = time.time()
                 print("Attempting to reconnect...")
                 time.sleep(self.keep_alive_timeout)
             elif len(self.connections) > 0 and self.recon_state is True:
-                # If there are active connections and reconnection is required, broadcast a "BC" message to all nodes
-                # and wait for a short amount of time before continuing
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
                 self.handle_election()
@@ -393,30 +374,17 @@ class Node(threading.Thread):
         try:
             if message_type == Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value:
                 logging.error(f"Handle transaction message: {message}")
-                message_tx = message["PAYLOAD"]["EVENT"]
 
-                tx, signature = create_transaction(self.private_key, self.public_key,
-                                                   str(self.id),
-                                                   message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
-                                                   message_tx["EVENT_LOCAL"])
+                for tx in self.blockchain.pending_transactions:
+                    data = MessageHandlerUtils.create_transaction_message(
+                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
 
-                logging.info(f"Transaction created with success {message_tx}")
-                transaction_with_signature = {
-                    "DATA": tx,
-                    "SIGNATURE": signature
-                }
-                if transaction_with_signature not in self.blockchain.pending_transactions:
-                    self.blockchain.pending_transactions.append(transaction_with_signature)
-                    for tx in self.blockchain.pending_transactions:
-                        data = MessageHandlerUtils.create_transaction_message(
-                            Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
+                    data["PAYLOAD"]["PENDING"] = [tx]
+                    message = json.dumps(data, indent=2)
 
-                        data["PAYLOAD"]["PENDING"] = [tx]
-                        message = json.dumps(data, indent=2)
+                    logging.info(f"Transaction message: {message}")
 
-                        logging.info(f"Transaction message: {message}")
-
-                        conn.send(bytes(message, encoding="utf-8"))
+                    conn.send(bytes(message, encoding="utf-8"))
 
             elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
                 tx_list = message["PAYLOAD"]["PENDING"]
@@ -443,7 +411,6 @@ class Node(threading.Thread):
 
     def handle_general_message(self, message, conn, neighbour_id,
                                message_type=Messages.MESSAGE_TYPE_PONG.value):
-        message_data = "KEEP ALIVE"
 
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
@@ -451,12 +418,6 @@ class Node(threading.Thread):
             logging.info(f"Network Coordinator is {self.coordinator}")
 
             message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
-
-            message_data = {
-                "EVENT_TYPE": Transaction.TYPE_NETWORK.value,
-                "EVENT_ACTION": f'{conn.getpeername()[0]}:{conn.getpeername()[1]} JOINED',
-                "EVENT_LOCAL": "SYSTEM",
-            }
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -472,7 +433,6 @@ class Node(threading.Thread):
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
             data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
 
-        data["PAYLOAD"]["EVENT"] = message_data
         message_json = json.dumps(data, indent=2)
         conn.send(bytes(message_json, encoding="utf-8"))
 
@@ -564,6 +524,30 @@ class Node(threading.Thread):
                     conn.close()
                 break
 
+    def create_blockchain_transaction(self, event_action, event_type, event_local):
+        message_tx = {
+            "EVENT_TYPE": event_type,
+            "EVENT_ACTION": event_action,
+            "EVENT_LOCAL": event_local,
+        }
+
+        tx, signature = create_transaction(
+            self.private_key, self.public_key, str(self.id),
+            message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
+            message_tx["EVENT_LOCAL"]
+        )
+
+        transaction_with_signature = {
+            "DATA": tx,
+            "SIGNATURE": signature,
+        }
+
+        if transaction_with_signature not in self.blockchain.pending_transactions:
+            self.blockchain.pending_transactions.append(transaction_with_signature)
+            return transaction_with_signature
+
+        return None
+
     def broadcast_message(self, message):
         """
         The ``broadcast_message`` method broadcasts a message to all connected peers. The message is encoded and sent to
@@ -574,7 +558,7 @@ class Node(threading.Thread):
         :return: None
         """
         for peer in self.connections:
-            peer.sendall(message)
+            peer.sendall(bytes(message, encoding="utf-8"))
 
     def list_peers(self):
         """Prints a list of all connected peers.
