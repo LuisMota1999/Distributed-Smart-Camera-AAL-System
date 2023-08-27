@@ -268,10 +268,11 @@ class Node(threading.Thread):
             if inferred_classes != last_class:
                 logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
                 transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
-                                                                                Transaction.TYPE_INFERENCE.value, self.local)
+                                                                                Transaction.TYPE_INFERENCE.value,
+                                                                                self.local)
 
                 data = MessageHandlerUtils.create_transaction_message(
-                    Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(self.id))
+                    Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
 
                 data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
                 message = json.dumps(data, indent=2)
@@ -343,20 +344,20 @@ class Node(threading.Thread):
             conn.close()
 
     def handle_chain_message(self, message, conn, neighbour_id, message_type):
-        if message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
+        if message_type == Messages.MESSAGE_TYPE_REQUEST_CHAIN.value:
             if self.coordinator == uuid.UUID(message["PAYLOAD"].get("COORDINATOR")):
                 data = MessageHandlerUtils.create_general_message(str(self.id), self.ip, self.port,
                                                                   conn.getpeername()[0],
                                                                   conn.getpeername()[1],
                                                                   str(neighbour_id), str(self.coordinator),
-                                                                  Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value)
+                                                                  Messages.MESSAGE_TYPE_RESPONSE_CHAIN.value)
 
                 data["PAYLOAD"]["CHAIN"] = self.blockchain.chain
 
                 message_json = json.dumps(data, indent=2)
                 logging.info(f"CHAIN MESSAGE: {message_json}")
                 conn.send(bytes(message_json, encoding="utf-8"))
-        elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
+        elif message_type == Messages.MESSAGE_TYPE_RESPONSE_CHAIN.value:
             self.blockchain.chain = message["PAYLOAD"].get("CHAIN")
             logging.info(f"IP: {self.ip} , CHAIN: {self.blockchain.chain}")
             logging.info("Blockchain chain was updated with information from coordinator")
@@ -377,7 +378,7 @@ class Node(threading.Thread):
 
                 for tx in self.blockchain.pending_transactions:
                     data = MessageHandlerUtils.create_transaction_message(
-                        Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(neighbour_id))
+                        Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(neighbour_id))
 
                     data["PAYLOAD"]["PENDING"] = [tx]
                     message = json.dumps(data, indent=2)
@@ -386,7 +387,7 @@ class Node(threading.Thread):
 
                     conn.send(bytes(message, encoding="utf-8"))
 
-            elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
+            elif message_type == Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value:
                 tx_list = message["PAYLOAD"]["PENDING"]
 
                 if isinstance(tx_list, list):
@@ -463,20 +464,21 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
-                if Messages.MESSAGE_TYPE_PING.value != message_type and Messages.MESSAGE_TYPE_PONG.value != message_type : logging.info(f"[MESSAGE TYPE]: {message_type}")
+                if Messages.MESSAGE_TYPE_PING.value != message_type and Messages.MESSAGE_TYPE_PONG.value != message_type: logging.info(
+                    f"[MESSAGE TYPE]: {message_type}")
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
                 if message_type == Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, str(neighbour_id), message_type)
 
-                elif message_type == Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value:
+                elif message_type == Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, str(neighbour_id), message_type)
 
-                elif message_type == Messages.MESSAGE_TYPE_GET_CHAIN.value:
+                elif message_type == Messages.MESSAGE_TYPE_REQUEST_CHAIN.value:
                     self.handle_chain_message(message, conn, str(neighbour_id), message_type)
 
-                elif message_type == Messages.MESSAGE_TYPE_CHAIN_RESPONSE.value:
+                elif message_type == Messages.MESSAGE_TYPE_RESPONSE_CHAIN.value:
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_PING.value:
