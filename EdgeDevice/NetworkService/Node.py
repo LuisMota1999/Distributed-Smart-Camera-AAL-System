@@ -398,7 +398,7 @@ class Node(threading.Thread):
                                 logging.info("[TRANSACTION] Transaction is valid")
 
                                 self.blockchain.pending_transactions.append(transaction_with_signature)
-                                logging.info(f"Pending Transactions: {self.blockchain.pending_transactions}")
+                                logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}\n")
                             else:
                                 logging.warning("Received invalid transaction")
                                 return
@@ -463,7 +463,7 @@ class Node(threading.Thread):
                 message = json.loads(data)
                 message_type = message.get("TYPE")
 
-                logging.info(f"[MESSAGE TYPE]: {message_type}")
+                if Messages.MESSAGE_TYPE_PING.value != message_type: logging.info(f"[MESSAGE TYPE]: {message_type}")
 
                 neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
@@ -480,7 +480,6 @@ class Node(threading.Thread):
                     self.handle_chain_message(message, conn, neighbour_id, message_type)
 
                 elif message_type == Messages.MESSAGE_TYPE_PING.value:
-
                     self.handle_general_message(message, conn, neighbour_id)
 
             except json.JSONDecodeError as e:
