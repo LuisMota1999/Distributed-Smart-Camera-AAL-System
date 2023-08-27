@@ -28,7 +28,8 @@ class Messages(Enum):
 
 
 class Transaction(Enum):
-    TYPE_INFERENCE = "INFERENCE"
+    TYPE_AUDIO_INFERENCE = "AUDIO INFERENCE"
+    TYPE_VIDEO_INFERENCE = "VIDEO INFERENCE"
     TYPE_NETWORK = "NETWORK"
 
 
