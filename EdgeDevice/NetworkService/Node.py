@@ -391,7 +391,7 @@ class Node(threading.Thread):
         try:
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
 
-                message_tx = message["PAYLOAD"]["EVENT"]
+                message_tx = message["PAYLOAD"]["PENDING"]
 
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
