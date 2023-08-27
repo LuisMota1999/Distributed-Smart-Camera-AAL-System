@@ -157,6 +157,12 @@ class Utils(object):
 class NetworkUtils(object):
 
     @staticmethod
+    def display_list_json(list_json):
+        for json_data in list_json:
+            formatted_json = json.dumps(json_data, indent=2)
+            logging.info(f"{formatted_json}\n")
+
+    @staticmethod
     def generate_unique_id() -> str:
         """
         Generate a unique identifier by generating a UUID and selecting 10 random digits.
