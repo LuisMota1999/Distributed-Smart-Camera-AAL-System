@@ -71,7 +71,12 @@ class MessageHandlerUtils(object):
     def create_transaction_message(message_type, from_id):
         return {
             "TYPE": message_type,
-            "FROM_ADDRESS": {"ID": from_id},
+            "META": {
+                "FROM_ADDRESS":
+                    {
+                        "ID": from_id
+                    }
+            },
             "PAYLOAD": {
             },
         }

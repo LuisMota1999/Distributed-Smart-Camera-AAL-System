@@ -491,7 +491,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-                logging.info(f"[MESSAGE TYPE]: {data}")
+
                 if not data:
                     logging.info(f"Data not found {data}")
                     self.service_info.priority = random.randint(1, 100)
@@ -503,10 +503,7 @@ class Node(threading.Thread):
 
                 logging.info(f"[MESSAGE TYPE]: {message_type}")
 
-                if Messages.MESSAGE_TYPE_SEND_TRANSACTION.value == message_type or Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION == message_type:
-                    neighbour_id = uuid.UUID(message['FROM_ADDRESS_ID'])
-                else:
-                    neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
+                neighbour_id = uuid.UUID(message['META']['FROM_ADDRESS']['ID'])
 
                 if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                     self.handle_transaction_message(message, conn, str(neighbour_id), message_type)
