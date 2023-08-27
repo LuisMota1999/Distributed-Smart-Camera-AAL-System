@@ -286,9 +286,9 @@ class Node(threading.Thread):
                 self.blockchain.pending_transactions.append(transaction_with_signature)
 
                 data = MessageHandlerUtils.create_transaction_message(
-                    Messages.MESSAGE_TYPE_SEND_TRANSACTION.value, str(self.id))
+                    Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(self.id))
 
-                data["PAYLOAD"]["EVENT"] = tx
+                data["PAYLOAD"]["PENDING"] = tx
                 message = json.dumps(data, indent=2)
                 self.broadcast_message(message.encode())
 
@@ -393,7 +393,7 @@ class Node(threading.Thread):
         try:
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
                 logging.error(f"Handle transaction message: {message}")
-                message_tx = message["PAYLOAD"]["PENDING"]
+                message_tx = message["PAYLOAD"]["EVENT"]
 
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
