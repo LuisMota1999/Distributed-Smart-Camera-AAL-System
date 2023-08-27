@@ -288,7 +288,7 @@ class Node(threading.Thread):
                 data = MessageHandlerUtils.create_transaction_message(
                     Messages.MESSAGE_TYPE_SEND_TRANSACTION.value, str(self.id))
                 message = json.dumps(data, indent=2)
-                self.broadcast_message(message)
+                self.broadcast_message(message.encode())
 
             last_class = inferred_classes
             time.sleep(5)
