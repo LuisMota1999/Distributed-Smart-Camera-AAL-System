@@ -268,7 +268,7 @@ class Node(threading.Thread):
             if inferred_classes != last_class:
                 logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
                 transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
-                                                                                Transaction.TYPE_INFERENCE, self.local)
+                                                                                Transaction.TYPE_INFERENCE.value, self.local)
 
                 data = MessageHandlerUtils.create_transaction_message(
                     Messages.MESSAGE_TYPE_RECEIVE_TRANSACTION.value, str(self.id))

@@ -37,7 +37,7 @@ class NodeListener:
                 if ip != self.node.ip:
                     logging.info(f"[ADD SERVICE] Service info: {info}")
                     self.node.connect_to_peer(ip, info.port, info.properties.get(b'ID'), info.properties.get(b'LOCAL'))
-                    self.node.create_blockchain_transaction(f"{ip}:{info.port}", Transaction.TYPE_NETWORK,
+                    self.node.create_blockchain_transaction(f"{ip}:{info.port}", Transaction.TYPE_NETWORK.value,
                                                             info.properties.get(b'LOCAL').decode('utf-8'))
 
     def update_service(self,
