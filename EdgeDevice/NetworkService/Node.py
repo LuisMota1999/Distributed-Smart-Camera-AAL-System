@@ -287,6 +287,8 @@ class Node(threading.Thread):
 
                 data = MessageHandlerUtils.create_transaction_message(
                     Messages.MESSAGE_TYPE_SEND_TRANSACTION.value, str(self.id))
+
+                data["PAYLOAD"]["PENDING"] = tx
                 message = json.dumps(data, indent=2)
                 self.broadcast_message(message.encode())
 
