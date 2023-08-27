@@ -392,13 +392,13 @@ class Node(threading.Thread):
             if message_type == Messages.MESSAGE_TYPE_SEND_TRANSACTION.value:
 
                 message_tx = message["PAYLOAD"]["EVENT"]
-                logging.info(f"Transaction created with success {message_tx}")
+
                 tx, signature = create_transaction(self.private_key, self.public_key,
                                                    str(self.id),
                                                    message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
                                                    message_tx["EVENT_LOCAL"])
 
-                logging.info(f"Transaction created with success!")
+                logging.info(f"Transaction created with success {message_tx}")
                 transaction_with_signature = {
                     "DATA": tx,
                     "SIGNATURE": signature

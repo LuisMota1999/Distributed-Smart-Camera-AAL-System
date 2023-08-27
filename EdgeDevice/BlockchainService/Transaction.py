@@ -35,8 +35,6 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
     # Sign the hash using the private key
     signature = rsa.sign(tx_bytes, private_key, 'SHA-256')
 
-    logging.info(f"Transaction signature created with success!")
-
     return tx, signature.hex()
 
 

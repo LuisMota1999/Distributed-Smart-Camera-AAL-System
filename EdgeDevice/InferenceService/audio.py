@@ -87,7 +87,7 @@ class AudioInference:
             inferred_class = 'Unknown'
 
         self.last_class = inferred_class
-        logging.info(f'[AUDIO - \'{self.model_name}\'] {inferred_class} ({top_score})')
+        #logging.info(f'[AUDIO - \'{self.model_name}\'] {inferred_class} ({top_score})')
 
         time.sleep(2)
         return inferred_class
