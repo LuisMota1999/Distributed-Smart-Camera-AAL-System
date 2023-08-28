@@ -251,6 +251,11 @@ class Node(threading.Thread):
 
     def handle_detection(self):
         """
+        Continuously handles audio detection and classification using a pre-trained audio model.
+
+        This method initializes an audio model and performs audio inference on an audio file.
+        It continuously monitors the audio waveform for detected classes, creates blockchain transactions for each
+        detected class, and broadcasts the transaction information to the network.
 
         :return: None
         """
@@ -266,7 +271,6 @@ class Node(threading.Thread):
         waveform, _ = sf.read(audio_file_path, dtype='float32')
         last_class = ""
         while self.running:
-            # Perform audio inference and create a transaction for each detected class
             inferred_classes = audio_inference.inference(waveform)
 
             if inferred_classes != last_class:
@@ -348,6 +352,20 @@ class Node(threading.Thread):
             conn.close()
 
     def handle_chain_message(self, message, conn, neighbour_id, message_type):
+        """
+        Handles incoming chain-related messages between nodes in the blockchain network.
+
+        This method processes different types of chain messages based on their message type.
+        It allows the current node to respond to requests for the blockchain or update its own blockchain
+        based on received chain information.
+
+        :param message: The incoming message data.
+        :param conn: The connection object representing the connection with the sending node.
+        :param neighbour_id: The ID of the neighboring node that sent the message.
+        :param message_type: The type of the incoming message (request or response).
+
+        :return: None
+        """
         if message_type == Messages.MESSAGE_TYPE_REQUEST_CHAIN.value:
             if self.coordinator == self.id:
                 data = MessageHandlerUtils.create_general_message(str(self.id), self.ip, self.port,
@@ -368,13 +386,18 @@ class Node(threading.Thread):
 
     def handle_transaction_message(self, message, conn, neighbour_id, message_type):
         """
-            Handle transaction-related messages.
+        Handles incoming transaction-related messages between nodes in the blockchain network.
 
-            Args:
-                message (dict): The incoming message.
-                conn: The connection object.
-                neighbour_id (str): Identifier of the neighboring node.
-                message_type (str): Type of the incoming message.
+        This method processes different types of transaction messages based on their message type.
+        It allows the current node to respond to requests for pending transactions or validate and
+        incorporate received transactions into its pending transaction pool.
+
+        :param message: The incoming message data.
+        :param conn: The connection object representing the connection with the sending node.
+        :param neighbour_id: The ID of the neighboring node that sent the message.
+        :param message_type: The type of the incoming message (request or response).
+
+        :return: None
         """
         try:
             if message_type == Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value:
@@ -415,9 +438,20 @@ class Node(threading.Thread):
         except Exception as e:
             logging.error(f"Handle transaction message error: {e}")
 
-    def handle_general_message(self, message, conn, neighbour_id,
-                               message_type=Messages.MESSAGE_TYPE_PONG.value):
+    def handle_general_message(self, message, conn, neighbour_id, message_type=Messages.MESSAGE_TYPE_PONG.value):
+        """
+        Handles incoming general messages between nodes in the blockchain network.
 
+        This method processes general messages exchanged between nodes and handles the coordination
+        of network activities, such as setting the network coordinator and exchanging public keys.
+
+        :param message: The incoming message data.
+        :param conn: The connection object representing the connection with the sending node.
+        :param neighbour_id: The ID of the neighboring node that sent the message.
+        :param message_type: The type of the incoming message (default: PONG message type).
+
+        :return: None
+        """
         if self.coordinator is None:
             self.coordinator = uuid.UUID(message["PAYLOAD"].get("COORDINATOR"))
 
@@ -531,6 +565,20 @@ class Node(threading.Thread):
                 break
 
     def create_blockchain_transaction(self, event_action, event_type, event_local):
+        """
+        Creates and returns a new blockchain transaction with the specified event information.
+
+        This method generates a new transaction containing event details such as event action, event type,
+        and event local information. It then signs the transaction with the node's private key and returns
+        the transaction along with its corresponding signature.
+
+        :param event_action: The action associated with the event.
+        :param event_type: The type of the event.
+        :param event_local: The local context of the event.
+
+        :return: A dictionary containing the signed transaction and its signature, or None if the transaction
+                 is already in the pending transactions pool.
+        """
         message_tx = {
             "EVENT_TYPE": event_type,
             "EVENT_ACTION": event_action,
