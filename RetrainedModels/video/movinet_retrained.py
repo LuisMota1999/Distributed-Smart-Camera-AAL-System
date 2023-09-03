@@ -1,72 +1,58 @@
 import os
-import imageio
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from tensorflow_docs.vis import embed
 import tensorflow as tf
 from official.projects.movinet.modeling import movinet
 from official.projects.movinet.modeling import movinet_model
-from official.projects.movinet.tools import export_saved_model
-from sklearn.metrics import precision_recall_fscore_support
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from RetrainedModels.video.utils.constants import VideoInference
 from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
+from official.projects.movinet.tools import export_saved_model
 
-batch_size = 10
-num_frames = 8
-num_epochs = 10
+CLASSES_LABEL = sorted(os.listdir(VideoInference.DATASET_DIRECTORY.value + 'train'))
+MODEL_ID = 'a0'
+USE_POSITIONAL_ENCODING = MODEL_ID in {'a3', 'a4', 'a5'}
+RESOLUTION = 172
+CHECKPOINT_DIR = "movinet_a0_stream"
+CHECKPOINT_DIR_OUTPUT = 'trained_model/cp.ckpt'
+CHECKPOINT_PATH = tf.train.latest_checkpoint(CHECKPOINT_DIR)
+SAVED_MODEL_DIR = 'model'
+TFLITE_FILENAME = '../../EdgeDevice/models/movinet_retrained.tflite'
+INPUT_SHAPE = [1, VideoInference.NUM_FRAMES.value, RESOLUTION, RESOLUTION, 3]
+DATASET_TOYOTASMARTHOME = ToyotaSmartHomeDataset(VideoInference.DATASET_DIRECTORY.value + 'mp4',
+                                                 VideoInference.DATASET_DIRECTORY.value)
+SUBSET_PATHS = DATASET_TOYOTASMARTHOME.dirs
 
-# Define the subset sizes
-train_subset_size = 250
-val_subset_size = 50
-test_subset_size = 50
-
-toyota_video_directory = 'datasets/ToyotaSmartHome/mp4/'
-toyota_output_directory = 'datasets/ToyotaSmartHome/'
-
-CLASSES_LABEL = sorted(os.listdir('./datasets/ToyotaSmartHome/train'))
-
-toyotaSmartHome_dataset = ToyotaSmartHomeDataset(toyota_video_directory, toyota_output_directory)
-
-dataset = toyotaSmartHome_dataset
-subset_paths = toyotaSmartHome_dataset.dirs
-
-output_signature = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
+OUTPUT_SIGNATURE = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32),
                     tf.TensorSpec(shape=(), dtype=tf.int16))
 
+
 # Load data for the train, validation, and test sets
-train_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(subset_paths['train'], n_frames=num_frames, dataset=dataset, subset_size=train_subset_size,
-                   training=True),
-    output_signature=output_signature)
-train_ds = train_ds.batch(batch_size)
+def load_dataset(subset_dataset, subset_size, training=True):
+    generator = FrameGenerator(subset_dataset, n_frames=VideoInference.NUM_FRAMES.value,
+                               dataset=DATASET_TOYOTASMARTHOME,
+                               subset_size=subset_size, training=training)
+    dataset = tf.data.Dataset.from_generator(generator, output_signature=OUTPUT_SIGNATURE)
+    return dataset.batch(VideoInference.BATCH_SIZE.value)
 
-val_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(path=subset_paths['val'], n_frames=num_frames, dataset=dataset, subset_size=val_subset_size),
-    output_signature=output_signature)
-val_ds = val_ds.batch(batch_size)
 
-test_ds = tf.data.Dataset.from_generator(
-    FrameGenerator(path=subset_paths['test'], n_frames=num_frames, dataset=dataset, subset_size=test_subset_size),
-    output_signature=output_signature)
-test_ds = test_ds.batch(batch_size)
+train_ds = load_dataset(SUBSET_PATHS['train'], VideoInference.TRAIN_SUBSET_SIZE.value, training=True)
+val_ds = load_dataset(SUBSET_PATHS['val'], VideoInference.VAL_SUBSET_SIZE.value, training=False)
+test_ds = load_dataset(SUBSET_PATHS['test'], VideoInference.TEST_SUBSET_SIZE.value, training=False)
 
 for frames, labels in train_ds.take(1):
     print(f"Shape: {frames.shape}")
     print(f"Label: {labels.shape}")
 
-model_id = 'a0'
-use_positional_encoding = model_id in {'a3', 'a4', 'a5'}
-resolution = 172
-
 backbone = movinet.Movinet(
-    model_id=model_id,
+    model_id=MODEL_ID,
     causal=True,
     conv_type='2plus1d',
     se_type='2plus3d',
     activation='hard_swish',
     gating_activation='hard_sigmoid',
-    use_positional_encoding=use_positional_encoding,
+    use_positional_encoding=USE_POSITIONAL_ENCODING,
     use_external_states=False,
 )
 
@@ -79,27 +65,24 @@ model = movinet_model.MovinetClassifier(
     num_classes=600,
     output_states=True)
 
-# Create your example input here.
-# Refer to the paper for recommended input shapes.
+# Load Pretrained checkpoint
 inputs = tf.ones([1, 13, 172, 172, 3])
 
-# [Optional] Build the model and load a pretrained checkpoint.
+# Build the model and load a pretrained checkpoint.
 model.build(inputs.shape)
 
-checkpoint_dir = "movinet_a0_stream"
-checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir)
-checkpoint = tf.train.Checkpoint(model=model)
-status = checkpoint.restore(checkpoint_path)
-status.assert_existing_objects_matched()
+CHECKPOINT = tf.compat.v2.train.Checkpoint(model=model)
+status = CHECKPOINT.restore(CHECKPOINT_PATH).expect_partial()
+if status is None:
+    raise ValueError("Checkpoint loading failed. Checkpoint status is None.")
 
-# Detect hardware
+# Distribution strategy setup
 try:
     tpu_resolver = tf.distribute.cluster_resolver.TPUClusterResolver()  # TPU detection
 except ValueError:
     tpu_resolver = None
     gpus = tf.config.experimental.list_logical_devices("GPU")
 
-# Select appropriate distribution strategy
 if tpu_resolver:
     tf.config.experimental_connect_to_cluster(tpu_resolver)
     tf.tpu.experimental.initialize_tpu_system(tpu_resolver)
@@ -118,56 +101,42 @@ else:
 print("Number of accelerators: ", distribution_strategy.num_replicas_in_sync)
 
 
+# Define functions
 def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
-    """Builds a classifier on top of a backbone model."""
     model = movinet_model.MovinetClassifier(
         backbone=backbone,
         num_classes=num_classes)
     model.build([batch_size, num_frames, resolution, resolution, 3])
-
     return model
 
 
-# Construct loss, optimizer and compile the model
-with distribution_strategy.scope():
-    model = build_classifier(batch_size, num_frames, resolution, backbone, 3)
-    loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-    model.compile(loss=loss_obj, optimizer=optimizer, metrics=['accuracy'])
-
-checkpoint_path = "trained_model/cp.ckpt"
-checkpoint_dir = os.path.dirname(checkpoint_path)
-
-# Create a callback that saves the model's weights
-cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-                                                 save_weights_only=True,
-                                                 verbose=1)
-
-results = model.fit(train_ds,
-                    validation_data=val_ds,
-                    epochs=num_epochs,
-                    validation_freq=1,
-                    verbose=1,
-                    callbacks=[cp_callback])
-
-model.evaluate(test_ds)
-
-
 def plot_accuracy_loss(history):
-    # summarize history for accuracy-loss oscilation
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['loss'])
-    plt.title('Model Accuracy - Loss (Vídeo)')
+    plt.title('Model Accuracy - Loss (Video)')
     plt.ylabel(' ')
     plt.xlabel('epoch')
-    plt.xlim([0, num_epochs])
+    plt.xlim([0, VideoInference.NUM_EPOCHS.value])
     plt.legend(['accuracy', 'loss'], loc='best')
-    plt.savefig(
-        'C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\assets\\images\\retraining_video_epoch_progress.png')
     plt.show()
 
 
-plot_accuracy_loss(results)
+def plot_confusion_matrix(actual, predicted, labels, ds_type):
+    cm = tf.math.confusion_matrix(actual, predicted)
+    ax = sns.heatmap(cm, annot=True, fmt='g')
+    sns.set(rc={'figure.figsize': (12, 12)})  # Adjust the figure size as needed
+    sns.set(font_scale=1.2)
+    ax.set_title('Confusion matrix of action recognition for ' + ds_type)
+    ax.set_xlabel('Predicted Action')
+    ax.set_ylabel('Actual Action')
+    plt.xticks(rotation=90)
+    plt.yticks(rotation=0)
+
+    # Ensure the number of labels matches the number of tick locations
+    ax.xaxis.set_ticklabels(labels, rotation=90)
+    ax.yaxis.set_ticklabels(labels, rotation=0)
+
+    plt.show()
 
 
 def get_actual_predicted_labels(dataset):
@@ -190,158 +159,51 @@ def get_actual_predicted_labels(dataset):
     return actual, predicted
 
 
-y_true = []
-y_pred = []
+def convert_model_to_tflite(saved_model_dir, input_model_shape, model_filename_ouput_directory):
+    export_saved_model.export_saved_model(
+        model=model,
+        input_shape=input_model_shape,
+        export_path=saved_model_dir,
+        causal=True,
+        bundle_input_init_states_fn=False)
 
-for frames, labels in test_ds:
-    actual, predicted = get_actual_predicted_labels(frames)
-    y_true.extend(actual)
-    y_pred.extend(predicted.numpy())
+    converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+    tflite_model = converter.convert()
 
-precision, recall, f1_score, _ = precision_recall_fscore_support(y_true, y_pred, average='macro')
-
-print(f"Precision: {precision:.4f}")
-print(f"Recall: {recall:.4f}")
-print(f"F1-score: {f1_score:.4f}")
-
-
-def plot_confusion_matrix(actual, predicted, labels, ds_type):
-    cm = tf.math.confusion_matrix(actual, predicted)
-    ax = sns.heatmap(cm, annot=True, fmt='g')
-    sns.set(rc={'figure.figsize': (10, 10)})
-    sns.set(font_scale=1.4)
-    ax.set_title('Confusion matrix of action recognition for ' + ds_type)
-    ax.set_xlabel('Predicted Action')
-    ax.set_ylabel('Actual Action')
-    plt.xticks(rotation=90)
-    plt.yticks(rotation=0)
-    plt.colorbar()
-    ax.xaxis.set_ticklabels(labels)
-    ax.yaxis.set_ticklabels(labels)
-    plt.savefig('plot.png')
-    plt.show()
+    with open(model_filename_ouput_directory, 'wb') as f:
+        f.write(tflite_model)
 
 
-fg = FrameGenerator(subset_paths['train'], num_frames, dataset=dataset, training=True)
+# Training and evaluation
+with distribution_strategy.scope():
+    model = build_classifier(VideoInference.BATCH_SIZE.value, VideoInference.NUM_FRAMES.value, RESOLUTION, backbone,
+                             VideoInference.NUM_CLASSES.value)
+    loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+    model.compile(loss=loss_obj, optimizer=optimizer, metrics=['accuracy'])
+
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_DIR_OUTPUT, save_weights_only=True, verbose=1)
+
+results = model.fit(train_ds, validation_data=val_ds, epochs=VideoInference.NUM_EPOCHS.value, validation_freq=1,
+                    verbose=1, callbacks=[cp_callback])
+
+model.evaluate(test_ds)
+
+plot_accuracy_loss(results)
+
+fg = FrameGenerator(SUBSET_PATHS['train'], VideoInference.NUM_FRAMES.value, dataset=DATASET_TOYOTASMARTHOME,
+                    training=True)
 label_names = list(fg.class_ids_for_name.keys())
 
 actual, predicted = get_actual_predicted_labels(test_ds)
 plot_confusion_matrix(actual, predicted, label_names, 'test')
 
-model_id = 'a0'
-use_positional_encoding = model_id in {'a3', 'a4', 'a5'}
-resolution = 172
+accuracy = accuracy_score(actual, predicted)
+precision = precision_score(actual, predicted, average='weighted')
+recall = recall_score(actual, predicted, average='weighted')
+f1 = f1_score(actual, predicted, average='weighted', labels=np.unique(predicted))
 
-# Create backbone and model.
-backbone = movinet.Movinet(
-    model_id=model_id,
-    causal=True,
-    conv_type='2plus1d',
-    se_type='2plus3d',
-    activation='hard_swish',
-    gating_activation='hard_sigmoid',
-    use_positional_encoding=use_positional_encoding,
-    use_external_states=True,
-)
-
-model = movinet_model.MovinetClassifier(
-    backbone,
-    num_classes=3,
-    output_states=True)
-
-# Create your example input here.
-# Refer to the paper for recommended input shapes.
-inputs = tf.ones([1, 13, 172, 172, 3])
-
-# [Optional] Build the model and load a pretrained checkpoint.
-model.build(inputs.shape)
-
-# Load weights from the checkpoint to the rebuilt model
-checkpoint_dir_trained = 'trained_model'
-model.load_weights(tf.train.latest_checkpoint(checkpoint_dir_trained))
-
-
-def to_gif(images):
-    converted_images = np.clip(images * 255, 0, 255).astype(np.uint8)
-    imageio.mimsave('./animation.gif', converted_images, fps=10)
-    return embed.embed_file('./animation.gif')
-
-
-def get_top_k(probs, k=5, label_map=CLASSES_LABEL):
-    """Outputs the top k model labels and probabilities on the given video."""
-    top_predictions = tf.argsort(probs, axis=-1, direction='DESCENDING')[:k]
-    top_labels = tf.gather(label_map, top_predictions, axis=-1)
-    top_labels = [label.decode('utf8') for label in top_labels.numpy()]
-    top_probs = tf.gather(probs, top_predictions, axis=-1).numpy()
-    return tuple(zip(top_labels, top_probs))
-
-
-# Create initial states for the stream model
-init_states_fn = model.init_states
-init_states = init_states_fn(tf.shape(tf.ones(shape=[1, 1, 172, 172, 3])))
-
-all_logits = []
-
-# To run on a video, pass in one frame at a time
-states = init_states
-for frames, label in test_ds.take(1):
-    for clip in frames[0]:
-        # Input shape: [1, 1, 172, 172, 3]
-        clip = tf.expand_dims(tf.expand_dims(clip, axis=0), axis=0)
-        logits, states = model.predict({**states, 'image': clip}, verbose=0)
-        all_logits.append(logits)
-
-logits = tf.concat(all_logits, 0)
-probs = tf.nn.softmax(logits)
-
-final_probs = probs[-1]
-top_k = get_top_k(final_probs)
-print()
-for label, prob in top_k:
-    print(label, prob)
-
-frames, label = list(test_ds.take(1))[0]
-to_gif(frames[0].numpy())
-
-saved_model_dir = 'model'
-tflite_filename = '../../EdgeDevice/models/movinet_retrained.tflite'
-input_shape = [1, 1, 172, 172, 3]
-
-# Convert to saved model
-export_saved_model.export_saved_model(
-    model=model,
-    input_shape=input_shape,
-    export_path=saved_model_dir,
-    causal=True,
-    bundle_input_init_states_fn=False)
-
-converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-tflite_model = converter.convert()
-
-with open(tflite_filename, 'wb') as f:
-    f.write(tflite_model)
-
-# Create the interpreter and signature runner
-interpreter = tf.lite.Interpreter(model_path=tflite_filename)
-runner = interpreter.get_signature_runner()
-
-init_states = {
-    name: tf.zeros(x['shape'], dtype=x['dtype'])
-    for name, x in runner.get_input_details().items()
-}
-del init_states['image']
-
-# To run on a video, pass in one frame at a time
-states = init_states
-for frames, label in test_ds.take(1):
-    for clip in frames[0]:
-        # Input shape: [1, 1, 172, 172, 3]
-        outputs = runner(**states, image=clip)
-        logits = outputs.pop('logits')[0]
-        states = outputs
-
-probs = tf.nn.softmax(logits)
-top_k = get_top_k(probs)
-print()
-for label, prob in top_k:
-    print(label, prob)
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
+print(f"F1-score: {f1:.4f}")

@@ -11,6 +11,7 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUnique
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
 from EdgeDevice.NetworkService.NodeListener import NodeListener
+from EdgeDevice.HomeAssistantService.HomeAssistant import Homeassistant
 from EdgeDevice.BlockchainService.Transaction import validate_transaction, create_transaction
 from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages, Transaction
 import json
@@ -72,6 +73,7 @@ class Node(threading.Thread):
             priority=0,
             properties={'IP': self.ip, 'ID': self.id, 'LOCAL': self.local},
         )
+        self.homeassistant_listener = Homeassistant()
         self.blockchain.register_node({self.ip: time.time()})
 
     def run(self):
@@ -245,6 +247,7 @@ class Node(threading.Thread):
                 self.coordinator = self.id
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
                 self.blockchain.add_block(self.blockchain.new_block())
+                self.homeassistant_listener.start()
         except ssl.SSLZeroReturnError as e:
             logging.error(f"SSLZero Return Error {e.strerror}")
             return

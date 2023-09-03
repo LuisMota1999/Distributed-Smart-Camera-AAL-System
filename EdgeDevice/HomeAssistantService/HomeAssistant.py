@@ -1,11 +1,8 @@
-import threading
-
 import paho.mqtt.client as mqtt
 import json
 import time
 import threading
 from EdgeDevice.utils.constants import Homeassistant as HA
-from EdgeDevice.utils.helper import MessageHandlerUtils
 
 
 class Homeassistant(threading.Thread):
@@ -28,15 +25,6 @@ class Homeassistant(threading.Thread):
             else:
                 print("MQTT Connection is active")
 
-                mensagem = MessageHandlerUtils.create_homeassistant_message("07b4ab99-504a-40d9-ad2a-69e4c47e21c8",
-                                                                            "192.168.122.94", 5929, "Watching_TV",
-                                                                            "SALA")
-                try:
-                    self.client.publish(HA.MQTT_TOPIC.value, json.dumps(mensagem, indent=2))
-                    print("Message published successfully")
-                except mqtt.MQTT_LOG_ERR as e:
-                    print("Error publishing message:", e)
-
         except Exception as e:
             print("Error:", e)
 
@@ -49,3 +37,11 @@ class Homeassistant(threading.Thread):
             print("Connection established with success!")
         else:
             print(f"Error Establishing connection: {rc}")
+
+    def publish_message(self, message):
+        try:
+            self.client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
+            print("Message published successfully")
+        except mqtt.MQTT_LOG_ERR as e:
+            print("Error publishing message:", e)
+
