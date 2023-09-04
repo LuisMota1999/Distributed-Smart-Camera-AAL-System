@@ -46,6 +46,29 @@ models = {
 
 
 def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, to_id: str, version="0.0.1"):
+    """
+    Create metadata for a message.
+
+    The `meta` function constructs metadata for a message, including client version and sender/receiver addresses.
+
+    :param from_id: The ID of the message sender.
+    :type from_id: str
+    :param from_ip: The IP address of the message sender.
+    :type from_ip: str
+    :param from_port: The port number of the message sender.
+    :type from_port: int
+    :param to_ip: The IP address of the message receiver.
+    :type to_ip: str
+    :param to_port: The port number of the message receiver.
+    :type to_port: int
+    :param to_id: The ID of the message receiver.
+    :type to_id: str
+    :param version: The version of the client.
+    :type version: str
+
+    :return: A dictionary containing message metadata.
+    :rtype: dict
+    """
     return {
         "CLIENT": version,
         "FROM_ADDRESS": {"ID": from_id, "IP": from_ip, "PORT": from_port},
@@ -53,11 +76,37 @@ def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, t
     }
 
 
+
 class MessageHandlerUtils(object):
 
     @staticmethod
     def create_general_message(internal_id, internal_ip, internal_port, external_id, external_ip, external_port,
                                node_coordinator, message_type):
+        """
+        Create a general message with metadata and payload.
+
+        The `create_general_message` method constructs a general message with metadata and payload components.
+
+        :param internal_id: The internal ID of the message sender.
+        :type internal_id: str
+        :param internal_ip: The internal IP address of the message sender.
+        :type internal_ip: str
+        :param internal_port: The internal port number of the message sender.
+        :type internal_port: int
+        :param external_id: The external ID of the message sender.
+        :type external_id: str
+        :param external_ip: The external IP address of the message sender.
+        :type external_ip: str
+        :param external_port: The external port number of the message sender.
+        :type external_port: int
+        :param node_coordinator: The coordinator status of the node.
+        :type node_coordinator: bool
+        :param message_type: The type of the message.
+        :type message_type: str
+
+        :return: A dictionary representing the general message.
+        :rtype: dict
+        """
         return {
             "META": meta(internal_id, internal_ip, internal_port, external_id, external_ip, external_port),
             "TYPE": message_type,
@@ -69,13 +118,25 @@ class MessageHandlerUtils(object):
 
     @staticmethod
     def create_transaction_message(message_type, from_id):
+        """
+        Create a transaction message.
+
+        The `create_transaction_message` method constructs a transaction message.
+
+        :param message_type: The type of the message.
+        :type message_type: str
+        :param from_id: The ID of the message sender.
+        :type from_id: str
+
+        :return: A dictionary representing the transaction message.
+        :rtype: dict
+        """
         return {
             "TYPE": message_type,
             "META": {
-                "FROM_ADDRESS":
-                    {
-                        "ID": from_id
-                    }
+                "FROM_ADDRESS": {
+                    "ID": from_id
+                }
             },
             "PAYLOAD": {
             },
@@ -83,6 +144,19 @@ class MessageHandlerUtils(object):
 
     @staticmethod
     def create_event_message(event_action, event_type):
+        """
+        Create an event message.
+
+        The `create_event_message` method constructs an event message.
+
+        :param event_action: The action associated with the event.
+        :type event_action: str
+        :param event_type: The type of the event.
+        :type event_type: str
+
+        :return: A dictionary representing the event message.
+        :rtype: dict
+        """
         return {
             "EVENT_ACTION": event_action,
             "EVENT_TYPE": event_type,
@@ -90,6 +164,27 @@ class MessageHandlerUtils(object):
 
     @staticmethod
     def create_homeassistant_message(external_id, external_ip, external_port, event, local, version="0.0.1"):
+        """
+        Create a Home Assistant message.
+
+        The `create_homeassistant_message` method constructs a Home Assistant message.
+
+        :param external_id: The external ID of the message sender.
+        :type external_id: str
+        :param external_ip: The external IP address of the message sender.
+        :type external_ip: str
+        :param external_port: The external port number of the message sender.
+        :type external_port: int
+        :param event: The event associated with the message.
+        :type event: str
+        :param local: The local status of the message.
+        :type local: bool
+        :param version: The version of the Home Assistant client.
+        :type version: str
+
+        :return: A dictionary representing the Home Assistant message.
+        :rtype: dict
+        """
         return {
             "META": {
                 "CLIENT": version,
@@ -109,11 +204,35 @@ class MessageHandlerUtils(object):
 
 class Utils(object):
     def compute_hash(self, block):
+        """
+        Compute the SHA-256 hash of a given block.
+
+        The `compute_hash` method takes a block in dictionary format, converts it to a JSON string, and computes the
+        SHA-256 hash of the JSON data.
+
+        :param block: The block to compute the hash for.
+        :type block: dict
+
+        :return: The SHA-256 hash of the block.
+        :rtype: str
+        """
         json_block = self.dict_to_json(block)
         return sha256(json_block.encode()).hexdigest()
 
     @staticmethod
     def json_to_dict(data):
+        """
+        Convert JSON data to a Python dictionary.
+
+        The `json_to_dict` method attempts to parse JSON data into a dictionary. If successful, it returns the
+        resulting dictionary; otherwise, it logs an error and returns `False`.
+
+        :param data: JSON data to convert.
+        :type data: str
+
+        :return: The parsed dictionary or False if the conversion fails.
+        :rtype: dict or bool
+        """
         try:
             dict_data = json.loads(data)
         except Exception as error:
@@ -123,6 +242,18 @@ class Utils(object):
 
     @staticmethod
     def dict_to_json(data):
+        """
+        Convert a Python dictionary to a JSON string.
+
+        The `dict_to_json` method attempts to convert a dictionary to a JSON string. If successful, it returns the
+        JSON string; otherwise, it logs an error and returns `False`.
+
+        :param data: The dictionary to convert to JSON.
+        :type data: dict
+
+        :return: The JSON representation of the dictionary or False if the conversion fails.
+        :rtype: str or bool
+        """
         try:
             json_data = json.dumps(data, sort_keys=True)
         except Exception as error:
@@ -132,6 +263,20 @@ class Utils(object):
 
     @staticmethod
     def validate_dict_keys(data, base_dict):
+        """
+        Validate that dictionary keys match those of a base dictionary.
+
+        The `validate_dict_keys` method checks if the keys in a given dictionary match the keys of a base dictionary.
+        It returns True if the keys match, False if they don't, or False if the input is not a dictionary.
+
+        :param data: The dictionary to validate.
+        :type data: dict
+        :param base_dict: The base dictionary with expected keys.
+        :type base_dict: dict
+
+        :return: True if dictionary keys match those of the base dictionary, False otherwise.
+        :rtype: bool
+        """
         if not isinstance(data, dict):
             return False
         data_keys = [k for k in data.keys()]
@@ -143,6 +288,20 @@ class Utils(object):
 
     @staticmethod
     def validate_dict_values(data, base_dict):
+        """
+        Validate that dictionary values match the expected types in a base dictionary.
+
+        The `validate_dict_values` method checks if the values in a given dictionary match the expected types in a base dictionary.
+        It returns True if the values match the expected types, False if they don't, or False if the input is not a dictionary.
+
+        :param data: The dictionary to validate.
+        :type data: dict
+        :param base_dict: The base dictionary with expected value types.
+        :type base_dict: dict
+
+        :return: True if dictionary values match the expected types in the base dictionary, False otherwise.
+        :rtype: bool
+        """
         if not isinstance(data, dict):
             return False
         keys = [k for k in data.keys()]
@@ -158,6 +317,15 @@ class NetworkUtils(object):
 
     @staticmethod
     def display_list_json(list_json):
+        """
+        Display a list of JSON data in a formatted and readable manner.
+
+        The `display_list_json` method takes a list of JSON data and prints each JSON object with an indentation of 2
+        spaces for improved readability. Each JSON object is logged as an informational message.
+
+        :param list_json: A list of JSON objects to display.
+        :type list_json: list[dict]
+        """
         for json_data in list_json:
             formatted_json = json.dumps(json_data, indent=2)
             logging.info(f"{formatted_json}\n")
@@ -202,6 +370,20 @@ class NetworkUtils(object):
 
     @staticmethod
     def get_public_key_by_ip(node_neighbours, ip_address):
+        """
+        Get the public key associated with a specific IP address.
+
+        The `get_public_key_by_ip` method searches for a matching IP address in the provided `node_neighbours`
+        dictionary and returns the associated public key if found.
+
+        :param node_neighbours: A dictionary containing information about node neighbors.
+        :type node_neighbours: dict
+        :param ip_address: The IP address for which to retrieve the public key.
+        :type ip_address: str
+
+        :return: The public key associated with the specified IP address, or None if not found.
+        :rtype: str or None
+        """
         for neighbour_id, neighbour_info in node_neighbours.items():
             if neighbour_info['IP'] == ip_address:
                 return neighbour_info['PUBLIC_KEY']
@@ -255,6 +437,16 @@ class NetworkUtils(object):
 
     @staticmethod
     def get_interface_ip():
+        """
+        Get the IP address associated with the specified network interface.
+
+        The `get_interface_ip` method retrieves the IP address associated with the network interface named 'Wi-fi'
+        on Windows or 'eth0' on Linux. It may return None if the platform is not supported or if the interface
+        is not found.
+
+        :return: The IP address associated with the specified network interface, or None if not found.
+        :rtype: str or None
+        """
         if platform.system() == 'Windows':
             interface = 'Wi-fi'
             try:
@@ -270,10 +462,12 @@ class NetworkUtils(object):
                 print("Error:", e)
                 return None
         elif platform.system() == 'Linux':
+            # Replace 'eth0' with the actual interface name on Linux if needed
             interface = 'eth0'
-            # Replace with the actual interface name in Linux
         else:
             return None
+
+        # Retrieve the IP address from the network interface on Linux
         return ni.ifaddresses(interface)[ni.AF_INET][0]['addr']
 
     @staticmethod
@@ -424,6 +618,18 @@ class InferenceUtils(object):
         # print("[CLASS_PREDICTION] : ", class_prediction)
 
     def data_processing_worker(self, in_q, out_q):
+        """
+        Process data items from the input queue and send processed items to the output queue.
+
+        The `data_processing_worker` method continuously processes data items from the `in_q` queue. For each data item,
+        it iterates through the specified models and creates a new item with updated information, which is then placed
+        into the `out_q` queue.
+
+        :param in_q: The input queue for receiving data items.
+        :type in_q: queue.Queue
+        :param out_q: The output queue for sending processed data items.
+        :type out_q: queue.Queue
+        """
         while True:
             item = in_q.get()
             for model in models[item['type']]:
@@ -431,6 +637,18 @@ class InferenceUtils(object):
                 out_q.put(new_item)
 
     def inference_worker(self, in_q, out_q):
+        """
+        Perform inference on data items from the input queue and send results to the output queue.
+
+        The `inference_worker` method initializes local models for audio and video based on the specified configurations.
+        It continuously retrieves data items from the `in_q` queue, performs inference using the corresponding model,
+        and puts the prediction result into the `out_q` queue.
+
+        :param in_q: The input queue for receiving data items.
+        :type in_q: queue.Queue
+        :param out_q: The output queue for sending inference results.
+        :type out_q: queue.Queue
+        """
         local_models = {}
         for audio_model in models['audio']:
             model = audio_model['model'](audio_model)
@@ -447,6 +665,15 @@ class InferenceUtils(object):
                 out_q.put({'prediction': prediction, 'type': item['type'], 'timestamp': str(datetime.datetime.now())})
 
     def network_worker(self, in_q):
+        """
+        Process network-related tasks for items from the input queue.
+
+        The `network_worker` method continuously processes network-related tasks from the `in_q` queue. It includes a
+        delay of one second for simulating network activity and prints the received item.
+
+        :param in_q: The input queue for receiving network-related tasks.
+        :type in_q: queue.Queue
+        """
         while True:
             item = in_q.get()
             time.sleep(1)

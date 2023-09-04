@@ -10,6 +10,7 @@ from RetrainedModels.video.utils.constants import VideoInference
 from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
 from official.projects.movinet.tools import export_saved_model
 
+# Define constants and paths
 CLASSES_LABEL = sorted(os.listdir(VideoInference.DATASET_DIRECTORY.value + 'train'))
 MODEL_ID = 'a0'
 USE_POSITIONAL_ENCODING = MODEL_ID in {'a3', 'a4', 'a5'}
@@ -30,6 +31,17 @@ OUTPUT_SIGNATURE = (tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.float32)
 
 # Load data for the train, validation, and test sets
 def load_dataset(subset_dataset, subset_size, training=True):
+    """
+    Load video frame data from a dataset directory and create a TensorFlow Dataset.
+
+    Args:
+        subset_dataset (str): Path to the dataset directory.
+        subset_size (int): Number of samples to load from the dataset.
+        training (bool): Whether to load data for training.
+
+    Returns:
+        tf.data.Dataset: A TensorFlow Dataset containing video frame data and labels.
+    """
     generator = FrameGenerator(subset_dataset, n_frames=VideoInference.NUM_FRAMES.value,
                                dataset=DATASET_TOYOTASMARTHOME,
                                subset_size=subset_size, training=training)
@@ -37,14 +49,17 @@ def load_dataset(subset_dataset, subset_size, training=True):
     return dataset.batch(VideoInference.BATCH_SIZE.value)
 
 
+# Load train, validation, and test datasets
 train_ds = load_dataset(SUBSET_PATHS['train'], VideoInference.TRAIN_SUBSET_SIZE.value, training=True)
 val_ds = load_dataset(SUBSET_PATHS['val'], VideoInference.VAL_SUBSET_SIZE.value, training=False)
 test_ds = load_dataset(SUBSET_PATHS['test'], VideoInference.TEST_SUBSET_SIZE.value, training=False)
 
+# Print shape of a batch from the train dataset
 for frames, labels in train_ds.take(1):
     print(f"Shape: {frames.shape}")
     print(f"Label: {labels.shape}")
 
+# Create Movinet backbone
 backbone = movinet.Movinet(
     model_id=MODEL_ID,
     causal=True,
@@ -56,10 +71,7 @@ backbone = movinet.Movinet(
     use_external_states=False,
 )
 
-# Note: this is a temporary model constructed for the
-# purpose of loading the pre-trained checkpoint. Only
-# the backbone will be used to build the custom classifier.
-
+# Create a temporary model to load a pre-trained checkpoint
 model = movinet_model.MovinetClassifier(
     backbone,
     num_classes=600,
@@ -101,8 +113,21 @@ else:
 print("Number of accelerators: ", distribution_strategy.num_replicas_in_sync)
 
 
-# Define functions
+# Define a function to build the classifier model
 def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
+    """
+    Build a Movinet-based classifier model.
+
+    Args:
+        batch_size (int): Batch size for the model.
+        num_frames (int): Number of frames in a video.
+        resolution (int): Resolution of video frames.
+        backbone (tf.keras.Model): Movinet backbone model.
+        num_classes (int): Number of classes for classification.
+
+    Returns:
+        tf.keras.Model: A classifier model.
+    """
     model = movinet_model.MovinetClassifier(
         backbone=backbone,
         num_classes=num_classes)
@@ -110,7 +135,14 @@ def build_classifier(batch_size, num_frames, resolution, backbone, num_classes):
     return model
 
 
+# Define a function to plot accuracy and loss
 def plot_accuracy_loss(history):
+    """
+    Plot the accuracy and loss of a model during training.
+
+    Args:
+        history (tf.keras.callbacks.History): History object from model training.
+    """
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['loss'])
     plt.title('Model Accuracy - Loss (Video)')
@@ -121,7 +153,17 @@ def plot_accuracy_loss(history):
     plt.show()
 
 
+# Define a function to plot a confusion matrix
 def plot_confusion_matrix(actual, predicted, labels, ds_type):
+    """
+    Plot a confusion matrix for classification results.
+
+    Args:
+        actual (tf.Tensor): Ground truth labels.
+        predicted (tf.Tensor): Predicted labels.
+        labels (list): List of class labels.
+        ds_type (str): Type of dataset (e.g., 'train', 'validation', 'test').
+    """
     cm = tf.math.confusion_matrix(actual, predicted)
     ax = sns.heatmap(cm, annot=True, fmt='g')
     sns.set(rc={'figure.figsize': (12, 12)})  # Adjust the figure size as needed
@@ -139,14 +181,15 @@ def plot_confusion_matrix(actual, predicted, labels, ds_type):
     plt.show()
 
 
+# Define a function to get actual and predicted labels
 def get_actual_predicted_labels(dataset):
     """
-      Create a list of actual ground truth values and the predictions from the model.
+    Create a list of actual ground truth values and the predictions from the model.
 
-      Args:
+    Args:
         dataset: An iterable data structure, such as a TensorFlow Dataset, with features and labels.
 
-      Return:
+    Return:
         Ground truth and predicted values for a particular dataset.
     """
     actual = [labels for _, labels in dataset.unbatch()]
@@ -159,7 +202,16 @@ def get_actual_predicted_labels(dataset):
     return actual, predicted
 
 
+# Define a function to convert the model to TFLite format
 def convert_model_to_tflite(saved_model_dir, input_model_shape, model_filename_ouput_directory):
+    """
+    Convert a TensorFlow SavedModel to TFLite format.
+
+    Args:
+        saved_model_dir (str): Directory where the SavedModel is saved.
+        input_model_shape (list): Shape of the input model.
+        model_filename_ouput_directory (str): Output directory for the TFLite model file.
+    """
     export_saved_model.export_saved_model(
         model=model,
         input_shape=input_model_shape,
