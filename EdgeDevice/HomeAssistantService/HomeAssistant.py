@@ -39,5 +39,6 @@ class Homeassistant(threading.Thread):
 if __name__ == "__main__":
     ha = Homeassistant()
     # Publish a message
+    ha.start()
     message = {"data": "your_data_here"}
     ha.publish_message(message)
