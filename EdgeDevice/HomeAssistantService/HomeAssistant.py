@@ -34,3 +34,10 @@ class Homeassistant(threading.Thread):
                 print(f"Error publishing message: {result.rc}")
         except Exception as e:
             print("Error publishing message:", e)
+
+
+if __name__ == "__main__":
+    ha = Homeassistant()
+    # Publish a message
+    message = {"data": "your_data_here"}
+    ha.publish_message(message)
