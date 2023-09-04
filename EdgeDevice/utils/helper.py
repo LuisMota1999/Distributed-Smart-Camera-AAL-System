@@ -178,7 +178,7 @@ class MessageHandlerUtils(object):
         :param event: The event associated with the message.
         :type event: str
         :param local: The local status of the message.
-        :type local: bool
+        :type local: str
         :param version: The version of the Home Assistant client.
         :type version: str
 
