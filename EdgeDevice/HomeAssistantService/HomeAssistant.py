@@ -2,29 +2,32 @@ import paho.mqtt.client as mqtt
 import json
 import threading
 from EdgeDevice.utils.constants import Homeassistant as HA
+import logging
 
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("Connected to MQTT broker")
-        client.subscribe("home/temperature")
-    else:
-        print("Failed to connect to MQTT broker")
+class Homeassistant(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.client = mqtt.Client()
+        self.client.on_connect = self.on_connect
 
+        if HA.MQTT_USERNAME and HA.MQTT_PASSWORD:
+            self.client.username_pw_set(HA.MQTT_USERNAME.value, HA.MQTT_PASSWORD.value)
 
-def on_message(client, userdata, msg):
-    print(f"Received message on topic {msg.topic}: {msg.payload.decode()}")
+        try:
+            self.client.connect(HA.MQTT_BROKER.value, HA.MQTT_PORT.value)
+            self.client.loop_start()
+        except Exception as e:
+            logging.error(f"Error connecting to MQTT broker: {e}")
 
+    def on_connect(self, client, userdata, flags, rc):
+        if rc == 0:
+            logging.info(f"Connection established with success {rc}")
+        else:
+            logging.error(f"Error Establishing connection {rc}")
 
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
-if HA.MQTT_USERNAME and HA.MQTT_PASSWORD:
-    client.username_pw_set(HA.MQTT_USERNAME.value, HA.MQTT_PASSWORD.value)
-# Set the IP address or hostname of your Home Assistant system
-broker_address = "192.168.0.237"
-
-client.connect(broker_address, 1883, 60)
-message = {"data": "test2"}
-client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
-client.loop_forever()
+    def publish_message(self, message):
+        try:
+            self.client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
+        except Exception as e:
+            logging.error(f"Homeassistant publishing error {e}")
