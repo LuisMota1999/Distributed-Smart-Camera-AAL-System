@@ -274,27 +274,33 @@ class Node(threading.Thread):
         waveform, _ = sf.read(audio_file_path, dtype='float32')
         last_class = ""
         while self.running:
-            inferred_classes = audio_inference.inference(waveform)
+            inferred_classes, top_score = audio_inference.inference(waveform)
 
-            if inferred_classes != last_class:
-                logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes}')
-                transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
-                                                                                Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                                self.local)
+            if top_score < audio_model['threshold']:
+                # # TODO: Request the other node in same local for information about whats happening in a time period
+                #  p.ex: 21:00 to 21:10
+                pass
+            else:
+                if inferred_classes != last_class:
+                    logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
+                    transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
+                                                                                    Transaction.TYPE_AUDIO_INFERENCE.value,
+                                                                                    self.local)
 
-                data = MessageHandlerUtils.create_transaction_message(
-                    Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
+                    data = MessageHandlerUtils.create_transaction_message(
+                        Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
 
-                data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
-                message = json.dumps(data, indent=2)
+                    data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
+                    message = json.dumps(data, indent=2)
 
-                homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id), self.ip, self.port,
-                                                                                      inferred_classes, self.local)
-                self.homeassistant_listener.publish_message(homeassistant_data)
-                self.broadcast_message(message)
+                    homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id), self.ip,
+                                                                                          self.port,
+                                                                                          inferred_classes, self.local)
+                    self.homeassistant_listener.publish_message(homeassistant_data)
+                    self.broadcast_message(message)
 
-            last_class = inferred_classes
-            time.sleep(5)
+                last_class = inferred_classes
+                time.sleep(2)
 
     def handle_reconnects(self):
         """

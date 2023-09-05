@@ -83,11 +83,4 @@ class AudioInference:
         top_score = class_probabilities[top_class]
         inferred_class = self.class_names[top_class]
 
-        if top_score < self.threshold:
-            inferred_class = 'Unknown'
-
-        self.last_class = inferred_class
-        #logging.info(f'[AUDIO - \'{self.model_name}\'] {inferred_class} ({top_score})')
-
-        time.sleep(2)
-        return inferred_class
+        return inferred_class, top_score

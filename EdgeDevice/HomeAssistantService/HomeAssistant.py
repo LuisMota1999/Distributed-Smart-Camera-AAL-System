@@ -28,6 +28,10 @@ class Homeassistant(threading.Thread):
 
     def publish_message(self, message):
         try:
-            self.client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
+            result = self.client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
+            if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                logging.info("Message published successfully")
+            else:
+                logging.error(f"Error publishing message: {result.rc}")
         except Exception as e:
-            logging.error(f"Homeassistant publishing error {e}")
+            logging.error("Error publishing message:", e)
