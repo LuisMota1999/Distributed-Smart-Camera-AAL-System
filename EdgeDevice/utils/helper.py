@@ -162,11 +162,12 @@ class MessageHandlerUtils(object):
         }
 
     @staticmethod
-    def create_homeassistant_message(event, local):
+    def create_homeassistant_message(node_id,event, local):
         """
         Create a Home Assistant message.
 
         The `create_homeassistant_message` method constructs a Home Assistant message.
+        :param node_id: The node id associated with the message.
         :param event: The event associated with the message.
         :type event: str
         :param local: The local status of the message.
@@ -175,11 +176,10 @@ class MessageHandlerUtils(object):
         :rtype: dict
         """
         return {
-            "PAYLOAD": {
-                "TIME": time.time(),
-                "EVENT": event,
-                "LOCAL": local,
-            }
+            "NODE_ID": node_id,
+            "TIME": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())),
+            "EVENT": event,
+            "LOCAL": local,
         }
 
 
