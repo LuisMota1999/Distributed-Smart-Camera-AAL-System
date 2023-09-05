@@ -4,40 +4,27 @@ import threading
 from EdgeDevice.utils.constants import Homeassistant as HA
 
 
-class Homeassistant(threading.Thread):
-    def __init__(self):
-        super().__init__()
-        self.client = mqtt.Client()
-        self.client.on_connect = self.on_connect
-
-        if HA.MQTT_USERNAME and HA.MQTT_PASSWORD:
-            self.client.username_pw_set(HA.MQTT_USERNAME.value, HA.MQTT_PASSWORD.value)
-
-        try:
-            self.client.connect(HA.MQTT_BROKER.value, HA.MQTT_PORT.value)
-            self.client.loop_start()
-        except Exception as e:
-            print("Error connecting to MQTT broker:", e)
-
-    def on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            print("Connection established with success!")
-        else:
-            print(f"Error Establishing connection: {rc}")
-
-    def publish_message(self, message):
-        try:
-            result = self.client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
-            if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                print("Message published successfully")
-            else:
-                print(f"Error publishing message: {result.rc}")
-        except Exception as e:
-            print("Error publishing message:", e)
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("Connected to MQTT broker")
+        client.subscribe("home/temperature")
+    else:
+        print("Failed to connect to MQTT broker")
 
 
-if __name__ == "__main__":
-    ha = Homeassistant()
-    # Publish a message
-    message = {"data": "your_data_here"}
-    ha.publish_message(message)
+def on_message(client, userdata, msg):
+    print(f"Received message on topic {msg.topic}: {msg.payload.decode()}")
+
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+if HA.MQTT_USERNAME and HA.MQTT_PASSWORD:
+    client.username_pw_set(HA.MQTT_USERNAME.value, HA.MQTT_PASSWORD.value)
+# Set the IP address or hostname of your Home Assistant system
+broker_address = "192.168.0.237"
+
+client.connect(broker_address, 1883, 60)
+message = {"data": "test2"}
+client.publish(HA.MQTT_TOPIC.value, json.dumps(message, indent=2))
+client.loop_forever()
