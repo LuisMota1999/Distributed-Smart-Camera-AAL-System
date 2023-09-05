@@ -34,7 +34,7 @@ class Transaction(Enum):
 
 
 class Homeassistant(Enum):
-    MQTT_BROKER = "homeassistant"
+    MQTT_BROKER = "192.168.0.237"
     MQTT_PORT = 1883
     MQTT_USERNAME = "mqttc"
     MQTT_PASSWORD = "mqtt123"
