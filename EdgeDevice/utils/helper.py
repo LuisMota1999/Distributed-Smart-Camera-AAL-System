@@ -76,7 +76,6 @@ def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, t
     }
 
 
-
 class MessageHandlerUtils(object):
 
     @staticmethod
@@ -163,37 +162,19 @@ class MessageHandlerUtils(object):
         }
 
     @staticmethod
-    def create_homeassistant_message(external_id, external_ip, external_port, event, local, version="0.0.1"):
+    def create_homeassistant_message(event, local):
         """
         Create a Home Assistant message.
 
         The `create_homeassistant_message` method constructs a Home Assistant message.
-
-        :param external_id: The external ID of the message sender.
-        :type external_id: str
-        :param external_ip: The external IP address of the message sender.
-        :type external_ip: str
-        :param external_port: The external port number of the message sender.
-        :type external_port: int
         :param event: The event associated with the message.
         :type event: str
         :param local: The local status of the message.
         :type local: str
-        :param version: The version of the Home Assistant client.
-        :type version: str
-
         :return: A dictionary representing the Home Assistant message.
         :rtype: dict
         """
         return {
-            "META": {
-                "CLIENT": version,
-                "FROM_ADDRESS": {
-                    "UUID": external_id,
-                    "IP": external_ip,
-                    "PORT": external_port
-                },
-            },
             "PAYLOAD": {
                 "TIME": time.time(),
                 "EVENT": event,

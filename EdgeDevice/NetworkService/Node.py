@@ -293,9 +293,7 @@ class Node(threading.Thread):
                     data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
                     message = json.dumps(data, indent=2)
 
-                    homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id), self.ip,
-                                                                                          self.port,
-                                                                                          inferred_classes, self.local)
+                    homeassistant_data = MessageHandlerUtils.create_homeassistant_message(inferred_classes, self.local)
                     self.homeassistant_listener.publish_message(homeassistant_data)
                     self.broadcast_message(message)
 
