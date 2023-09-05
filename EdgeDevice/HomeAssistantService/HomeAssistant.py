@@ -20,7 +20,8 @@ class Homeassistant(threading.Thread):
         except Exception as e:
             logging.error(f"Error connecting to MQTT broker: {e}")
 
-    def on_connect(self, client, userdata, flags, rc):
+    @staticmethod
+    def on_connect(rc):
         if rc == 0:
             logging.info(f"Connection established with success {rc}")
         else:
