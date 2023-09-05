@@ -248,10 +248,6 @@ class Node(threading.Thread):
                 logging.info(f"[ELECTION] Node {self.id} is the coordinator.")
                 self.blockchain.add_block(self.blockchain.new_block())
                 self.homeassistant_listener.start()
-                mensagem = MessageHandlerUtils.create_homeassistant_message("07b4ab99-504a-40d9-ad2a-69e4c47e21c8",
-                                                                            "192.168.122.94", 5929, "Watching_TV",
-                                                                            "SALA")
-                self.homeassistant_listener.publish_message(mensagem)
         except ssl.SSLZeroReturnError as e:
             logging.error(f"SSLZero Return Error {e.strerror}")
             return
@@ -291,6 +287,10 @@ class Node(threading.Thread):
 
                 data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
                 message = json.dumps(data, indent=2)
+
+                homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id), self.ip, self.port,
+                                                                                      inferred_classes, self.local)
+                self.homeassistant_listener.publish_message(homeassistant_data)
                 self.broadcast_message(message)
 
             last_class = inferred_classes
