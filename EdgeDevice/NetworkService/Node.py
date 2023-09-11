@@ -467,7 +467,7 @@ class Node(threading.Thread):
 
             logging.info(f"Network Coordinator is {self.coordinator}")
 
-            message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
+            # message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
