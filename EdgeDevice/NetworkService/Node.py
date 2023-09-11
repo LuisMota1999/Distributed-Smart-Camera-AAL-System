@@ -208,10 +208,10 @@ class Node(threading.Thread):
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
-                handle_chain_messages = threading.Thread(target=self.handle_chain_message,
-                                                         args=("", conn, client_id,
-                                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
-                handle_chain_messages.start()
+                # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
+                #                                          args=("", conn, client_id,
+                #                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                # handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
