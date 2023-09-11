@@ -113,12 +113,12 @@ class Node(threading.Thread):
 
         time.sleep(2)
 
-        handle_detection = threading.Thread(target=self.handle_detection)
-        handle_detection.start()
+        # handle_detection = threading.Thread(target=self.handle_detection)
+        # handle_detection.start()
 
         try:
             if not self.running:
-                handle_detection.join()
+                # handle_detection.join()
                 handle_reconects.join()
                 handle_discovery.join()
                 handle_connections.join()
@@ -422,7 +422,7 @@ class Node(threading.Thread):
                     data["PAYLOAD"]["PENDING"] = [tx]
                     message = json.dumps(data, indent=2)
 
-                    logging.info(f"Transaction message: {message}")
+                    # logging.info(f"Transaction message: {message}")
 
                     conn.send(bytes(message, encoding="utf-8"))
 
@@ -435,10 +435,10 @@ class Node(threading.Thread):
                         signature = transaction_with_signature["SIGNATURE"]
                         if transaction_with_signature not in self.blockchain.pending_transactions:
                             if validate_transaction(tx, signature):
-                                logging.info("[TRANSACTION] Transaction is valid")
+                                # logging.info("[TRANSACTION] Transaction is valid")
 
                                 self.blockchain.pending_transactions.append(transaction_with_signature)
-                                logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}")
+                                # logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}")
                             else:
                                 logging.warning("Received invalid transaction")
                                 return
