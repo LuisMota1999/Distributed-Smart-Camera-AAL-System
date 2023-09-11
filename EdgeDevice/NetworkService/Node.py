@@ -413,8 +413,6 @@ class Node(threading.Thread):
         """
         try:
             if message_type == Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value:
-                logging.error(f"Handle transaction message: {message}")
-
                 for tx in self.blockchain.pending_transactions:
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(neighbour_id))
