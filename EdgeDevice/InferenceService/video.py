@@ -1,86 +1,69 @@
-import numpy as np
-import tensorflow as tf
-import cv2
 import os
 
-CWD_PATH = os.getcwd()
+from official.projects.movinet.modeling import movinet
+from official.projects.movinet.modeling import movinet_model
+from official.projects.movinet.tools import export_saved_model
+import tensorflow as tf
 
-PATH_TO_CKPT = os.path.join(CWD_PATH, '../models/charades/frozen_model.pb')
-PREDICTION_DECAY = 0.6  # [0,1) How slowly to update the predictions (0.99 is slowest, 0 is instant)
+from RetrainedModels.video.utils.constants import VideoInference
 
-class VideoInference:
+model_id = 'a0'
+use_positional_encoding = model_id in {'a3', 'a4', 'a5'}
+CLASSES_LABELS = sorted(os.listdir(
+    'C:\\Users\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\RetrainedModels\\video\\datasets\\ToyotaSmartHome\\train'))
 
-    def __init__(self):
-        self.accumulator = np.zeros(157, )
+# Create the interpreter and signature runner
+interpreter = tf.lite.Interpreter(
+    model_path='C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_retrained.tflite')
+runner = interpreter.get_signature_runner()
 
-        self.detection_graph = tf.Graph()
-        with self.detection_graph.as_default():
-            od_graph_def = tf.compat.v1.GraphDef()
-            with tf.compat.v1.gfile.GFile(PATH_TO_CKPT, 'rb') as fid:
-                serialized_graph = fid.read()
-                od_graph_def.ParseFromString(serialized_graph)
-                tf.import_graph_def(od_graph_def, name='')
+init_states = {
+    name: tf.zeros(x['shape'], dtype=x['dtype'])
+    for name, x in runner.get_input_details().items()
+}
+del init_states['image']
 
-            self.sess = tf.compat.v1.Session(graph=self.detection_graph)
 
-        self.category_classes = self.loadlabels('Charades_v1_classes.txt')
-        self.category_object = self.loadlabels('Charades_v1_objectclasses.txt')
-        self.category_verbclasses = self.loadlabels('Charades_v1_verbclasses.txt')
-        self.mapclasses(self.category_classes, self.category_object, self.category_verbclasses)
+def load_gif(file_path, image_size=(224, 224)):
+    """Loads a gif file into a TF tensor."""
+    with tf.io.gfile.GFile(file_path, 'rb') as f:
+        video = tf.io.decode_gif(f.read())
+    video = tf.image.resize(video, image_size)
+    video = tf.cast(video, tf.float32) / 255.
+    return video
 
-    def inference(self, frame):
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        prediction = self.recognize_activity(frame_rgb, self.sess, self.detection_graph, self.accumulator)
-        return prediction
 
-    def loadlabels(self, file):
-        # List of the strings that is used to add correct label for each box.
-        labels = {}
-        with open('../models/charades/' + file) as f:
-            for line in f:
-                x = line.split(' ')
-                cls, rest = x[0], ' '.join(x[1:]).strip()
-                clsint = int(cls[1:])
-                labels[clsint] = {'id': clsint, 'name': rest}
-        return labels
+def get_top_k(probs, k=5, label_map=CLASSES_LABELS):
+    """Outputs the top k model labels and probabilities on the given video."""
+    top_predictions = tf.argsort(probs, axis=-1, direction='DESCENDING')[:k]
+    top_labels = tf.gather(label_map, top_predictions, axis=-1)
+    top_labels = [label.decode('utf8') for label in top_labels.numpy()]
+    top_probs = tf.gather(probs, top_predictions, axis=-1).numpy()
+    return tuple(zip(top_labels, top_probs))
 
-    def mapclasses(self, classes, objects, verbs):
-        with open('../models/charades/Charades_v1_mapping.txt') as f:
-            for line in f:
-                x = line.split(' ')
-                cls = x[0]
-                obj = x[1]
-                vrb = x[2]
-                clsint = int(cls[1:])
-                objint = int(obj[1:])
-                verbint = int(vrb[1:])
-                classes[clsint]['obj'] = {'id': objint, 'name': objects[objint]['name']}
-                classes[clsint]['verb'] = {'id': verbint, 'name': verbs[verbint]['name']}
 
-    def process_image_inference(self, image_np):
-        image_np = cv2.resize(image_np, dsize=(172, 172)).astype(np.float32) / 255.0
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        image_np = (image_np - mean) / std
+def predict_top_k(model, video, k=5, label_map=CLASSES_LABELS):
+    """Outputs the top k model labels and probabilities on the given video."""
+    outputs = model.predict(video[tf.newaxis])[0]
+    probs = tf.nn.softmax(outputs)
+    return get_top_k(probs, k=k, label_map=label_map)
 
-        image_np_expanded = np.expand_dims(image_np, axis=0)
-        return image_np_expanded
 
-    def recognize_activity(self, image_np, sess, detection_graph, accumulator):
-        image_np_expanded = self.process_image_inference(image_np)
-        image_tensor = detection_graph.get_tensor_by_name('input_image:0')
-        classes = detection_graph.get_tensor_by_name('classifier/Reshape:0')
+video = load_gif(
+    '/EdgeDevice/models/video_demos/readBookDemo.gif',
+    image_size=(172, 172))
+clips = tf.split(video[tf.newaxis], video.shape[0], axis=1)
 
-        # Actual detection.
-        (classes) = sess.run(
-            [classes],
-            feed_dict={image_tensor: image_np_expanded})
+# To run on a video, pass in one frame at a time
+states = init_states
+for clip in clips:
+    # Input shape: [1, 1, 172, 172, 3]
+    outputs = runner(**states, image=clip)
+    logits = outputs.pop('logits')[0]
+    states = outputs
 
-        classes = np.exp(np.squeeze(classes))
-        classes = classes / np.sum(classes)
-        accumulator[:] = PREDICTION_DECAY * accumulator[:] + (1 - PREDICTION_DECAY) * classes
-        classes = np.argsort(accumulator)[::-1][:3]
-
-        print('[VIDEO]:', self.category_classes[classes[0]])
-
-        return str(self.category_classes[classes[0]]['name'])
+probs = tf.nn.softmax(logits)
+top_k = get_top_k(probs)
+print()
+for label, prob in top_k:
+    print(label, prob)
