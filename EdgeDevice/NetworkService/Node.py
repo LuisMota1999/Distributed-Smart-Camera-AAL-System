@@ -113,8 +113,8 @@ class Node(threading.Thread):
 
         time.sleep(2)
 
-        # handle_detection = threading.Thread(target=self.handle_detection)
-        # handle_detection.start()
+        handle_detection = threading.Thread(target=self.handle_detection)
+        handle_detection.start()
 
         try:
             if not self.running:
@@ -208,10 +208,10 @@ class Node(threading.Thread):
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
-                # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
-                #                                          args=("", conn, client_id,
-                #                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
-                # handle_chain_messages.start()
+                handle_chain_messages = threading.Thread(target=self.handle_chain_message,
+                                                         args=("", conn, client_id,
+                                                              Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
@@ -433,10 +433,10 @@ class Node(threading.Thread):
                         signature = transaction_with_signature["SIGNATURE"]
                         if transaction_with_signature not in self.blockchain.pending_transactions:
                             if validate_transaction(tx, signature):
-                                # logging.info("[TRANSACTION] Transaction is valid")
+                                logging.info("[TRANSACTION] Transaction is valid")
 
                                 self.blockchain.pending_transactions.append(transaction_with_signature)
-                                # logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}")
+                                logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}")
                             else:
                                 logging.warning("Received invalid transaction")
                                 return
@@ -467,7 +467,7 @@ class Node(threading.Thread):
 
             logging.info(f"Network Coordinator is {self.coordinator}")
 
-            # message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
+            message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
