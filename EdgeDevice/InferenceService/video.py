@@ -13,15 +13,15 @@ mpl.rcParams.update({
     'font.size': 10,
 })
 
-labels_path = 'C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_retrained_class.txt'
-labels_path = pathlib.Path(labels_path)
+LABELS_PATH = '../models/movinet_retrained_class.txt'
+LABELS_PATH = pathlib.Path(LABELS_PATH)
 
-lines = labels_path.read_text().splitlines()
-KINETICS_600_LABELS = np.array([line.strip() for line in lines])
+FILE_ROWS = LABELS_PATH.read_text().splitlines()
+MOVINET_RETRAINED_LABELS = np.array([line.strip() for line in FILE_ROWS])
 
-print(KINETICS_600_LABELS)
+print(MOVINET_RETRAINED_LABELS)
 
-video_path = '/RetrainedModels/video/test_videos/NODE-2/readBookDemo.gif'
+video_path = '../../RetrainedModels/video/test_videos/NODE-2/readBookDemo.gif'
 
 
 # @title
@@ -55,7 +55,7 @@ videoGif = load_gif(video_path)
 print(videoGif.shape)
 
 interpreter = tf.lite.Interpreter(
-    model_path='C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_retrained.tflite')
+    model_path='../models/movinet_retrained.tflite')
 
 runner = interpreter.get_signature_runner()
 
@@ -64,7 +64,7 @@ input_details = runner.get_input_details()
 
 # @title
 # Get top_k labels and probabilities
-def get_top_k(probs, k=15, label_map=KINETICS_600_LABELS):
+def get_top_k(probs, k=5, label_map=MOVINET_RETRAINED_LABELS):
     """Outputs the top k model labels and probabilities on the given video.
 
     Args:

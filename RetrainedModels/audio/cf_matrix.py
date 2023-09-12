@@ -3,7 +3,6 @@ import csv
 import itertools
 import numpy as np
 
-from tflite_runtime.interpreter import Interpreter
 import tensorflow as tf
 import tensorflow_io as tfio
 import matplotlib.pyplot as plt
@@ -14,7 +13,7 @@ parser.add_argument('-d', '--dataset', dest='datasets_path',
 args = parser.parse_args()
 DATASETS_PATH = args.datasets_path
 
-interpreter = Interpreter(f'../EdgeDevice/models/yamnet_retrained.tflite')
+interpreter = tf.lite.Interpreter(f'../../EdgeDevice/models/yamnet_retrained.tflite')
 inputs = interpreter.get_input_details()
 outputs = interpreter.get_output_details()
 waveform_input_index = inputs[0]['index']
