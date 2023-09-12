@@ -81,20 +81,3 @@ class AudioInference:
         inferred_class = self.class_names[top_class]
 
         return inferred_class, top_score
-#
-# if __name__ == '__main__':
-#     audio_model = {
-#         'name': 'yamnet_retrained',
-#         'frequency': 16000,  # sample rate in Hz
-#         'duration': 0.96,  # duration of each input signal in seconds
-#         'threshold': 0.90  # confidence threshold for classification
-#     }
-#     audio_inference = AudioInference(audio_model)
-#     audio_file_path = f'../../RetrainedModels/audio/test_audios/NODE-3/136.wav'
-#     waveform, _ = sf.read(audio_file_path, dtype='float32')
-#     last_class = ""
-#     while True:
-#         inferred_classes, top_score = audio_inference.inference(waveform)
-#
-#         print(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
-#         time.sleep(2)

@@ -277,11 +277,10 @@ class Node(threading.Thread):
         while self.running:
             inferred_classes, top_score = audio_inference.inference(waveform)
 
-
             if top_score < audio_model['threshold']:
                 # # TODO: Request the other node in same local for information about whats happening in a time period
                 #  p.ex: 21:00 to 21:10
-                logging.info(f'[AUDIO LOWER INFERENCE - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
+                pass
             else:
                 if inferred_classes != last_class:
                     logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
