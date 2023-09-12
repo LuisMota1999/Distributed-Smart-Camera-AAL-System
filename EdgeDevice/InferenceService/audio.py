@@ -1,6 +1,6 @@
 import logging
 import time
-
+import soundfile as sf
 import numpy as np
 from tflite_runtime.interpreter import Interpreter
 import csv
@@ -32,14 +32,14 @@ class AudioInference:
         self.threshold = audio_model['threshold']  # threshold from 0 to 1, ex. 0.85
         self.last_class = ""
         # Load Model
-        self.interpreter = Interpreter(f'models/{self.model_name}.tflite')
+        self.interpreter = Interpreter(f'../models/{self.model_name}.tflite')
         inputs = self.interpreter.get_input_details()
         outputs = self.interpreter.get_output_details()
         self.waveform_input_index = inputs[0]['index']
         self.scores_output_index = outputs[0]['index']
 
         # Read the csv file containing the model classes
-        class_map_path = f'models/{self.model_name}_class_map.csv'
+        class_map_path = f'../models/{self.model_name}_class_map.csv'
         with open(class_map_path) as class_map_csv:
             self.class_names = [display_name for (class_index, mid, display_name) in csv.reader(class_map_csv)]
         self.class_names = self.class_names[1:]  # Skip CSV header
@@ -84,3 +84,20 @@ class AudioInference:
         inferred_class = self.class_names[top_class]
 
         return inferred_class, top_score
+#
+# if __name__ == '__main__':
+#     audio_model = {
+#         'name': 'yamnet_retrained',
+#         'frequency': 16000,  # sample rate in Hz
+#         'duration': 0.96,  # duration of each input signal in seconds
+#         'threshold': 0.90  # confidence threshold for classification
+#     }
+#     audio_inference = AudioInference(audio_model)
+#     audio_file_path = f'../../RetrainedModels/audio/test_audios/NODE-3/136.wav'
+#     waveform, _ = sf.read(audio_file_path, dtype='float32')
+#     last_class = ""
+#     while True:
+#         inferred_classes, top_score = audio_inference.inference(waveform)
+#
+#         print(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
+#         time.sleep(2)

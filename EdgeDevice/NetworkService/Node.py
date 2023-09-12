@@ -118,7 +118,7 @@ class Node(threading.Thread):
 
         try:
             if not self.running:
-                # handle_detection.join()
+                handle_detection.join()
                 handle_reconects.join()
                 handle_discovery.join()
                 handle_connections.join()
@@ -210,7 +210,7 @@ class Node(threading.Thread):
 
                 handle_chain_messages = threading.Thread(target=self.handle_chain_message,
                                                          args=("", conn, client_id,
-                                                              Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
                 handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
@@ -273,6 +273,7 @@ class Node(threading.Thread):
         audio_file_path = f'../RetrainedModels/audio/test_audios/{self.name}/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
         last_class = ""
+        logging.info(f'Inference Starting')
         while self.running:
             inferred_classes, top_score = audio_inference.inference(waveform)
 
