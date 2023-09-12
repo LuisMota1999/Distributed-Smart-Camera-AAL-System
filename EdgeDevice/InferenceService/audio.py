@@ -1,6 +1,3 @@
-import logging
-import time
-import soundfile as sf
 import numpy as np
 from tflite_runtime.interpreter import Interpreter
 import csv
@@ -32,14 +29,14 @@ class AudioInference:
         self.threshold = audio_model['threshold']  # threshold from 0 to 1, ex. 0.85
         self.last_class = ""
         # Load Model
-        self.interpreter = Interpreter(f'../models/{self.model_name}.tflite')
+        self.interpreter = Interpreter(f'models/{self.model_name}.tflite')
         inputs = self.interpreter.get_input_details()
         outputs = self.interpreter.get_output_details()
         self.waveform_input_index = inputs[0]['index']
         self.scores_output_index = outputs[0]['index']
 
         # Read the csv file containing the model classes
-        class_map_path = f'../models/{self.model_name}_class_map.csv'
+        class_map_path = f'models/{self.model_name}_class_map.csv'
         with open(class_map_path) as class_map_csv:
             self.class_names = [display_name for (class_index, mid, display_name) in csv.reader(class_map_csv)]
         self.class_names = self.class_names[1:]  # Skip CSV header
