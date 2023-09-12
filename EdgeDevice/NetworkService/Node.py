@@ -210,7 +210,7 @@ class Node(threading.Thread):
 
                 handle_chain_messages = threading.Thread(target=self.handle_chain_message,
                                                          args=("", conn, client_id,
-                                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                                                              Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
                 handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
@@ -277,10 +277,11 @@ class Node(threading.Thread):
         while self.running:
             inferred_classes, top_score = audio_inference.inference(waveform)
 
+
             if top_score < audio_model['threshold']:
                 # # TODO: Request the other node in same local for information about whats happening in a time period
                 #  p.ex: 21:00 to 21:10
-                pass
+                logging.info(f'[AUDIO LOWER INFERENCE - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
             else:
                 if inferred_classes != last_class:
                     logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
