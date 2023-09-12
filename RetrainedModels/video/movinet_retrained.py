@@ -16,11 +16,13 @@ MODEL_ID = 'a0'
 USE_POSITIONAL_ENCODING = MODEL_ID in {'a3', 'a4', 'a5'}
 RESOLUTION = 172
 CHECKPOINT_DIR = "movinet_a0_stream"
-CHECKPOINT_DIR_OUTPUT = 'trained_model'
 CHECKPOINT_PATH = tf.train.latest_checkpoint(CHECKPOINT_DIR)
-SAVED_MODEL_DIR = 'model'
+CHECKPOINT_PATH_WEIGHTS = 'trained_model/cp.ckpt'
+CHECKPOINT_DIR_WEIGHTS = 'trained_model'
+CHECKPOINT_DIR_OUTPUT = os.path.dirname(CHECKPOINT_PATH_WEIGHTS)
+SAVED_MODEL_DIR = '../../EdgeDevice/models/'
 TFLITE_FILENAME = '../../EdgeDevice/models/movinet_retrained.tflite'
-INPUT_SHAPE = [1, VideoInference.NUM_FRAMES.value, RESOLUTION, RESOLUTION, 3]
+INPUT_SHAPE = [1, 1, RESOLUTION, RESOLUTION, 3]
 DATASET_TOYOTASMARTHOME = ToyotaSmartHomeDataset(VideoInference.DATASET_DIRECTORY.value + 'mp4',
                                                  VideoInference.DATASET_DIRECTORY.value)
 SUBSET_PATHS = DATASET_TOYOTASMARTHOME.dirs
@@ -203,26 +205,50 @@ def get_actual_predicted_labels(dataset):
 
 
 # Define a function to convert the model to TFLite format
-def convert_model_to_tflite(saved_model_dir, input_model_shape, model_filename_ouput_directory):
+def convert_model_to_tflite():
     """
     Convert a TensorFlow SavedModel to TFLite format.
 
-    Args:
-        saved_model_dir (str): Directory where the SavedModel is saved.
-        input_model_shape (list): Shape of the input model.
-        model_filename_ouput_directory (str): Output directory for the TFLite model file.
     """
+
+    # Create backbone and model.
+    backbone = movinet.Movinet(
+        model_id=MODEL_ID,
+        causal=True,
+        conv_type='2plus1d',
+        se_type='2plus3d',
+        activation='hard_swish',
+        gating_activation='hard_sigmoid',
+        use_positional_encoding=USE_POSITIONAL_ENCODING,
+        use_external_states=True,
+    )
+
+    model = movinet_model.MovinetClassifier(
+        backbone,
+        num_classes=VideoInference.NUM_CLASSES.value,
+        output_states=True)
+
+    # Create your example input here.
+    # Refer to the paper for recommended input shapes.
+    inputs = tf.ones(INPUT_SHAPE)
+
+    # [Optional] Build the model and load a pretrained checkpoint.
+    model.build(inputs.shape)
+
+    # Load weights from the checkpoint to the rebuilt model
+    model.load_weights(tf.train.latest_checkpoint(CHECKPOINT_DIR_WEIGHTS))
+
     export_saved_model.export_saved_model(
         model=model,
-        input_shape=input_model_shape,
-        export_path=saved_model_dir,
+        input_shape=INPUT_SHAPE,
+        export_path=SAVED_MODEL_DIR,
         causal=True,
         bundle_input_init_states_fn=False)
 
-    converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+    converter = tf.lite.TFLiteConverter.from_saved_model(SAVED_MODEL_DIR)
     tflite_model = converter.convert()
 
-    with open(model_filename_ouput_directory, 'wb') as f:
+    with open(TFLITE_FILENAME, 'wb') as f:
         f.write(tflite_model)
 
 
@@ -234,7 +260,7 @@ with distribution_strategy.scope():
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
     model.compile(loss=loss_obj, optimizer=optimizer, metrics=['accuracy'])
 
-cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_DIR_OUTPUT, save_weights_only=True, verbose=1)
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_PATH_WEIGHTS, save_weights_only=True, verbose=1)
 
 results = model.fit(train_ds, validation_data=val_ds, epochs=VideoInference.NUM_EPOCHS.value, validation_freq=1,
                     verbose=1, callbacks=[cp_callback])
@@ -259,3 +285,5 @@ print(f"Accuracy: {accuracy:.4f}")
 print(f"Precision: {precision:.4f}")
 print(f"Recall: {recall:.4f}")
 print(f"F1-score: {f1:.4f}")
+
+convert_model_to_tflite()

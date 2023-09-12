@@ -3,7 +3,6 @@ import pathlib
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import mediapy as media
 import numpy as np
 from PIL import Image
 
@@ -14,7 +13,7 @@ mpl.rcParams.update({
     'font.size': 10,
 })
 
-labels_path = 'C:\\Users\\LPMOTA\\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_labels.txt'
+labels_path = 'C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_retrained_class.txt'
 labels_path = pathlib.Path(labels_path)
 
 lines = labels_path.read_text().splitlines()
@@ -22,17 +21,12 @@ KINETICS_600_LABELS = np.array([line.strip() for line in lines])
 
 print(KINETICS_600_LABELS)
 
-cleanWindows_url = 'https://odditymall.com/includes/content/the-glider-a-magnetic-window-cleaner-that-cleans-both-sides-of-the-glass-0.gif'
-cleanWindows_path = tf.keras.utils.get_file(
-    fname='readingBook.gif',
-    origin=cleanWindows_url,
-    cache_dir='.', cache_subdir='.',
-)
+video_path = '/RetrainedModels/video/test_videos/NODE-2/readBookDemo.gif'
 
 
 # @title
 # Read and process a video
-def load_gif(file_path, image_size=(224, 224)):
+def load_gif(file_path, image_size=(172, 172)):
     """Loads a gif file into a TF tensor.
 
     Use images resized to match what's expected by your model.
@@ -57,16 +51,15 @@ def load_gif(file_path, image_size=(224, 224)):
     return video
 
 
-readingBook = load_gif(cleanWindows_path)
-print(readingBook.shape)
+videoGif = load_gif(video_path)
+print(videoGif.shape)
 
 interpreter = tf.lite.Interpreter(
-    model_path='C:\\Users\\LPMOTA\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_a2_stream_k600_int8.tflite')
+    model_path='C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\EdgeDevice\\models\\movinet_retrained.tflite')
 
 runner = interpreter.get_signature_runner()
-input_details = runner.get_input_details()
 
-print(input_details)
+input_details = runner.get_input_details()
 
 
 # @title
@@ -84,7 +77,6 @@ def get_top_k(probs, k=15, label_map=KINETICS_600_LABELS):
       a tuple of the top-k labels and probabilities.
     """
     # Sort predictions to find top_k
-
 
     top_predictions = tf.argsort(probs, axis=-1, direction='DESCENDING')[:k]
     # collect the labels of top_k predictions
@@ -113,15 +105,14 @@ init_states = {
     if name != 'image'
 }
 
-print(list(sorted(init_states.keys()))[:5])
 
 inputs = init_states.copy()
 
-inputs['image'] = readingBook[tf.newaxis, 0:1, ...]
+inputs['image'] = videoGif[tf.newaxis, 0:1, ...]
 
 states = init_states
 
-video = readingBook
+video = videoGif
 images = tf.split(video[tf.newaxis], video.shape[0], axis=1)
 
 print(images)
@@ -143,7 +134,7 @@ logits = tf.concat(all_logits, 0)
 probs = tf.nn.softmax(logits, axis=-1)
 
 final_probs = probs[-1]
-print(final_probs)
+
 print('Top_k predictions and their probablities\n')
 for label, p in get_top_k(final_probs):
     print(f'{label:20s}: {p:.3f}')
