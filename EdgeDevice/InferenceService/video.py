@@ -21,7 +21,7 @@ MOVINET_RETRAINED_LABELS = np.array([line.strip() for line in FILE_ROWS])
 
 print(MOVINET_RETRAINED_LABELS)
 
-video_path = '../../RetrainedModels/video/test_videos/NODE-2/readBookDemo.gif'
+video_path = '../../RetrainedModels/video/test_videos/NODE-2/watchingTVDemo.gif'
 
 
 # @title

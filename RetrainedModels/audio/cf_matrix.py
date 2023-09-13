@@ -99,7 +99,7 @@ def plot_confusion_matrix(cm, class_names):
     plt.xlabel('Predicted label')
 
     figure.show()
-    figure.savefig('../assets/model_imgs/confusion_matrix.png')
+    figure.savefig('../../assets/images/confusion_matrix.png')
     return figure
 
 

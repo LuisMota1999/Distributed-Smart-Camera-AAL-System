@@ -1,6 +1,3 @@
 Cook_Cleandishes
-Drink_Frombottle
 Eat_Attable
-Readbook
-Usetelephone
 WatchTV

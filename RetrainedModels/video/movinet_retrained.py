@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from RetrainedModels.video.utils.constants import VideoInference
 from RetrainedModels.video.filters.DataExtraction import FrameGenerator, ToyotaSmartHomeDataset
 from official.projects.movinet.tools import export_saved_model
+import itertools
 
 # Define constants and paths
 CLASSES_LABEL = sorted(os.listdir(VideoInference.DATASET_DIRECTORY.value + 'train'))
@@ -152,35 +153,43 @@ def plot_accuracy_loss(history):
     plt.xlabel('epoch')
     plt.xlim([0, VideoInference.NUM_EPOCHS.value])
     plt.legend(['accuracy', 'loss'], loc='best')
+    plt.savefig(
+        'C:\\Users\\luisp\\Desktop\\Distributed-Smart-Camera-AAL-System\\assets\\images\\retraining_video_epoch_progress.png')
     plt.show()
 
 
-# Define a function to plot a confusion matrix
-def plot_confusion_matrix(actual, predicted, labels, ds_type):
+def plot_confusion_matrix(cm, class_names):
     """
-    Plot a confusion matrix for classification results.
+    Returns a matplotlib figure containing the plotted confusion matrix.
 
     Args:
-        actual (tf.Tensor): Ground truth labels.
-        predicted (tf.Tensor): Predicted labels.
-        labels (list): List of class labels.
-        ds_type (str): Type of dataset (e.g., 'train', 'validation', 'test').
+      cm (array, shape = [n, n]): a confusion matrix of integer classes
+      class_names (array, shape = [n]): String names of the integer classes
     """
-    cm = tf.math.confusion_matrix(actual, predicted)
-    ax = sns.heatmap(cm, annot=True, fmt='g')
-    sns.set(rc={'figure.figsize': (12, 12)})  # Adjust the figure size as needed
-    sns.set(font_scale=1.2)
-    ax.set_title('Confusion matrix of action recognition for ' + ds_type)
-    ax.set_xlabel('Predicted Action')
-    ax.set_ylabel('Actual Action')
-    plt.xticks(rotation=90)
-    plt.yticks(rotation=0)
+    figure = plt.figure(figsize=(15, 15))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Matriz de confusão do modelo de áudio")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
 
-    # Ensure the number of labels matches the number of tick locations
-    ax.xaxis.set_ticklabels(labels, rotation=90)
-    ax.yaxis.set_ticklabels(labels, rotation=0)
+    # Compute the labels from the normalized confusion matrix.
+    labels = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
 
-    plt.show()
+    # Use white text if squares are dark; otherwise black.
+    threshold = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        color = "white" if cm[i, j] > threshold else "black"
+        plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+    figure.show()
+    figure.savefig('../../assets/images/confusion_matrix_video.png')
+    return figure
 
 
 # Define a function to get actual and predicted labels
@@ -274,7 +283,9 @@ fg = FrameGenerator(SUBSET_PATHS['train'], VideoInference.NUM_FRAMES.value, data
 label_names = list(fg.class_ids_for_name.keys())
 
 actual, predicted = get_actual_predicted_labels(test_ds)
-plot_confusion_matrix(actual, predicted, label_names, 'test')
+
+confusion_matrix = tf.math.confusion_matrix(actual, predicted)
+figure = plot_confusion_matrix(confusion_matrix.numpy(), label_names)
 
 accuracy = accuracy_score(actual, predicted)
 precision = precision_score(actual, predicted, average='weighted')

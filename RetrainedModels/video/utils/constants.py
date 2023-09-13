@@ -2,13 +2,13 @@ from enum import Enum
 
 
 class VideoInference(Enum):
-    NUM_EPOCHS = 35
-    NUM_CLASSES = 6
+    NUM_EPOCHS = 5
+    NUM_CLASSES = 3
     BATCH_SIZE = 10
-    NUM_FRAMES = 15
-    TRAIN_SUBSET_SIZE = 170
-    VAL_SUBSET_SIZE = 40
-    TEST_SUBSET_SIZE = 20
+    NUM_FRAMES = 8
+    TRAIN_SUBSET_SIZE = 100
+    VAL_SUBSET_SIZE = 15
+    TEST_SUBSET_SIZE = 15
     DATASET_DIRECTORY = 'datasets/ToyotaSmartHome/'
 
 
