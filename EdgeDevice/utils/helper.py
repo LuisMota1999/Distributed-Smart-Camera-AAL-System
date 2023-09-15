@@ -350,6 +350,29 @@ class NetworkUtils(object):
         return flag
 
     @staticmethod
+    def get_last_event_blockchain(search_type, block_chain_data):
+
+        # Initialize variables to store the last event and timestamp
+        last_event = None
+        last_event_timestamp = 0
+
+        # Iterate through the data and find the last event with the specified type
+        for item in block_chain_data:
+            event_data = item.get('DATA', {})
+            event_type = event_data.get('EVENT_TYPE', '')
+            event_timestamp = event_data.get('TIMESTAMP', 0)
+
+            if event_type == search_type and event_timestamp > last_event_timestamp:
+                last_event_timestamp = event_timestamp
+                last_event = item
+
+        # Print the last event with the specified type
+        if last_event:
+            return json.dumps(last_event, indent=4)
+        else:
+            logging.warning(f'No event of type {search_type} found')
+
+    @staticmethod
     def get_public_key_by_ip(node_neighbours, ip_address):
         """
         Get the public key associated with a specific IP address.

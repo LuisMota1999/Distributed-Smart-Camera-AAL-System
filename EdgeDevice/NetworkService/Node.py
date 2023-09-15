@@ -280,7 +280,9 @@ class Node(threading.Thread):
             if top_score < audio_model['threshold']:
                 # # TODO: Request the other node in same local for information about whats happening in a time period
                 #  p.ex: 21:00 to 21:10
-                pass
+                if len(self.blockchain.pending_transactions) > 0:
+                    last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
+                        Transaction.TYPE_AUDIO_INFERENCE.value, self.blockchain.pending_transactions)
             else:
                 if inferred_classes != last_class:
                     logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
