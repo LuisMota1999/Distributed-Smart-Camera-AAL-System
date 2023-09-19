@@ -352,6 +352,19 @@ class Node(threading.Thread):
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
                 time.sleep(self.keep_alive_timeout * 2.5)
+            except socket.error as e:
+                logging.error(f"Socket error: {e.args}")
+                if conn in self.connections:
+                    self.remove_node(conn, "KA")
+                    client_id_str = client_id.decode('utf-8')
+                    client_uuid = uuid.UUID(client_id_str)
+                    if client_uuid in self.neighbours:
+                        self.neighbours.pop(client_uuid)
+                    conn.close()
+                    handle_reconects = threading.Thread(target=self.handle_reconnects)
+                    handle_reconects.start()
+                    break
+
             except Exception as ex:
                 logging.error(f"Exception error in Keep Alive: {ex.args}")
                 break
