@@ -36,7 +36,7 @@ class Node(threading.Thread):
         self.ip = NetworkUtils.get_interface_ip()
         self.port = HOST_PORT
         self.last_keep_alive = time.time()
-        self.keep_alive_timeout = 20
+        self.keep_alive_timeout = 10
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
@@ -113,12 +113,12 @@ class Node(threading.Thread):
 
         time.sleep(2)
 
-        handle_detection = threading.Thread(target=self.handle_detection)
-        handle_detection.start()
+        # handle_detection = threading.Thread(target=self.handle_detection)
+        # handle_detection.start()
 
         try:
             if not self.running:
-                handle_detection.join()
+                # handle_detection.join()
                 handle_reconects.join()
                 handle_discovery.join()
                 handle_connections.join()
@@ -208,10 +208,10 @@ class Node(threading.Thread):
                                                               args=(conn, client_id))
                 handle_keep_alive_messages.start()
 
-                handle_chain_messages = threading.Thread(target=self.handle_chain_message,
-                                                         args=("", conn, client_id,
-                                                              Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
-                handle_chain_messages.start()
+                # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
+                #                                         args=("", conn, client_id,
+                #                                                Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                # handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
@@ -354,19 +354,19 @@ class Node(threading.Thread):
                 time.sleep(2)
                 message = json.dumps(data, indent=2)
                 conn.send(bytes(message, encoding="utf-8"))
-                time.sleep(self.keep_alive_timeout)
+                time.sleep(self.keep_alive_timeout * 2.5)
             except Exception as ex:
                 logging.error(f"Exception error in Keep Alive: {ex.args}")
                 break
 
-        if conn in self.connections:
-            self.recon_state = True
-            self.remove_node(conn, "KAlive")
-            client_id_str = client_id.decode('utf-8')
-            client_uuid = uuid.UUID(client_id_str)
-            if client_uuid in self.neighbours:
-                self.neighbours.pop(client_uuid)
-            conn.close()
+        # if conn in self.connections:
+        #    self.recon_state = True
+        #    self.remove_node(conn, "KAlive")
+        #    client_id_str = client_id.decode('utf-8')
+        #    client_uuid = uuid.UUID(client_id_str)
+        #    if client_uuid in self.neighbours:
+        #        self.neighbours.pop(client_uuid)
+        #    conn.close()
 
     def handle_chain_message(self, message, conn, neighbour_id, message_type):
         """
@@ -472,7 +472,7 @@ class Node(threading.Thread):
 
             logging.info(f"Network Coordinator is {self.coordinator}")
 
-            message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
+            # message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -553,10 +553,11 @@ class Node(threading.Thread):
             except socket.timeout as e:
                 logging.error("Error timeout:", e)
                 self.recon_state = True
-                if conn in self.connections:
-                    self.remove_node(conn, "Timeout")
-                    conn.close()
-                break
+                # if conn in self.connections:
+                #    self.remove_node(conn, "Timeout")
+                #    conn.close()
+                # break
+
 
             except ConnectionResetError as c:
                 logging.error(f"Connection Reset Error {c.strerror}")

@@ -79,8 +79,8 @@ def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, t
 class MessageHandlerUtils(object):
 
     @staticmethod
-    def create_general_message(internal_id, internal_ip, internal_port, external_id, external_ip, external_port,
-                               node_coordinator, message_type):
+    def create_general_message(internal_id: str, internal_ip: str, internal_port: int, external_id: str, external_ip: int, external_port: str,
+                               node_coordinator: str, message_type: str):
         """
         Create a general message with metadata and payload.
 
@@ -98,8 +98,8 @@ class MessageHandlerUtils(object):
         :type external_ip: str
         :param external_port: The external port number of the message sender.
         :type external_port: int
-        :param node_coordinator: The coordinator status of the node.
-        :type node_coordinator: bool
+        :param node_coordinator: The id of node coordinator.
+        :type node_coordinator: str
         :param message_type: The type of the message.
         :type message_type: str
 
