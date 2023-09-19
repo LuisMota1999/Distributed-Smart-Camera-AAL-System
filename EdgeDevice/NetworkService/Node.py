@@ -202,7 +202,7 @@ class Node(threading.Thread):
                 self.list_peers()
 
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
-                                                              args=(client_id))
+                                                              args=client_id)
                 handle_keep_alive_messages.start()
 
                 # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
@@ -329,8 +329,6 @@ class Node(threading.Thread):
         includes information such as the sender's metadata, message type, last time alive, coordinator information, and
         public key. If an exception occurs during the process, the function breaks the loop and closes the connection.
 
-        :param conn: Socket connection object representing the connection to the peer node.
-        :type conn: <socket.socket>
         :param client_id: The unique identifier of the connected peer node.
         :type client_id: <bytes>
         :return: None
@@ -340,8 +338,8 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = MessageHandlerUtils.create_keep_alive_message(str(self.id), self.ip, self.port,
-                                                                  str(neighbour_id), str(self.coordinator),
-                                                                  Messages.MESSAGE_TYPE_PING.value)
+                                                                     str(neighbour_id), str(self.coordinator),
+                                                                     Messages.MESSAGE_TYPE_PING.value)
 
                 if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
                     data["PAYLOAD"]["PUBLIC_KEY"] = NetworkUtils.key_to_json(self.public_key)
@@ -352,12 +350,6 @@ class Node(threading.Thread):
                 time.sleep(self.keep_alive_timeout * 2.5)
             except socket.error as e:
                 logging.error(f"Socket error: {e.args}")
-                client_id_str = client_id.decode('utf-8')
-                client_uuid = uuid.UUID(client_id_str)
-                if client_uuid in self.neighbours:
-                    self.neighbours.pop(client_uuid)
-                handle_reconects = threading.Thread(target=self.handle_reconnects)
-                handle_reconects.start()
                 break
 
             except Exception as ex:
