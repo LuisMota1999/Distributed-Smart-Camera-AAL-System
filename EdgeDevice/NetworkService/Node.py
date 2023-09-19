@@ -202,7 +202,7 @@ class Node(threading.Thread):
                 self.list_peers()
 
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
-                                                              args=client_id)
+                                                              args=(client_id,))
                 handle_keep_alive_messages.start()
 
                 # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
@@ -355,15 +355,6 @@ class Node(threading.Thread):
             except Exception as ex:
                 logging.error(f"Exception error in Keep Alive: {ex.args}")
                 break
-
-        # if conn in self.connections:
-        #    self.recon_state = True
-        #    self.remove_node(conn, "KAlive")
-        #    client_id_str = client_id.decode('utf-8')
-        #    client_uuid = uuid.UUID(client_id_str)
-        #    if client_uuid in self.neighbours:
-        #        self.neighbours.pop(client_uuid)
-        #    conn.close()
 
     def handle_chain_message(self, message, conn, neighbour_id, message_type):
         """
