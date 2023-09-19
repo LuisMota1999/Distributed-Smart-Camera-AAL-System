@@ -310,11 +310,15 @@ class Node(threading.Thread):
         the node recently reconnected.
         :return: None
         """
+        exp_backoff_time = 0
         while self.running:
             if len(self.connections) < 1 and self.recon_state is True:
                 self.blockchain.nodes[self.ip] = time.time()
                 print("Attempting to reconnect...")
-                time.sleep(self.keep_alive_timeout)
+                self.service_info.priority = random.randint(1, 100)
+                self.zeroconf.update_service(self.service_info)
+                exp_backoff_time = self.keep_alive_timeout + exp_backoff_time
+                time.sleep(exp_backoff_time)
             elif len(self.connections) > 0 and self.recon_state is True:
                 print("Coordinator not seen for a while. Starting new election...")
                 self.coordinator = None
