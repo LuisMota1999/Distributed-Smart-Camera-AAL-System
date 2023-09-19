@@ -551,13 +551,12 @@ class Node(threading.Thread):
                 break
 
             except socket.timeout as e:
-                logging.error("Error timeout:", e)
+                logging.error("Error timeout:", e.args)
                 self.recon_state = True
-                # if conn in self.connections:
-                #    self.remove_node(conn, "Timeout")
-                #    conn.close()
-                # break
-
+                if conn in self.connections:
+                    self.remove_node(conn, "Timeout")
+                    conn.close()
+                    break
 
             except ConnectionResetError as c:
                 logging.error(f"Connection Reset Error {c.strerror}")
