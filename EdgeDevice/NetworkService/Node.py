@@ -298,7 +298,9 @@ class Node(threading.Thread):
 
                     homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
                                                                                           inferred_classes, self.local)
-                    self.homeassistant_listener.publish_message(homeassistant_data)
+
+                    if self.coordinator == self.id:
+                        self.homeassistant_listener.publish_message(homeassistant_data)
                     self.broadcast_message(message)
 
                 last_class = inferred_classes
