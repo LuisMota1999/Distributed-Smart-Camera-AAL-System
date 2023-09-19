@@ -45,7 +45,7 @@ models = {
 }
 
 
-def meta(from_id: str, from_ip: str, from_port: int, to_ip: str, to_port: int, to_id: str, version="0.0.1"):
+def meta(from_id: str, from_ip: str, from_port: int, to_ip="", to_port=0, to_id="", version="0.0.1"):
     """
     Create metadata for a message.
 
@@ -108,6 +108,39 @@ class MessageHandlerUtils(object):
         """
         return {
             "META": meta(internal_id, internal_ip, internal_port, external_id, external_ip, external_port),
+            "TYPE": message_type,
+            "PAYLOAD": {
+                "LAST_TIME_ALIVE": time.time(),
+                "COORDINATOR": node_coordinator,
+            },
+        }
+
+    @staticmethod
+    def create_keep_alive_message(internal_id: str, internal_ip: str, internal_port: int, external_id: str,
+                               node_coordinator: str, message_type: str):
+        """
+        Create a general message with metadata and payload.
+
+        The `create_general_message` method constructs a general message with metadata and payload components.
+
+        :param internal_id: The internal ID of the message sender.
+        :type internal_id: str
+        :param internal_ip: The internal IP address of the message sender.
+        :type internal_ip: str
+        :param internal_port: The internal port number of the message sender.
+        :type internal_port: int
+        :param external_id: The external ID of the message sender.
+        :type external_id: str
+        :param node_coordinator: The id of node coordinator.
+        :type node_coordinator: str
+        :param message_type: The type of the message.
+        :type message_type: str
+
+        :return: A dictionary representing the general message.
+        :rtype: dict
+        """
+        return {
+            "META": meta(internal_id, internal_ip, internal_port, external_id),
             "TYPE": message_type,
             "PAYLOAD": {
                 "LAST_TIME_ALIVE": time.time(),

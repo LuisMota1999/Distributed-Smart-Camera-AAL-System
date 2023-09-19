@@ -202,7 +202,7 @@ class Node(threading.Thread):
                 self.list_peers()
 
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
-                                                              args=(conn, client_id))
+                                                              args=(client_id))
                 handle_keep_alive_messages.start()
 
                 # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
@@ -322,7 +322,7 @@ class Node(threading.Thread):
                 self.recon_state = False
                 break
 
-    def handle_keep_alive_messages(self, conn, client_id):
+    def handle_keep_alive_messages(self, client_id):
         """
         The ``handle_keep_alive_messages`` method sends keep-alive messages to the specified connection periodically
         to maintain the connection. The keep-alive message
@@ -339,9 +339,7 @@ class Node(threading.Thread):
         neighbour = self.neighbours.get(neighbour_id)
         while self.running:
             try:
-                data = MessageHandlerUtils.create_general_message(str(self.id), self.ip, self.port,
-                                                                  conn.getpeername()[0],
-                                                                  conn.getpeername()[1],
+                data = MessageHandlerUtils.create_keep_alive_message(str(self.id), self.ip, self.port,
                                                                   str(neighbour_id), str(self.coordinator),
                                                                   Messages.MESSAGE_TYPE_PING.value)
 
@@ -350,7 +348,7 @@ class Node(threading.Thread):
 
                 time.sleep(2)
                 message = json.dumps(data, indent=2)
-                conn.send(bytes(message, encoding="utf-8"))
+                self.broadcast_message(message)
                 time.sleep(self.keep_alive_timeout * 2.5)
             except socket.error as e:
                 logging.error(f"Socket error: {e.args}")
