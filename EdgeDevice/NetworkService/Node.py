@@ -108,9 +108,6 @@ class Node(threading.Thread):
             time.sleep(3)
             self.handle_election()
 
-        handle_reconects = threading.Thread(target=self.handle_reconnects)
-        handle_reconects.start()
-
         time.sleep(2)
 
         # handle_detection = threading.Thread(target=self.handle_detection)
@@ -119,7 +116,7 @@ class Node(threading.Thread):
         try:
             if not self.running:
                 # handle_detection.join()
-                handle_reconects.join()
+                # handle_reconects.join()
                 handle_discovery.join()
                 handle_connections.join()
         except Exception as e:
@@ -323,7 +320,7 @@ class Node(threading.Thread):
                 self.coordinator = None
                 self.handle_election()
                 self.recon_state = False
-                continue
+                break
 
     def handle_keep_alive_messages(self, conn, client_id):
         """
@@ -556,6 +553,8 @@ class Node(threading.Thread):
                 if conn in self.connections:
                     self.remove_node(conn, "Timeout")
                     conn.close()
+                    handle_reconects = threading.Thread(target=self.handle_reconnects)
+                    handle_reconects.start()
                     break
 
             except ConnectionResetError as c:
