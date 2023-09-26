@@ -110,13 +110,12 @@ class Node(threading.Thread):
 
         time.sleep(2)
 
-        # handle_detection = threading.Thread(target=self.handle_detection)
-        # handle_detection.start()
+        handle_detection = threading.Thread(target=self.handle_detection)
+        handle_detection.start()
 
         try:
             if not self.running:
-                # handle_detection.join()
-                # handle_reconects.join()
+                handle_detection.join()
                 handle_discovery.join()
                 handle_connections.join()
         except Exception as e:
@@ -205,10 +204,10 @@ class Node(threading.Thread):
                                                               args=(client_id,))
                 handle_keep_alive_messages.start()
 
-                # handle_chain_messages = threading.Thread(target=self.handle_chain_message,
-                #                                         args=("", conn, client_id,
-                #                                                Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
-                # handle_chain_messages.start()
+                handle_chain_messages = threading.Thread(target=self.handle_chain_message,
+                                                         args=("", conn, client_id,
+                                                               Messages.MESSAGE_TYPE_REQUEST_CHAIN.value))
+                handle_chain_messages.start()
                 break
             except ConnectionRefusedError:
                 print(f"Connection refused by {client_host}:{client_port}, retrying in 10 seconds...")
@@ -275,8 +274,6 @@ class Node(threading.Thread):
             inferred_classes, top_score = audio_inference.inference(waveform)
 
             if top_score < audio_model['threshold']:
-                # # TODO: Request the other node in same local for information about whats happening in a time period
-                #  p.ex: 21:00 to 21:10
                 if len(self.blockchain.pending_transactions) > 0:
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         Transaction.TYPE_AUDIO_INFERENCE.value, self.blockchain.pending_transactions)
@@ -285,7 +282,7 @@ class Node(threading.Thread):
                     logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
                     transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
                                                                                     Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                                    self.local)
+                                                                                    self.local, top_score)
 
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
@@ -462,7 +459,7 @@ class Node(threading.Thread):
 
             logging.info(f"Network Coordinator is {self.coordinator}")
 
-            # message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
+            message_type = Messages.MESSAGE_TYPE_REQUEST_TRANSACTION.value
 
         neighbour = self.neighbours.get(neighbour_id)
         if neighbour is not None and neighbour['PUBLIC_KEY'] is None:
@@ -571,7 +568,7 @@ class Node(threading.Thread):
                     conn.close()
                 break
 
-    def create_blockchain_transaction(self, event_action, event_type, event_local):
+    def create_blockchain_transaction(self, event_action, event_type, event_local, event_accuracy=1.0):
         """
         Creates and returns a new blockchain transaction with the specified event information.
 
@@ -579,6 +576,7 @@ class Node(threading.Thread):
         and event local information. It then signs the transaction with the node's private key and returns
         the transaction along with its corresponding signature.
 
+        :param event_accuracy:
         :param event_action: The action associated with the event.
         :param event_type: The type of the event.
         :param event_local: The local context of the event.
@@ -590,12 +588,14 @@ class Node(threading.Thread):
             "EVENT_TYPE": event_type,
             "EVENT_ACTION": event_action,
             "EVENT_LOCAL": event_local,
+            "EVENT_ACCURACY": event_accuracy,
         }
 
         tx, signature = create_transaction(
             self.private_key, self.public_key, str(self.id),
             message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
-            message_tx["EVENT_LOCAL"]
+            message_tx["EVENT_LOCAL"],
+            message_tx["EVENT_ACCURACY"],
         )
 
         transaction_with_signature = {

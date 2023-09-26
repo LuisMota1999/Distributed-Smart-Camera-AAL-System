@@ -5,7 +5,7 @@ import logging
 from EdgeDevice.utils.helper import NetworkUtils
 
 
-def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str, local:str):
+def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str, local:str, precision):
     """
     Creates a transaction from a sender's public key to a receiver's public key
 
@@ -28,6 +28,7 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
         "EVENT_TYPE": type,
         "EVENT_ACTION": action,
         "EVENT_LOCAL": local,
+        "PRECISION": precision,
         "TIMESTAMP": int(time.time()),
     }
     tx_bytes = json.dumps(tx, sort_keys=True).encode()
