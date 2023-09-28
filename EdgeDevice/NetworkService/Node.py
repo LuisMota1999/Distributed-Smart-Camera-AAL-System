@@ -6,15 +6,17 @@ import threading
 import time
 import ssl
 import uuid
+import cv2
+import json
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
 from EdgeDevice.BlockchainService.Blockchain import Blockchain
 from EdgeDevice.InferenceService.audio import AudioInference
+from EdgeDevice.InferenceService.video import VideoInference, VideoClassifierOptions
 from EdgeDevice.NetworkService.NodeListener import NodeListener
 from EdgeDevice.HomeAssistantService.HomeAssistant import Homeassistant
 from EdgeDevice.BlockchainService.Transaction import validate_transaction, create_transaction
-from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages, Transaction
-import json
+from EdgeDevice.utils.constants import Network, HOST_PORT, BUFFER_SIZE, Messages, Transaction, Inference
 from EdgeDevice.utils.helper import NetworkUtils, MessageHandlerUtils
 
 logger = logging.getLogger(__name__)
@@ -262,26 +264,43 @@ class Node(threading.Thread):
             'name': 'yamnet_retrained',
             'frequency': 16000,  # sample rate in Hz
             'duration': 0.96,  # duration of each input signal in seconds
-            'threshold': 0.90  # confidence threshold for classification
+            'threshold': 0.75  # confidence threshold for audio classification
+        }
+
+        video_model = {
+            'model': Inference.VIDEO_MODEL.value,
+            'resolution': 224,  # frame resolution
+            'threshold': 0.75  # confidence threshold for video classification
         }
 
         audio_inference = AudioInference(audio_model)
         audio_file_path = f'../RetrainedModels/audio/test_audios/{self.name}/136.wav'
         waveform, _ = sf.read(audio_file_path, dtype='float32')
+
+        options = VideoClassifierOptions(
+            num_threads=Inference.VIDEO_NUM_THREADS.value, max_results=Inference.VIDEO_MAX_RESULTS.value,
+            label_allow_list=Inference.VIDEO_ALLOW_LIST.value, label_deny_list=Inference.VIDEO_DENY_LIST.value)
+
+        video_inference = VideoInference(Inference.VIDEO_MODEL.value, Inference.VIDEO_LABEL.value, options)
+        video_file_path = f'../RetrainedModels/video/test_videos/{self.name}/video.gif'
+        video_inference.inference(video_file_path)
+
         last_class = ""
         logging.info(f'Inference Starting')
         while self.running:
-            inferred_classes, top_score_audio = audio_inference.inference(waveform)
-            top_score_video = 0.5
-            if top_score_audio < audio_model['threshold'] or top_score_video < audio_model['threshold'] :
+            inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
+            inferred_video_classes, top_score_video = audio_inference.inference(waveform)
+
+            if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold']:
                 if len(self.blockchain.pending_transactions) > 0:
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         "EVENT_TYPE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
             else:
-                if inferred_classes != last_class:
-                    logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score_audio})')
-                    transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
+                if inferred_audio_classes != last_class:
+                    logging.info(
+                        f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
+                    transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
                                                                                     Transaction.TYPE_AUDIO_INFERENCE.value,
                                                                                     self.local, str(top_score_audio))
 
@@ -292,13 +311,14 @@ class Node(threading.Thread):
                     message = json.dumps(data, indent=2)
 
                     homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
-                                                                                          inferred_classes, self.local)
+                                                                                          inferred_audio_classes,
+                                                                                          self.local)
 
                     if self.coordinator == self.id:
                         self.homeassistant_listener.publish_message(homeassistant_data)
                     self.broadcast_message(message)
 
-                last_class = inferred_classes
+                last_class = inferred_audio_classes
                 time.sleep(2)
 
     def handle_reconnects(self):

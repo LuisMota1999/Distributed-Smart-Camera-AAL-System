@@ -1,13 +1,12 @@
-# Import libraries
 import pathlib
+import time
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
-
+from typing import List, NamedTuple
 import tensorflow as tf
 import tqdm
+import cv2
 
 mpl.rcParams.update({
     'font.size': 10,
@@ -21,120 +20,204 @@ MOVINET_RETRAINED_LABELS = np.array([line.strip() for line in FILE_ROWS])
 
 print(MOVINET_RETRAINED_LABELS)
 
-video_path = '../../RetrainedModels/video/test_videos/NODE-2/watchingTVDemo.gif'
+video_path = '../../RetrainedModels/video/test_videos/NODE-2/video.gif'
+
+Interpreter = tf.lite.Interpreter
 
 
-# @title
-# Read and process a video
-def load_gif(file_path, image_size=(172, 172)):
-    """Loads a gif file into a TF tensor.
+class VideoClassifierOptions(NamedTuple):
+    """A config to initialize an video classifier."""
 
-    Use images resized to match what's expected by your model.
-    The model pages say the "A2" models expect 224 x 224 images at 5 fps
+    label_allow_list: List[str] = None
+    """The optional allow list of labels."""
 
-    Args:
-      file_path: path to the location of a gif file.
-      image_size: a tuple of target size.
+    label_deny_list: List[str] = None
+    """The optional deny list of labels."""
 
-    Returns:
-      a video of the gif file
-    """
-    # Load a gif file, convert it to a TF tensor
-    raw = tf.io.read_file(file_path)
-    video = tf.io.decode_gif(raw)
-    # Resize the video
-    video = tf.image.resize(video, image_size)
-    # change dtype to a float32
-    # Hub models always want images normalized to [0,1]
-    # ref: https://www.tensorflow.org/hub/common_signatures/images#input
-    video = tf.cast(video, tf.float32) / 255.
-    return video
+    max_results: int = 5
+    """The maximum number of top-scored classification results to return."""
+
+    num_threads: int = 1
+    """The number of CPU threads to be used."""
+
+    score_threshold: float = 0.0
+    """The score threshold of classification results to return."""
 
 
-videoGif = load_gif(video_path)
-print(videoGif.shape)
-
-interpreter = tf.lite.Interpreter(
-    model_path='../models/movinet_retrained.tflite')
-
-runner = interpreter.get_signature_runner()
-
-input_details = runner.get_input_details()
+class Category(NamedTuple):
+    """A result of a video classification."""
+    label: str
+    score: float
 
 
-# @title
-# Get top_k labels and probabilities
-def get_top_k(probs, k=5, label_map=MOVINET_RETRAINED_LABELS):
-    """Outputs the top k model labels and probabilities on the given video.
+class VideoClassifier(object):
+    """A wrapper class for a TFLite video classification model."""
 
-    Args:
-      probs: probability tensor of shape (num_frames, num_classes) that represents
-        the probability of each class on each frame.
-      k: the number of top predictions to select.
-      label_map: a list of labels to map logit indices to label strings.
+    _MODEL_INPUT_SIGNATURE_NAME = 'image'
+    _MODEL_OUTPUT_SIGNATURE_NAME = 'logits'
+    _MODEL_INPUT_MEAN = 0
+    _MODEL_INPUT_STD = 255
 
-    Returns:
-      a tuple of the top-k labels and probabilities.
-    """
-    # Sort predictions to find top_k
+    def __init__(
+            self,
+            model_path: str,
+            label_file: str,
+            options: VideoClassifierOptions = VideoClassifierOptions()
+    ) -> None:
+        """Initialize a video classification model.
 
-    top_predictions = tf.argsort(probs, axis=-1, direction='DESCENDING')[:k]
-    # collect the labels of top_k predictions
-    top_labels = tf.gather(label_map, top_predictions, axis=-1)
-    # decode lablels
-    print(top_labels)
-    top_labels = [label.decode('utf8') for label in top_labels.numpy()]
-    # top_k probabilities of the predictions
-    top_probs = tf.gather(probs, top_predictions, axis=-1).numpy()
-    return tuple(zip(top_labels, top_probs))
+        Args:
+            model_path: Path of the TFLite video classification model.
+            label_file: Path of the video classification label list.
+            options: The config to initialize an video classifier. (Optional)
+
+        Raises:
+            ValueError: If the TFLite model is invalid.
+        """
+
+        interpreter = Interpreter(
+            model_path=model_path, num_threads=options.num_threads)
+        signature = interpreter.get_signature_runner()
+
+        # Load the label list.
+        with open(label_file, 'r') as f:
+            lines = f.readlines()
+            label_list = [line.replace('\n', '') for line in lines]
+            self._label_list = label_list
+
+        # Remove the batch dimension to get the real input shape.
+        input_shape = signature.get_input_details()[
+            self._MODEL_INPUT_SIGNATURE_NAME]['shape']
+        input_shape = np.delete(input_shape, np.where(input_shape == 1))
+        self._input_height = input_shape[0]
+        self._input_width = input_shape[1]
+
+        # Store the signature runner and model options for later use.
+        self._signature = signature
+        self._options = options
+
+        # Set the initial state for the model.
+        self._internal_states = {}
+        self.clear()
+
+    def clear(self):
+        """Clear the internal state of the model to start classifying a new scene."""
+        # Create the initial (zero) states
+        init_states = {
+            name: np.zeros(signature['shape'], dtype=signature['dtype'])
+            for name, signature in self._signature.get_input_details().items()
+        }
+
+        # Remove the holder for the input image as it'll be fed by the caller.
+        init_states.pop(self._MODEL_INPUT_SIGNATURE_NAME)
+
+        # Store the model's internal state.
+        self._internal_states = init_states
+
+    def _preprocess(self, image: np.ndarray) -> np.ndarray:
+        """Preprocess the image as required by the TFLite model."""
+        input_tensor = cv2.resize(image, (self._input_width, self._input_height))
+        input_tensor = input_tensor[np.newaxis, np.newaxis]
+        input_tensor = np.float32(input_tensor -
+                                  self._MODEL_INPUT_MEAN) / self._MODEL_INPUT_STD
+
+        return input_tensor
+
+    def classify(self, frame: np.ndarray) -> List[Category]:
+        """Classify an input frame.
+
+        Frames from the target video should be fed to the model in sequence.
+
+        Args:
+            frame: A [height, width, 3] RGB image representing a frame in a video.
+
+        Returns:
+            A list of prediction result. Sorted by probability descending.
+        """
+        # Preprocess the input frame.
+        frame = self._preprocess(frame)
+
+        # Feed the input frame and the model internal states to the TFLite model.
+        outputs = self._signature(**self._internal_states, image=frame)
+
+        # Take the model output and store the internal states for subsequence
+        # frames.
+        logits = outputs.pop(self._MODEL_OUTPUT_SIGNATURE_NAME)
+        self._internal_states = outputs
+
+        return self._postprocess(logits)
+
+    def _postprocess(self, logits: np.ndarray) -> List[Category]:
+        """Post-process the logits into a list of Category objects.
+
+        Args:
+            logits: Raw logits output of the TFLite model.
+
+        Returns:
+            A list of classification results.
+        """
+        # Convert from logits to probabilities using softmax function.
+        exp_logits = np.exp(np.squeeze(logits, axis=0))
+        probabilities = exp_logits / np.sum(exp_logits)
+
+        # Sort the labels so that the more likely categories come first.
+        prob_descending = sorted(
+            range(len(probabilities)), key=lambda k: probabilities[k], reverse=True)
+        categories = [
+            Category(label=self._label_list[idx], score=probabilities[idx])
+            for idx in prob_descending
+        ]
+
+        # Filter out categories in the deny list.
+        filtered_results = categories
+        if self._options.label_deny_list is not None:
+            filtered_results = list(
+                filter(
+                    lambda category: category.label not in self._options.
+                        label_deny_list, filtered_results))
+
+        # Keep only categories in the allow list.
+        if self._options.label_allow_list is not None:
+            filtered_results = list(
+                filter(
+                    lambda category: category.label in self._options.label_allow_list,
+                    filtered_results))
+
+        # Filter out categories with score lower than the score threshold.
+        if self._options.score_threshold is not None:
+            filtered_results = list(
+                filter(
+                    lambda category: category.score >= self._options.score_threshold,
+                    filtered_results))
+
+        # Only return maximum of max_results categories.
+        if self._options.max_results > 0:
+            result_count = min(len(filtered_results), self._options.max_results)
+            filtered_results = filtered_results[:result_count]
+
+        return filtered_results
 
 
-def quantized_scale(name, state):
-    """Scales the named state tensor input for the quantized model."""
-    dtype = input_details[name]['dtype']
-    scale, zero_point = input_details[name]['quantization']
-    if 'frame_count' in name or dtype == np.float32 or scale == 0.0:
-        return state
-    return np.cast((state / scale + zero_point), dtype)
+class VideoInference:
+    def __init__(self, model, labels, options, threshold):
+        self.video_model = VideoClassifier(model, labels, options)
+        self.threshold = threshold
 
+    def inference(self, frames):
+        counter, fps, last_inference_start_time, time_per_infer = 0, 0, 0, 0
+        categories = []
 
-# Create the initial states, scale quantized.
-init_states = {
-    name: quantized_scale(name, np.zeros(x['shape'], dtype=x['dtype']))
-    for name, x in input_details.items()
-    if name != 'image'
-}
+        cap = cv2.VideoCapture(frames)
 
+        while cap.isOpened():
+            success, image = cap.read()
+            if not success:
+                break
+            counter += 1
 
-inputs = init_states.copy()
+            frame_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-inputs['image'] = videoGif[tf.newaxis, 0:1, ...]
+            categories = self.video_model.classify(frame_rgb)
 
-states = init_states
-
-video = videoGif
-images = tf.split(video[tf.newaxis], video.shape[0], axis=1)
-
-print(images)
-all_logits = []
-
-for frame in tqdm.tqdm(images):
-    # Normally the input frame is normalized to [0, 1] with dtype float32, but
-    # here we apply quantized scaling to fit values into the quantized dtype.
-    frame = quantized_scale('image', frame)
-    # Input shape: [1, 1, 224, 224, 3]
-    outputs = runner(**states, image=frame)
-    # `logits` will output predictions on each frame.
-    logits = outputs.pop('logits')
-    all_logits.append(logits)
-
-# concatinating all the logits
-logits = tf.concat(all_logits, 0)
-# estimating probabilities
-probs = tf.nn.softmax(logits, axis=-1)
-
-final_probs = probs[-1]
-
-print('Top_k predictions and their probablities\n')
-for label, p in get_top_k(final_probs):
-    print(f'{label:20s}: {p:.3f}')
+        cap.release()
+        return categories[0].label, categories[0].score
