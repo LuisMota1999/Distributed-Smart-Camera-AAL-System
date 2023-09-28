@@ -1,13 +1,21 @@
 import pathlib
 import time
 
+import cv2
 import matplotlib as mpl
 import numpy as np
-from typing import List, NamedTuple
-import tensorflow as tf
-import cv2
 
-from EdgeDevice.utils.constants import Inference
+from typing import List, NamedTuple
+
+# pylint: disable=g-import-not-at-top
+try:
+    # Import TFLite interpreter from tflite_runtime package if it's available.
+    from tflite_runtime.interpreter import Interpreter
+except ImportError:
+    # If not, fallback to use the TFLite interpreter from the full TF package.
+    import tensorflow as tf
+
+    Interpreter = tf.lite.Interpreter
 
 mpl.rcParams.update({
     'font.size': 10,
