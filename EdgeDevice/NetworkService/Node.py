@@ -271,18 +271,19 @@ class Node(threading.Thread):
         last_class = ""
         logging.info(f'Inference Starting')
         while self.running:
-            inferred_classes, top_score = audio_inference.inference(waveform)
-
-            if top_score < audio_model['threshold']:
+            inferred_classes, top_score_audio = audio_inference.inference(waveform)
+            top_score_video = 0.5
+            if top_score_audio < audio_model['threshold'] or top_score_video < audio_model['threshold'] :
                 if len(self.blockchain.pending_transactions) > 0:
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-                        Transaction.TYPE_AUDIO_INFERENCE.value, self.blockchain.pending_transactions)
+                        "EVENT_TYPE", self.blockchain.pending_transactions)
+                    logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
             else:
                 if inferred_classes != last_class:
-                    logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
+                    logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score_audio})')
                     transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
                                                                                     Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                                    self.local, str(top_score))
+                                                                                    self.local, str(top_score_audio))
 
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
