@@ -5,10 +5,15 @@ import logging
 from EdgeDevice.utils.helper import NetworkUtils
 
 
-def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str, local:str, precision):
+def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str,
+                       local: str, precision: str):
     """
     Creates a transaction from a sender's public key to a receiver's public key
 
+    :param type: Type of transaction
+    :type type: str
+    :param precision: Score from activity classification
+    :type precision: str
     :param private_key: The Sender's private key
     :type private_key: rsa.PrivateKey
     :param public_key: The Sender's public key

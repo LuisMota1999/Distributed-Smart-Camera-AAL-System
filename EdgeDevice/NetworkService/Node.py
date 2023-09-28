@@ -282,7 +282,7 @@ class Node(threading.Thread):
                     logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_classes} ({top_score})')
                     transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
                                                                                     Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                                    self.local, top_score)
+                                                                                    self.local, str(top_score))
 
                     data = MessageHandlerUtils.create_transaction_message(
                         Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
@@ -568,7 +568,7 @@ class Node(threading.Thread):
                     conn.close()
                 break
 
-    def create_blockchain_transaction(self, event_action, event_type, event_local, event_accuracy=1.0):
+    def create_blockchain_transaction(self, event_action, event_type, event_local, event_accuracy="1.0"):
         """
         Creates and returns a new blockchain transaction with the specified event information.
 
