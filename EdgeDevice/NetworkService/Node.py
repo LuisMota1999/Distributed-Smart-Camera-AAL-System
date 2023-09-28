@@ -294,7 +294,7 @@ class Node(threading.Thread):
             if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold']:
                 if len(self.blockchain.pending_transactions) > 0:
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-                        "EVENT_TYPE", self.blockchain.pending_transactions)
+                        "INFERENCE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
                 else:
                     self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
