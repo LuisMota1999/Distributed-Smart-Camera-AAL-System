@@ -305,9 +305,9 @@ class Node(threading.Thread):
                                        last_video_class, audio_inference, video_inference, top_score_audio,
                                        top_score_video)
 
-                last_video_class = inferred_video_classes
-                last_audio_class = inferred_audio_classes
-                time.sleep(2)
+            last_video_class = inferred_video_classes
+            last_audio_class = inferred_audio_classes
+            time.sleep(2)
 
     def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
                           audio_inference, video_inference, top_score_audio, top_score_video):
