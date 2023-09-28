@@ -1,12 +1,10 @@
 import pathlib
-import sys
 import time
 
 import matplotlib as mpl
 import numpy as np
 from typing import List, NamedTuple
 import tensorflow as tf
-import tqdm
 import cv2
 
 from EdgeDevice.utils.constants import Inference
