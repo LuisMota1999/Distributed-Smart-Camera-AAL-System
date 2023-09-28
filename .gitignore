@@ -11,7 +11,7 @@ RetrainedModels/audio/datasets
 
 EdgeDevice/Keys/public.pem
 EdgeDevice/Keys/private.pem
-EdgeDevice/models
+# EdgeDevice/models
 
 tests/Keys/private.pem
 tests/Keys/pub.pem
