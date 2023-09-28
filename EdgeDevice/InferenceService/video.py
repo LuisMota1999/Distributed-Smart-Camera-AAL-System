@@ -1,4 +1,5 @@
 import pathlib
+import sys
 import time
 
 import matplotlib as mpl
@@ -7,6 +8,8 @@ from typing import List, NamedTuple
 import tensorflow as tf
 import tqdm
 import cv2
+
+from EdgeDevice.utils.constants import Inference
 
 mpl.rcParams.update({
     'font.size': 10,
@@ -202,22 +205,37 @@ class VideoInference:
     def __init__(self, model, labels, options, threshold):
         self.video_model = VideoClassifier(model, labels, options)
         self.threshold = threshold
+        self.model_name = 'movinet_retrained'
+        self.model_fps = 5
+        self.model_fps_error_range = 0.1
 
     def inference(self, frames):
+
         counter, fps, last_inference_start_time, time_per_infer = 0, 0, 0, 0
         categories = []
-
         cap = cv2.VideoCapture(frames)
 
+        # Continuously capture images from the camera and run inference
         while cap.isOpened():
             success, image = cap.read()
             if not success:
                 break
             counter += 1
 
-            frame_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = cv2.flip(image, 1)
 
-            categories = self.video_model.classify(frame_rgb)
+            # Ensure that frames are feed to the model at {_MODEL_FPS} frames per second as required in the model specs.
+            current_frame_start_time = time.time()
+            diff = current_frame_start_time - last_inference_start_time
+            if diff * self.model_fps >= (1 - self.model_fps_error_range):
+                # Store the time when inference starts.
+                last_inference_start_time = current_frame_start_time
+
+                # Convert the frame to RGB as required by the TFLite model.
+                frame_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+                # Feed the frame to the video classification model.
+                categories = self.video_model.classify(frame_rgb)
 
         cap.release()
         return categories[0].label, categories[0].score

@@ -252,7 +252,7 @@ class Node(threading.Thread):
 
     def handle_detection(self):
         """
-        Continuously handles audio detection and classification using a pre-trained audio model.
+        Continuously handles audio detection and classification using a pre-trained audio and video model.
 
         This method initializes an audio model and performs audio inference on an audio file.
         It continuously monitors the audio waveform for detected classes, creates blockchain transactions for each
@@ -281,45 +281,59 @@ class Node(threading.Thread):
             num_threads=Inference.VIDEO_NUM_THREADS.value, max_results=Inference.VIDEO_MAX_RESULTS.value,
             label_allow_list=Inference.VIDEO_ALLOW_LIST.value, label_deny_list=Inference.VIDEO_DENY_LIST.value)
 
-        video_inference = VideoInference(Inference.VIDEO_MODEL.value, Inference.VIDEO_LABEL.value, options)
+        video_inference = VideoInference(Inference.VIDEO_MODEL.value, Inference.VIDEO_LABEL.value, options,
+                                         video_model['threshold'])
         video_file_path = f'../RetrainedModels/video/test_videos/{self.name}/video.gif'
-        video_inference.inference(video_file_path)
 
-        last_class = ""
+        last_audio_class = ""
+        last_video_class = ""
         logging.info(f'Inference Starting')
         while self.running:
             inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
-            inferred_video_classes, top_score_video = audio_inference.inference(waveform)
+            inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold']:
                 if len(self.blockchain.pending_transactions) > 0:
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         "EVENT_TYPE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+                else:
+                    self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                           last_video_class, audio_inference, video_inference, top_score_audio,
+                                           top_score_video)
             else:
-                if inferred_audio_classes != last_class:
-                    logging.info(
-                        f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
-                    transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
-                                                                                    Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                                    self.local, str(top_score_audio))
+                self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                       last_video_class, audio_inference, video_inference, top_score_audio,
+                                       top_score_video)
 
-                    data = MessageHandlerUtils.create_transaction_message(
-                        Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
-
-                    data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
-                    message = json.dumps(data, indent=2)
-
-                    homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
-                                                                                          inferred_audio_classes,
-                                                                                          self.local)
-
-                    if self.coordinator == self.id:
-                        self.homeassistant_listener.publish_message(homeassistant_data)
-                    self.broadcast_message(message)
-
-                last_class = inferred_audio_classes
+                last_video_class = inferred_video_classes
+                last_audio_class = inferred_audio_classes
                 time.sleep(2)
+
+    def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
+                          audio_inference, video_inference, top_score_audio, top_score_video):
+        if inferred_audio_classes != last_audio_class and last_video_class != inferred_video_classes:
+            logging.info(
+                f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
+            logging.info(
+                f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
+            transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
+                                                                            Transaction.TYPE_AUDIO_INFERENCE.value,
+                                                                            self.local, str(top_score_audio))
+
+            data = MessageHandlerUtils.create_transaction_message(
+                Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
+
+            data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
+            message = json.dumps(data, indent=2)
+
+            homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
+                                                                                  inferred_audio_classes,
+                                                                                  self.local)
+
+            if self.coordinator == self.id:
+                self.homeassistant_listener.publish_message(homeassistant_data)
+            self.broadcast_message(message)
 
     def handle_reconnects(self):
         """
