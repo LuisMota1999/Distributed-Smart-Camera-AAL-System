@@ -395,7 +395,7 @@ class NetworkUtils(object):
             event_type = event_data.get('EVENT_TYPE', '')
             event_timestamp = event_data.get('TIMESTAMP', 0)
 
-            if event_timestamp > last_event_timestamp:
+            if event_type == search_type and event_timestamp > last_event_timestamp:
                 last_event_timestamp = event_timestamp
                 last_event = item
 

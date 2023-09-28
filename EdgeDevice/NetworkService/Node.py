@@ -6,7 +6,6 @@ import threading
 import time
 import ssl
 import uuid
-import cv2
 import json
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf, IPVersion, NonUniqueNameException
@@ -318,8 +317,11 @@ class Node(threading.Thread):
             logging.info(
                 f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
             transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
+                                                                            'INFERENCE',
+                                                                            self.local,
                                                                             Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                            self.local, str(top_score_audio))
+                                                                            str(top_score_audio),
+                                                                            )
 
             data = MessageHandlerUtils.create_transaction_message(
                 Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
@@ -603,7 +605,8 @@ class Node(threading.Thread):
                     conn.close()
                 break
 
-    def create_blockchain_transaction(self, event_action, event_type, event_local, event_accuracy="1.0"):
+    def create_blockchain_transaction(self, event_action, event_type, event_local, event_description="",
+                                      event_accuracy="1.0"):
         """
         Creates and returns a new blockchain transaction with the specified event information.
 
@@ -611,6 +614,7 @@ class Node(threading.Thread):
         and event local information. It then signs the transaction with the node's private key and returns
         the transaction along with its corresponding signature.
 
+        :param event_description:
         :param event_accuracy:
         :param event_action: The action associated with the event.
         :param event_type: The type of the event.
@@ -623,6 +627,7 @@ class Node(threading.Thread):
             "EVENT_TYPE": event_type,
             "EVENT_ACTION": event_action,
             "EVENT_LOCAL": event_local,
+            "EVENT_DESCRIPTION": event_description,
             "EVENT_ACCURACY": event_accuracy,
         }
 
@@ -631,6 +636,7 @@ class Node(threading.Thread):
             message_tx["EVENT_ACTION"], message_tx["EVENT_TYPE"],
             message_tx["EVENT_LOCAL"],
             message_tx["EVENT_ACCURACY"],
+            message_tx["EVENT_DESCRIPTION"],
         )
 
         transaction_with_signature = {

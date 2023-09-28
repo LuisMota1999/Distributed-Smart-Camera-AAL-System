@@ -6,10 +6,11 @@ from EdgeDevice.utils.helper import NetworkUtils
 
 
 def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, receiver: str, action: str, type: str,
-                       local: str, precision: str):
+                       local: str, precision: str, description: str):
     """
     Creates a transaction from a sender's public key to a receiver's public key
 
+    :param description: Event description
     :param type: Type of transaction
     :type type: str
     :param precision: Score from activity classification
@@ -31,6 +32,7 @@ def create_transaction(private_key: rsa.PrivateKey, public_key: rsa.PublicKey, r
         "SENDER": NetworkUtils.key_to_json(public_key),
         "RECEIVER": receiver,
         "EVENT_TYPE": type,
+        "EVENT_DESCRIPTION": description,
         "EVENT_ACTION": action,
         "EVENT_LOCAL": local,
         "PRECISION": precision,
