@@ -1,13 +1,9 @@
-import pathlib
 import time
-
 import cv2
-import matplotlib as mpl
 import numpy as np
 
 from typing import List, NamedTuple
 
-# pylint: disable=g-import-not-at-top
 try:
     # Import TFLite interpreter from tflite_runtime package if it's available.
     from tflite_runtime.interpreter import Interpreter
@@ -16,22 +12,6 @@ except ImportError:
     import tensorflow as tf
 
     Interpreter = tf.lite.Interpreter
-
-mpl.rcParams.update({
-    'font.size': 10,
-})
-
-LABELS_PATH = '../models/movinet_retrained_class.txt'
-LABELS_PATH = pathlib.Path(LABELS_PATH)
-
-FILE_ROWS = LABELS_PATH.read_text().splitlines()
-MOVINET_RETRAINED_LABELS = np.array([line.strip() for line in FILE_ROWS])
-
-print(MOVINET_RETRAINED_LABELS)
-
-video_path = '../../RetrainedModels/video/test_videos/NODE-2/video.gif'
-
-Interpreter = tf.lite.Interpreter
 
 
 class VideoClassifierOptions(NamedTuple):

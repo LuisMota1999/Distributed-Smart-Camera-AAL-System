@@ -42,8 +42,8 @@ class Homeassistant(Enum):
 
 
 class Inference(Enum):
-    VIDEO_LABEL = '../models/movinet_retrained_class.txt'
-    VIDEO_MODEL = '../models/movinet_a0_int8.tflite'
+    VIDEO_LABEL = 'models/movinet_retrained_class.txt'
+    VIDEO_MODEL = 'models/movinet_a0_int8.tflite'
     VIDEO_NUM_THREADS = 4
     VIDEO_MAX_RESULTS = 4
     VIDEO_ALLOW_LIST = ['watching tv', 'washing dishes', 'reading book', 'eating burger', 'opening door']
