@@ -292,7 +292,7 @@ class Node(threading.Thread):
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold']:
-                if len(self.blockchain.pending_transactions) > 0 and inferred_audio_classes != last_audio_class and last_video_class != inferred_video_classes:
+                if len(self.blockchain.pending_transactions) > 0:
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         "INFERENCE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
