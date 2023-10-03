@@ -286,16 +286,21 @@ class Node(threading.Thread):
 
         last_audio_class = ""
         last_video_class = ""
+        last_event_registered_bc = ""
         logging.info(f'Inference Starting')
         while self.running:
             inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold']:
-                if len(self.blockchain.pending_transactions) > 0:
+                if len(self.blockchain.pending_transactions) > 0 and last_event_registered_bc != "":
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         "INFERENCE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+                    if last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc["EVENT_PRECISION"] >= top_score_audio:
+                        self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                               last_video_class, audio_inference, video_inference, top_score_audio,
+                                               top_score_video, True)
                 else:
                     self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
                                            last_video_class, audio_inference, video_inference, top_score_audio,
@@ -310,8 +315,8 @@ class Node(threading.Thread):
             time.sleep(2)
 
     def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
-                          audio_inference, video_inference, top_score_audio, top_score_video):
-        if inferred_audio_classes != last_audio_class and last_video_class != inferred_video_classes:
+                          audio_inference, video_inference, top_score_audio, top_score_video, collaborative = False):
+        if (inferred_audio_classes != last_audio_class and last_video_class != inferred_video_classes) or collaborative == True:
             logging.info(
                 f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
             logging.info(
