@@ -297,8 +297,10 @@ class Node(threading.Thread):
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         "INFERENCE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
-                    if last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc["EVENT_PRECISION"] >= top_score_audio:
-                        self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                    if last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc[
+                        "EVENT_PRECISION"] >= top_score_audio:
+                        self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
+                                               last_audio_class,
                                                last_video_class, audio_inference, video_inference, top_score_audio,
                                                top_score_video, True)
                 else:
@@ -315,32 +317,43 @@ class Node(threading.Thread):
             time.sleep(2)
 
     def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
-                          audio_inference, video_inference, top_score_audio, top_score_video, collaborative = False):
-        if (inferred_audio_classes != last_audio_class and last_video_class != inferred_video_classes) or collaborative == True:
-            logging.info(
-                f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
-            logging.info(
-                f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
-            transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
-                                                                            'INFERENCE',
-                                                                            self.local,
-                                                                            Transaction.TYPE_AUDIO_INFERENCE.value,
-                                                                            str(top_score_audio),
-                                                                            )
+                          audio_inference, video_inference, top_score_audio, top_score_video, collaborative=False):
+        if collaborative == True:
+            inferred_classes = ""
+            if inferred_audio_classes != last_audio_class:
+                inferred_classes = inferred_audio_classes
+                last_class = last_audio_class
+                transaction_type = Transaction.TYPE_AUDIO_INFERENCE.value
+                logging.info(
+                    f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
+            elif last_video_class != inferred_video_classes:
+                inferred_classes = inferred_video_classes
+                last_class = last_video_class
+                transaction_type = Transaction.TYPE_VIDEO_INFERENCE.value
+                logging.info(
+                    f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
+            if inferred_video_classes != last_class:
 
-            data = MessageHandlerUtils.create_transaction_message(
-                Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
+                transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
+                                                                                'INFERENCE',
+                                                                                self.local,
+                                                                                transaction_type,
+                                                                                str(top_score_audio),
+                                                                                )
 
-            data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
-            message = json.dumps(data, indent=2)
+                data = MessageHandlerUtils.create_transaction_message(
+                    Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
 
-            homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
-                                                                                  inferred_audio_classes,
-                                                                                  self.local)
+                data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
+                message = json.dumps(data, indent=2)
 
-            if self.coordinator == self.id:
-                self.homeassistant_listener.publish_message(homeassistant_data)
-            self.broadcast_message(message)
+                homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
+                                                                                      inferred_classes,
+                                                                                      self.local)
+
+                if self.coordinator == self.id:
+                    self.homeassistant_listener.publish_message(homeassistant_data)
+                self.broadcast_message(message)
 
     def handle_reconnects(self):
         """
