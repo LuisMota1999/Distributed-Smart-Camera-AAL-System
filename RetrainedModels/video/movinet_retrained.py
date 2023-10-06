@@ -13,9 +13,9 @@ import itertools
 
 # Define constants and paths
 CLASSES_LABEL = sorted(os.listdir(VideoInference.DATASET_DIRECTORY.value + 'train'))
-MODEL_ID = 'a0'
+MODEL_ID = 'a2'
 USE_POSITIONAL_ENCODING = MODEL_ID in {'a3', 'a4', 'a5'}
-RESOLUTION = 172
+RESOLUTION = 224
 CHECKPOINT_DIR = "movinet_a0_stream"
 CHECKPOINT_PATH = tf.train.latest_checkpoint(CHECKPOINT_DIR)
 CHECKPOINT_PATH_WEIGHTS = 'trained_model/cp.ckpt'
