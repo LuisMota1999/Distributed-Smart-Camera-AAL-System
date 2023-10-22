@@ -289,31 +289,16 @@ class Node(threading.Thread):
         last_event_registered_bc = ""
         logging.info(f'Inference Starting')
         while self.running:
-            # inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
+            inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
-            transaction_with_signature = self.create_blockchain_transaction(inferred_video_classes,
-                                                                            'INFERENCE',
-                                                                            self.local,
-                                                                            Transaction.TYPE_VIDEO_INFERENCE.value,
-                                                                            str(top_score_video),
-                                                                            )
 
-            data = MessageHandlerUtils.create_transaction_message(
-                Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
+            logging.info(
+                f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_audio})')
 
-            data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
-            message = json.dumps(data, indent=2)
 
-            homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
-                                                                                  inferred_video_classes,
-                                                                                  self.local)
-            if self.coordinator == self.id and self.coordinator != None:
-                self.homeassistant_listener.publish_message(homeassistant_data)
-            self.broadcast_message(message)
-            time.sleep(1)
-            last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-                "INFERENCE", self.blockchain.pending_transactions)
-            logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+            # last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
+            #     "INFERENCE", self.blockchain.pending_transactions)
+            # logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
             # if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold'] or self.name == "NODE-2":
             #     if len(self.blockchain.pending_transactions) > 0 and last_event_registered_bc != "":
             #         last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
@@ -335,7 +320,7 @@ class Node(threading.Thread):
             #                            top_score_video)
 
             last_video_class = inferred_video_classes
-            # last_audio_class = inferred_audio_classes
+            last_audio_class = inferred_audio_classes
             time.sleep(2)
 
     def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
