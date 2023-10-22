@@ -25,7 +25,8 @@ class Homeassistant(threading.Thread):
         if rc == 0:
             logging.info(f"Connection established with success {rc}")
         else:
-            logging.error(f"Error Establishing connection {rc}")
+            pass
+            # logging.error(f"Error Establishing connection {rc}")
 
     def publish_message(self, message):
         try:
