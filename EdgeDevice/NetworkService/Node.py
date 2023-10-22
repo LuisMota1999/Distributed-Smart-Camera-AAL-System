@@ -291,6 +291,26 @@ class Node(threading.Thread):
         while self.running:
             # inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
+            transaction_with_signature = self.create_blockchain_transaction(inferred_video_classes,
+                                                                            'INFERENCE',
+                                                                            self.local,
+                                                                            Transaction.TYPE_VIDEO_INFERENCE.value,
+                                                                            str(top_score_video),
+                                                                            )
+
+            data = MessageHandlerUtils.create_transaction_message(
+                Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
+
+            data["PAYLOAD"]["PENDING"] = [transaction_with_signature]
+            message = json.dumps(data, indent=2)
+
+            homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
+                                                                                  inferred_video_classes,
+                                                                                  self.local)
+            if self.coordinator == self.id and self.coordinator != None:
+                self.homeassistant_listener.publish_message(homeassistant_data)
+            self.broadcast_message(message)
+            time.sleep(1)
             last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                 "INFERENCE", self.blockchain.pending_transactions)
             logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
