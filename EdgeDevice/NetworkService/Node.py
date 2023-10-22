@@ -269,7 +269,7 @@ class Node(threading.Thread):
         video_model = {
             'model': Inference.VIDEO_MODEL.value,
             'resolution': 224,  # frame resolution
-            'threshold': 0.05  # confidence threshold for video classification
+            'threshold': 0.00  # confidence threshold for video classification
         }
 
         audio_inference = AudioInference(audio_model)
