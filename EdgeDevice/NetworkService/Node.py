@@ -327,12 +327,14 @@ class Node(threading.Thread):
             transaction_type = Transaction.TYPE_AUDIO_INFERENCE.value
             logging.info(
                 f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
-        elif last_video_class != inferred_video_classes:
+
+        if last_video_class != inferred_video_classes:
             inferred_classes = inferred_video_classes
             last_class = last_video_class
             transaction_type = Transaction.TYPE_VIDEO_INFERENCE.value
             logging.info(
                 f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
+
         if inferred_video_classes != last_class or collaborative == True:
 
             transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
