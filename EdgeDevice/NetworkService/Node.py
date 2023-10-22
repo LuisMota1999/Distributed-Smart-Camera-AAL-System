@@ -333,7 +333,7 @@ class Node(threading.Thread):
                                                                                   inferred_audio_classes,
                                                                                   self.local)
 
-            if self.coordinator == self.id:
+            if self.coordinator == self.id and self.coordinator != None:
                 self.homeassistant_listener.publish_message(homeassistant_data)
             self.broadcast_message(message)
 
