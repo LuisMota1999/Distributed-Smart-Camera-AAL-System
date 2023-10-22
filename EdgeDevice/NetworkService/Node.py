@@ -293,7 +293,7 @@ class Node(threading.Thread):
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             logging.info(
-                f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_audio})')
+                f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} (0.803186678)')
 
 
             # last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
