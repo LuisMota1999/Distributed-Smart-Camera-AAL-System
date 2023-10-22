@@ -26,7 +26,7 @@ class Homeassistant(threading.Thread):
             logging.info(f"Connection established with success {rc}")
         else:
             pass
-            # logging.error(f"Error Establishing connection {rc}")
+            logging.error(f"Error Establishing connection {rc}")
 
     def publish_message(self, message):
         try:
@@ -34,6 +34,7 @@ class Homeassistant(threading.Thread):
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 logging.info("Message published successfully")
             else:
-                logging.error(f"Error publishing message: {result.rc}")
+                pass
+                #logging.error(f"Error publishing message: {result.rc}")
         except Exception as e:
             logging.error("Error publishing message:", e)

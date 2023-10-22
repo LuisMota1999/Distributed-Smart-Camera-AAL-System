@@ -269,7 +269,7 @@ class Node(threading.Thread):
         video_model = {
             'model': Inference.VIDEO_MODEL.value,
             'resolution': 224,  # frame resolution
-            'threshold': 0.75  # confidence threshold for video classification
+            'threshold': 0.05  # confidence threshold for video classification
         }
 
         audio_inference = AudioInference(audio_model)
@@ -353,10 +353,11 @@ class Node(threading.Thread):
             homeassistant_data = MessageHandlerUtils.create_homeassistant_message(str(self.id),
                                                                                   inferred_classes,
                                                                                   self.local)
-
+            collaborative = False
             if self.coordinator == self.id and self.coordinator != None:
                 self.homeassistant_listener.publish_message(homeassistant_data)
             self.broadcast_message(message)
+
 
     def handle_reconnects(self):
         """
