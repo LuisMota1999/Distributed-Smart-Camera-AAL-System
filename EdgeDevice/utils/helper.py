@@ -393,9 +393,10 @@ class NetworkUtils(object):
         for item in block_chain_data:
             event_data = item.get('DATA', {})
             event_type = event_data.get('EVENT_TYPE', '')
+            event_description = event_data.get('EVENT_DESCRIPTION', '')
             event_timestamp = event_data.get('TIMESTAMP', 0)
 
-            if event_type == search_type and event_timestamp > last_event_timestamp:
+            if event_type == search_type and event_description == "VIDEO INFERENCE" and event_timestamp > last_event_timestamp:
                 last_event_timestamp = event_timestamp
                 last_event = item
 
