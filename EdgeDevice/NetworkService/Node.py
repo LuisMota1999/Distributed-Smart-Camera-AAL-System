@@ -289,7 +289,7 @@ class Node(threading.Thread):
         last_event_registered_bc = ""
         logging.info(f'Inference Starting')
         while self.running:
-            inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
+            # inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
             last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                 "INFERENCE", self.blockchain.pending_transactions)
@@ -315,7 +315,7 @@ class Node(threading.Thread):
             #                            top_score_video)
 
             last_video_class = inferred_video_classes
-            last_audio_class = inferred_audio_classes
+            # last_audio_class = inferred_audio_classes
             time.sleep(2)
 
     def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
