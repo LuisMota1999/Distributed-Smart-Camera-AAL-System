@@ -53,7 +53,7 @@ class Node(threading.Thread):
         )
 
         node_number = int(self.name.split('-')[1].strip())
-        self.local = 'SALA' # if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
+        self.local = 'CASA DE BANHO' # if node_number % 2 == 0 else 'COZINHA' if node_number == 1 else 'QUARTO'
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
         self.socket.listen(5)
