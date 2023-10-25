@@ -326,7 +326,7 @@ class Node(threading.Thread):
 
         if inferred_video_classes != last_class:
 
-            transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
+            transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
                                                                             'INFERENCE',
                                                                             self.local,
                                                                             transaction_type,
