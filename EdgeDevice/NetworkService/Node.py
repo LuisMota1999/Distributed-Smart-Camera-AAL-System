@@ -269,7 +269,7 @@ class Node(threading.Thread):
         video_model = {
             'model': Inference.VIDEO_MODEL.value,
             'resolution': 224,  # frame resolution
-            'threshold': 0.00  # confidence threshold for video classification
+            'threshold': 0.75  # confidence threshold for video classification
         }
 
         audio_inference = AudioInference(audio_model)
@@ -316,30 +316,15 @@ class Node(threading.Thread):
             last_video_class = inferred_video_classes
             last_audio_class = inferred_audio_classes
             time.sleep(2)
-            last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-                "INFERENCE", self.blockchain.pending_transactions)
-            logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+
 
     def process_detection(self, inferred_audio_classes, inferred_video_classes, last_audio_class, last_video_class,
                           audio_inference, video_inference, top_score_audio, top_score_video, collaborative=False):
         inferred_classes = ""
         last_class = ""
         transaction_type = ""
-        if inferred_audio_classes != last_audio_class:
-            inferred_classes = inferred_audio_classes
-            last_class = last_audio_class
-            transaction_type = Transaction.TYPE_AUDIO_INFERENCE.value
-            logging.info(
-                f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
 
-        if last_video_class != inferred_video_classes:
-            inferred_classes = inferred_video_classes
-            last_class = last_video_class
-            transaction_type = Transaction.TYPE_VIDEO_INFERENCE.value
-            logging.info(
-                f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
-
-        if inferred_video_classes != last_class or collaborative == True:
+        if inferred_video_classes != last_class:
 
             transaction_with_signature = self.create_blockchain_transaction(inferred_classes,
                                                                             'INFERENCE',
@@ -347,6 +332,7 @@ class Node(threading.Thread):
                                                                             transaction_type,
                                                                             str(top_score_audio),
                                                                             )
+
 
             data = MessageHandlerUtils.create_transaction_message(
                 Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
@@ -358,6 +344,11 @@ class Node(threading.Thread):
                                                                                   inferred_classes,
                                                                                   self.local)
             collaborative = False
+
+            last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
+                "INFERENCE", self.blockchain.pending_transactions)
+            logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+
             if self.coordinator == self.id and self.coordinator != None:
                 self.homeassistant_listener.publish_message(homeassistant_data)
             self.broadcast_message(message)
