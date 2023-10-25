@@ -329,7 +329,7 @@ class Node(threading.Thread):
             transaction_with_signature = self.create_blockchain_transaction(inferred_audio_classes,
                                                                             'INFERENCE',
                                                                             self.local,
-                                                                            transaction_type,
+                                                                            Transaction.TYPE_AUDIO_INFERENCE.value,
                                                                             str(top_score_audio),
                                                                             )
 
