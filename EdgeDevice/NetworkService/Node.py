@@ -300,7 +300,7 @@ class Node(threading.Thread):
                     last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                         "INFERENCE", self.blockchain.pending_transactions)
                     logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
-                    if last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc[
+                    if last_event_registered_bc and last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc[
                         "EVENT_PRECISION"] >= top_score_audio:
                         self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
                                                last_audio_class,
