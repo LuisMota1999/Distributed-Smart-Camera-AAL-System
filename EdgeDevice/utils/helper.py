@@ -396,7 +396,7 @@ class NetworkUtils(object):
             event_description = event_data.get('EVENT_DESCRIPTION', '')
             event_timestamp = event_data.get('TIMESTAMP', 0)
 
-            if event_type == search_type and event_description == "VIDEO INFERENCE" and event_timestamp > last_event_timestamp:
+            if event_type == search_type and event_description == "AUDIO INFERENCE" and event_timestamp > last_event_timestamp:
                 last_event_timestamp = event_timestamp
                 last_event = item
 
