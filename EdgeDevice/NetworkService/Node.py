@@ -292,32 +292,28 @@ class Node(threading.Thread):
             inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
-            logging.info(
-                f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} {top_score_audio}')
-
-
             last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-                 "INFERENCE", self.blockchain.pending_transactions)
-            # logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
-            # if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold'] or self.name == "NODE-2":
-            #     if len(self.blockchain.pending_transactions) > 0 and last_event_registered_bc != "":
-            #         last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-            #             "INFERENCE", self.blockchain.pending_transactions)
-            #         logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
-            #         if last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc[
-            #             "EVENT_PRECISION"] >= top_score_audio:
-            #             self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
-            #                                    last_audio_class,
-            #                                    last_video_class, audio_inference, video_inference, top_score_audio,
-            #                                    top_score_video, True)
-            #     else:
-            #         self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
-            #                                last_video_class, audio_inference, video_inference, top_score_audio,
-            #                                top_score_video)
-            # else:
-            #     self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
-            #                            last_video_class, audio_inference, video_inference, top_score_audio,
-            #                            top_score_video)
+                "INFERENCE", self.blockchain.pending_transactions)
+            logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+            if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold'] or self.name == "NODE-2":
+                if len(self.blockchain.pending_transactions) > 0 and last_event_registered_bc != "":
+                    last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
+                        "INFERENCE", self.blockchain.pending_transactions)
+                    logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+                    if last_event_registered_bc["EVENT_PRECISION"] >= top_score_video or last_event_registered_bc[
+                        "EVENT_PRECISION"] >= top_score_audio:
+                        self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
+                                               last_audio_class,
+                                               last_video_class, audio_inference, video_inference, top_score_audio,
+                                               top_score_video, True)
+                else:
+                    self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                           last_video_class, audio_inference, video_inference, top_score_audio,
+                                           top_score_video)
+            else:
+                self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                       last_video_class, audio_inference, video_inference, top_score_audio,
+                                       top_score_video)
 
             last_video_class = inferred_video_classes
             last_audio_class = inferred_audio_classes
