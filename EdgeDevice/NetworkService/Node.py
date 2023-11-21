@@ -298,6 +298,7 @@ class Node(threading.Thread):
             last_event_registered_bc = None
 
             if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
+                logging.info(f"The threshold is below the limit, proceding with the blockchain query.")
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
                 logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
@@ -468,9 +469,6 @@ class Node(threading.Thread):
 
                     data["PAYLOAD"]["PENDING"] = [tx]
                     message = json.dumps(data, indent=2)
-
-                    # logging.info(f"Transaction message: {message}")
-
                     conn.send(bytes(message, encoding="utf-8"))
 
             elif message_type == Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value:
@@ -482,10 +480,10 @@ class Node(threading.Thread):
                         signature = transaction_with_signature["SIGNATURE"]
                         if transaction_with_signature not in self.blockchain.pending_transactions:
                             if validate_transaction(tx, signature):
-                                logging.info("[TRANSACTION] Transaction is valid")
+                                logging.info("[TRANSACTION] Transaction validated and inserted in blockchain")
 
                                 self.blockchain.pending_transactions.append(transaction_with_signature)
-                                logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}")
+                                # logging.info(f"\nPending Transactions: {self.blockchain.pending_transactions}")
                             else:
                                 logging.warning("Received invalid transaction")
                                 return
