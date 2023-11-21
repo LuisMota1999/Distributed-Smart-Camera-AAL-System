@@ -299,11 +299,11 @@ class Node(threading.Thread):
 
             if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
                 logging.info(
-                    f"Event {inferred_video_classes} with {top_score_video} precision is below the limit "
-                    f"established, proceding with the blockchain query.")
+                    f"Event {inferred_video_classes} with {round(top_score_video,3)} precision is below the limit"
+                    f"established, proceding with the BC search.")
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
-                logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+                logging.info(f"Last event registered in {self.local} is {last_event_registered_bc}")
 
             if top_score_audio >= audio_model['threshold'] or top_score_video >= video_model['threshold']:
                 precision_to_use = max(top_score_video, top_score_audio)
