@@ -298,16 +298,19 @@ class Node(threading.Thread):
                     "INFERENCE", self.blockchain.pending_transactions)
                 logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
 
-            if top_score_audio >= audio_model['threshold'] and top_score_video >= video_model['threshold']:
-                self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
-                                       last_video_class, audio_inference, video_inference, top_score_audio,
-                                       top_score_video)
-            elif last_event_registered_bc is not None and last_event_registered_bc["EVENT_PRECISION"] >= max(
-                    top_score_video,
-                    top_score_audio):
-                self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
-                                       last_audio_class, last_video_class, audio_inference, video_inference,
-                                       top_score_audio, top_score_video)
+            if top_score_audio >= audio_model['threshold'] or top_score_video >= video_model['threshold']:
+                precision_to_use = max(top_score_video, top_score_audio)
+
+                if last_event_registered_bc is not None and last_event_registered_bc[
+                    "EVENT_PRECISION"] >= precision_to_use:
+                    self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
+                                           last_audio_class, last_video_class, audio_inference, video_inference,
+                                           top_score_audio, top_score_video)
+                    last_event_registered_bc = None
+                else:
+                    self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                           last_video_class, audio_inference, video_inference, top_score_audio,
+                                           top_score_video)
 
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
