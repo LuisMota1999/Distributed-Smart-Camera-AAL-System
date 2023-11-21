@@ -22,7 +22,7 @@ class Homeassistant(threading.Thread):
 
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            logging.info(f"Connection established with success {rc}")
+            logging.info(f"Connection established with success!")
         else:
             pass
             logging.error(f"Error Establishing connection {rc}")
