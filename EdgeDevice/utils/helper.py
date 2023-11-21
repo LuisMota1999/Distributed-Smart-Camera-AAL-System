@@ -384,7 +384,6 @@ class NetworkUtils(object):
 
     @staticmethod
     def get_last_event_blockchain(search_type, block_chain_data):
-
         # Initialize variables to store the last event and timestamp
         last_event = None
         last_event_timestamp = 0
@@ -401,9 +400,10 @@ class NetworkUtils(object):
 
         # Print the last event with the specified type
         if last_event:
-            return json.dumps(last_event, indent=4)
+            return last_event
         else:
             logging.warning(f'No event of type {search_type} found')
+            return None
 
     @staticmethod
     def get_public_key_by_ip(node_neighbours, ip_address):
