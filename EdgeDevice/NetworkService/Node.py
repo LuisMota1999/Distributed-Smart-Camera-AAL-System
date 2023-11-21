@@ -298,7 +298,9 @@ class Node(threading.Thread):
             last_event_registered_bc = None
 
             if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
-                logging.info(f"The threshold is below the limit, proceding with the blockchain query.")
+                logging.info(
+                    f"Event {inferred_video_classes} with {top_score_video} precision is below the limit "
+                    f"established, proceding with the blockchain query.")
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
                 logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
@@ -325,7 +327,6 @@ class Node(threading.Thread):
 
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
-            top_score_video = top_score_audio
 
     def process_detection(self, inferred_audio_classes=None, inferred_video_classes=None, last_audio_class=None,
                           last_video_class=None,
