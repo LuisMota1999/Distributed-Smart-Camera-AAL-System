@@ -299,7 +299,7 @@ class Node(threading.Thread):
 
             if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
                 logging.info(
-                    f"Event {inferred_video_classes} with {round(top_score_video,3)} precision is below the limit"
+                    f"Event {inferred_video_classes} with {round(top_score_video,3)} precision is below the limit "
                     f"established, proceding with the BC search.")
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
@@ -315,7 +315,9 @@ class Node(threading.Thread):
                     inferred_video_classes = None
 
                 if last_event_registered_bc is not None and "EVENT_PRECISION" in last_event_registered_bc:
+                    logging.info(f"Last 2")
                     if last_event_registered_bc["EVENT_PRECISION"] >= max(top_score_video, top_score_audio):
+                        logging.info(f"Last 1")
                         self.process_detection(inferred_audio_classes, inferred_video_classes,
                                                last_audio_class, last_video_class, audio_inference, video_inference,
                                                top_score_audio, top_score_video, last_event_registered_bc)
@@ -345,6 +347,7 @@ class Node(threading.Thread):
         if inferred_classes != last_class:
 
             if last_event_registered is not None:
+                logging.info(f"Last 3")
                 if last_event_registered["EVENT_PRECISION"] >= max(top_score_video, top_score_audio):
                     top_score = last_event_registered["EVENT_PRECISION"]
                     inferred_classes = last_event_registered["EVENT_ACTION"]
