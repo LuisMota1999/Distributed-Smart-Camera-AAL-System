@@ -269,7 +269,7 @@ class Node(threading.Thread):
         video_model = {
             'model': Inference.VIDEO_MODEL.value,
             'resolution': 224,  # frame resolution
-            'threshold': 0.00  # confidence threshold for video classification
+            'threshold': 0.40  # confidence threshold for video classification
         }
 
         audio_inference = AudioInference(audio_model)
@@ -291,19 +291,20 @@ class Node(threading.Thread):
             inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
-            last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
-                "INFERENCE", self.blockchain.pending_transactions)
-            logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
+            if last_audio_class != inferred_audio_classes or last_video_class != inferred_video_classes:
+                last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
+                    "INFERENCE", self.blockchain.pending_transactions)
+                logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
 
-            if top_score_audio >= audio_model['threshold'] and top_score_video >= video_model['threshold']:
-                self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
-                                       last_video_class, audio_inference, video_inference, top_score_audio,
-                                       top_score_video)
-            elif last_event_registered_bc and last_event_registered_bc["EVENT_PRECISION"] >= max(top_score_video,
-                                                                                                 top_score_audio):
-                self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
-                                       last_audio_class, last_video_class, audio_inference, video_inference,
-                                       top_score_audio, top_score_video, True)
+                if top_score_audio >= audio_model['threshold'] and top_score_video >= video_model['threshold']:
+                    self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                           last_video_class, audio_inference, video_inference, top_score_audio,
+                                           top_score_video)
+                elif last_event_registered_bc and last_event_registered_bc["EVENT_PRECISION"] >= max(top_score_video,
+                                                                                                     top_score_audio):
+                    self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
+                                           last_audio_class, last_video_class, audio_inference, video_inference,
+                                           top_score_audio, top_score_video)
 
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
