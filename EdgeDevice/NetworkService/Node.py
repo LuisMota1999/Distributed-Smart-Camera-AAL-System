@@ -328,8 +328,6 @@ class Node(threading.Thread):
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
 
-    def process_colaboration(self, inferred_class, last_class, precision_score_class, last_precision_score_class):
-
 
     def process_detection(self, inferred_audio_classes=None, inferred_video_classes=None, last_audio_class=None,
                           last_video_class=None,
