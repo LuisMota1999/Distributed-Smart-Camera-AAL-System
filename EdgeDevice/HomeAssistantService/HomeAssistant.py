@@ -33,7 +33,6 @@ class Homeassistant(threading.Thread):
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 logging.info("Message published successfully")
             else:
-                pass
-                #logging.error(f"Error publishing message: {result.rc}")
+                logging.error(f"Error publishing message: {result.rc}")
         except Exception as e:
             logging.error("Error publishing message:", e)
