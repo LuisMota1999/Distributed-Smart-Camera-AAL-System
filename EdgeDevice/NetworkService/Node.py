@@ -299,7 +299,7 @@ class Node(threading.Thread):
 
             if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
                 logging.info(
-                    f"Event {inferred_video_classes} with {round(top_score_video,3)} precision is below the limit "
+                    f"Event {inferred_video_classes} with {round(top_score_video, 3)} precision is below the limit "
                     f"established, proceding with the BC search.")
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
@@ -314,26 +314,25 @@ class Node(threading.Thread):
                     last_video_class = None
                     inferred_video_classes = None
 
-                if last_event_registered_bc is not None:
-                    logging.info(f"Last 2")
-                    if last_event_registered_bc["DATA"]["PRECISION"] >= max(top_score_video, top_score_audio):
-                        logging.info(f"Last 1")
-                        self.process_detection(inferred_audio_classes, inferred_video_classes,
-                                               last_audio_class, last_video_class, audio_inference, video_inference,
-                                               top_score_audio, top_score_video, last_event_registered_bc)
+            if last_event_registered_bc is not None:
+                logging.info(f"Last 2")
+                if last_event_registered_bc["DATA"]["PRECISION"] >= max(top_score_video, top_score_audio):
+                    logging.info(f"Last 1")
+                    self.process_detection(inferred_audio_classes, inferred_video_classes,
+                                           last_audio_class, last_video_class, audio_inference, video_inference,
+                                           top_score_audio, top_score_video, last_event_registered_bc)
 
-                else:
-                    self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
-                                           last_video_class, audio_inference, video_inference, top_score_audio,
-                                           top_score_video)
-
+            else:
+                self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
+                                       last_video_class, audio_inference, video_inference, top_score_audio,
+                                       top_score_video)
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
 
-
     def process_detection(self, inferred_audio_classes=None, inferred_video_classes=None, last_audio_class=None,
                           last_video_class=None,
-                          audio_inference=None, video_inference=None, top_score_audio=None, top_score_video=None, last_event_registered=None):
+                          audio_inference=None, video_inference=None, top_score_audio=None, top_score_video=None,
+                          last_event_registered=None):
         inferred_classes, last_class, transaction_type, top_score = "", "", "", ""
 
         if inferred_audio_classes != last_audio_class:
