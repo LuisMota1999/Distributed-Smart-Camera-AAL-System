@@ -302,8 +302,8 @@ class Node(threading.Thread):
                 self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
                                        last_video_class, audio_inference, video_inference, top_score_audio,
                                        top_score_video)
-            elif last_event_registered_bc != None and last_event_registered_bc["EVENT_PRECISION"] >= max(top_score_video,
-                                                                                                 top_score_audio):
+            elif last_event_registered_bc is not None and last_event_registered_bc["EVENT_PRECISION"] >= max(top_score_video,
+                                                                                                             top_score_audio):
                 self.process_detection(last_event_registered_bc["EVENT_PRECISION"], inferred_video_classes,
                                        last_audio_class, last_video_class, audio_inference, video_inference,
                                        top_score_audio, top_score_video)
