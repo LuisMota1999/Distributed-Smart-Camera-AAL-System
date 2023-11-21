@@ -289,7 +289,9 @@ class Node(threading.Thread):
         logging.info(f'Inference Starting')
         while self.running:
             inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
-            inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
+            top_score_video = 0
+            if top_score_audio == top_score_video:
+                inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             last_event_registered_bc = None
 
@@ -320,9 +322,12 @@ class Node(threading.Thread):
 
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
+            top_score_video = top_score_audio
 
-    def process_detection(self, inferred_audio_classes = None, inferred_video_classes=None, last_audio_class = None, last_video_class=None,
-                          audio_inference = None, video_inference = None, top_score_audio = None, top_score_video = None, collaborative=False):
+    def process_detection(self, inferred_audio_classes=None, inferred_video_classes=None, last_audio_class=None,
+                          last_video_class=None,
+                          audio_inference=None, video_inference=None, top_score_audio=None, top_score_video=None,
+                          collaborative=False):
         inferred_classes, last_class, transaction_type = "", "", ""
 
         if inferred_audio_classes != last_audio_class:
