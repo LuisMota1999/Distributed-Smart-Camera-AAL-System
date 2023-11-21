@@ -273,8 +273,9 @@ class Node(threading.Thread):
         }
 
         audio_inference = AudioInference(audio_model)
-        audio_file_path = f'../RetrainedModels/audio/test_audios/{self.name}/136.wav'
-        waveform, _ = sf.read(audio_file_path, dtype='float32')
+        if (self.name == "NODE-1"):
+            audio_file_path = f'../RetrainedModels/audio/test_audios/{self.name}/136.wav'
+            waveform, _ = sf.read(audio_file_path, dtype='float32')
 
         options = VideoClassifierOptions(
             num_threads=Inference.VIDEO_NUM_THREADS.value, max_results=Inference.VIDEO_MAX_RESULTS.value,
@@ -288,7 +289,10 @@ class Node(threading.Thread):
         last_video_class = ""
         logging.info(f'Inference Starting')
         while self.running:
-            inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
+            if (self.name == "NODE-1"):
+                inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
+            else:
+                inferred_audio_classes, top_score_audio = 0, 0
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             last_event_registered_bc = None
