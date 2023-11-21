@@ -314,9 +314,9 @@ class Node(threading.Thread):
                     last_video_class = None
                     inferred_video_classes = None
 
-                if last_event_registered_bc is not None and "PRECISION" in last_event_registered_bc:
+                if last_event_registered_bc is not None:
                     logging.info(f"Last 2")
-                    if last_event_registered_bc["PRECISION"] >= max(top_score_video, top_score_audio):
+                    if last_event_registered_bc["DATA"]["PRECISION"] >= max(top_score_video, top_score_audio):
                         logging.info(f"Last 1")
                         self.process_detection(inferred_audio_classes, inferred_video_classes,
                                                last_audio_class, last_video_class, audio_inference, video_inference,
@@ -348,9 +348,9 @@ class Node(threading.Thread):
 
             if last_event_registered is not None:
                 logging.info(f"Last 3")
-                if last_event_registered["PRECISION"] >= max(top_score_video, top_score_audio):
-                    top_score = last_event_registered["PRECISION"]
-                    inferred_classes = last_event_registered["EVENT_ACTION"]
+                if last_event_registered["DATA"]["PRECISION"] >= max(top_score_video, top_score_audio):
+                    top_score = last_event_registered["DATA"]["PRECISION"]
+                    inferred_classes = last_event_registered["DATA"]["EVENT_ACTION"]
 
             transaction_with_signature = self.create_blockchain_transaction(
                 inferred_classes, 'INFERENCE', self.local, transaction_type, str(top_score))
