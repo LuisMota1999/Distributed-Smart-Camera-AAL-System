@@ -269,7 +269,7 @@ class Node(threading.Thread):
         video_model = {
             'model': Inference.VIDEO_MODEL.value,
             'resolution': 224,  # frame resolution
-            'threshold': 0.02  # confidence threshold for video classification
+            'threshold': 0.75  # confidence threshold for video classification
         }
 
         audio_inference = AudioInference(audio_model)
@@ -293,7 +293,7 @@ class Node(threading.Thread):
 
             last_event_registered_bc = None
 
-            if top_score_audio < audio_model['threshold'] or top_score_video < video_model['threshold']:
+            if  top_score_video < video_model['threshold'] or top_score_audio < audio_model['threshold']:
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
                 logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
