@@ -289,13 +289,11 @@ class Node(threading.Thread):
         logging.info(f'Inference Starting')
         while self.running:
             inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
-            top_score_video = 0
-            if top_score_audio == top_score_video:
-                inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
+            inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             last_event_registered_bc = None
 
-            if top_score_video < video_model['threshold'] or top_score_audio < audio_model['threshold']:
+            if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
                 logging.info(f"Last Event Registered BC: {last_event_registered_bc}")
