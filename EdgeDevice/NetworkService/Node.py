@@ -318,7 +318,7 @@ class Node(threading.Thread):
                     if last_event_registered_bc["EVENT_PRECISION"] >= max(top_score_video, top_score_audio):
                         self.process_detection(inferred_audio_classes, inferred_video_classes,
                                                last_audio_class, last_video_class, audio_inference, video_inference,
-                                               top_score_audio, top_score_video)
+                                               top_score_audio, top_score_video, last_event_registered_bc)
 
                 else:
                     self.process_detection(inferred_audio_classes, inferred_video_classes, last_audio_class,
@@ -328,23 +328,31 @@ class Node(threading.Thread):
             last_video_class, last_audio_class = inferred_video_classes, inferred_audio_classes
             time.sleep(2)
 
+    def process_colaboration(self, inferred_class, last_class, precision_score_class, last_precision_score_class):
+
+
     def process_detection(self, inferred_audio_classes=None, inferred_video_classes=None, last_audio_class=None,
                           last_video_class=None,
-                          audio_inference=None, video_inference=None, top_score_audio=None, top_score_video=None,
-                          collaborative=False):
-        inferred_classes, last_class, transaction_type = "", "", ""
+                          audio_inference=None, video_inference=None, top_score_audio=None, top_score_video=None, last_event_registered=None):
+        inferred_classes, last_class, transaction_type, top_score = "", "", "", ""
 
         if inferred_audio_classes != last_audio_class:
-            inferred_classes, last_class, transaction_type = inferred_audio_classes, last_audio_class, Transaction.TYPE_AUDIO_INFERENCE.value
+            inferred_classes, last_class, transaction_type, top_score = inferred_audio_classes, last_audio_class, Transaction.TYPE_AUDIO_INFERENCE.value, top_score_audio
             logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
 
         if last_video_class != inferred_video_classes:
-            inferred_classes, last_class, transaction_type = inferred_video_classes, last_video_class, Transaction.TYPE_VIDEO_INFERENCE.value
+            inferred_classes, last_class, transaction_type, top_score = inferred_video_classes, last_video_class, Transaction.TYPE_VIDEO_INFERENCE.value, top_score_video
             logging.info(f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
 
-        if inferred_classes != last_class or collaborative:
+        if inferred_classes != last_class:
+
+            if last_event_registered is not None:
+                if last_event_registered["EVENT_PRECISION"] >= max(top_score_video, top_score_audio):
+                    top_score = last_event_registered["EVENT_PRECISION"]
+                    inferred_classes = last_event_registered["EVENT_ACTION"]
+
             transaction_with_signature = self.create_blockchain_transaction(
-                inferred_classes, 'INFERENCE', self.local, transaction_type, str(top_score_audio))
+                inferred_classes, 'INFERENCE', self.local, transaction_type, str(top_score))
 
             data = MessageHandlerUtils.create_transaction_message(
                 Messages.MESSAGE_TYPE_RESPONSE_TRANSACTION.value, str(self.id))
@@ -405,7 +413,7 @@ class Node(threading.Thread):
                 time.sleep(2)
                 message = json.dumps(data, indent=2)
                 self.broadcast_message(message)
-                time.sleep(self.keep_alive_timeout * 2.5)
+                time.sleep(self.keep_alive_timeout * 2)
             except socket.error as e:
                 logging.error(f"Socket error: {e.args}")
                 break
