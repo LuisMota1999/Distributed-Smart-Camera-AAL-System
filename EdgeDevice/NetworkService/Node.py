@@ -315,8 +315,8 @@ class Node(threading.Thread):
                     inferred_video_classes = None
 
             if last_event_registered_bc is not None:
-                logging.info(f"Last 2")
-                if last_event_registered_bc["DATA"]["PRECISION"] >= max(top_score_video, top_score_audio):
+
+                if float(last_event_registered_bc["DATA"]["PRECISION"]) >= float(max(top_score_video, top_score_audio)):
                     logging.info(f"Last 1")
                     self.process_detection(inferred_audio_classes, inferred_video_classes,
                                            last_audio_class, last_video_class, audio_inference, video_inference,
