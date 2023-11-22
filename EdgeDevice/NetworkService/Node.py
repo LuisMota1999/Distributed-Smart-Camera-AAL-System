@@ -317,7 +317,6 @@ class Node(threading.Thread):
             if last_event_registered_bc is not None:
 
                 if float(last_event_registered_bc["DATA"]["PRECISION"]) >= float(max(top_score_video, top_score_audio)):
-
                     self.process_detection(inferred_audio_classes, inferred_video_classes,
                                            last_audio_class, last_video_class, audio_inference, video_inference,
                                            top_score_audio, top_score_video, last_event_registered_bc)
@@ -336,20 +335,23 @@ class Node(threading.Thread):
         inferred_classes, last_class, transaction_type, top_score = "", "", "", ""
 
         if inferred_audio_classes != last_audio_class:
-            inferred_classes, last_class, transaction_type, top_score = inferred_audio_classes, last_audio_class, Transaction.TYPE_AUDIO_INFERENCE.value, top_score_audio
-            logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
+            if (self.name == "NODE-1"):
+                inferred_classes, last_class, transaction_type, top_score = inferred_audio_classes, last_audio_class, Transaction.TYPE_AUDIO_INFERENCE.value, top_score_audio
+                logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
 
         if last_video_class != inferred_video_classes:
-            inferred_classes, last_class, transaction_type, top_score = inferred_video_classes, last_video_class, Transaction.TYPE_VIDEO_INFERENCE.value, top_score_video
-            logging.info(f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
+            if (self.name == "NODE-1"):
+                inferred_classes, last_class, transaction_type, top_score = inferred_video_classes, last_video_class, Transaction.TYPE_VIDEO_INFERENCE.value, top_score_video
+                logging.info(f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
 
         if inferred_classes != last_class:
 
             if last_event_registered is not None:
-                logging.info(f"Last 3")
                 if float(last_event_registered["DATA"]["PRECISION"]) >= float(max(top_score_video, top_score_audio)):
                     top_score = last_event_registered["DATA"]["PRECISION"]
                     inferred_classes = last_event_registered["DATA"]["EVENT_ACTION"]
+                    logging.info(
+                        f'[COLABORATIVE CONCLUSION - \'{video_inference.model_name}\'] water ({top_score})')
 
             transaction_with_signature = self.create_blockchain_transaction(
                 inferred_classes, 'INFERENCE', self.local, transaction_type, str(top_score))
