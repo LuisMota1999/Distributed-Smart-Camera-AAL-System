@@ -12,7 +12,6 @@ from EdgeDevice.utils.helper import Utils
 import ntplib
 from time import ctime
 
-
 class Blockchain(object):
     def __init__(self):
         self.chain = []
@@ -66,7 +65,7 @@ class Blockchain(object):
                 previous_hash=self.last_block["HASH"] if self.last_block else None,
                 nonce=format(random.getrandbits(64), "x"),
                 target=self.target,
-                timestamp=self.get_synchronized_time(),
+                timestamp=time.time(),
             )
 
             # Check if the block meets the target difficulty
@@ -316,8 +315,6 @@ class Blockchain(object):
 
         :return: None
         """
-
-        self.sync_clocks()
         self.recalculate_target(self.last_block["HEIGHT"] + 1)
         while self.running:
             new_block = self.new_block()
