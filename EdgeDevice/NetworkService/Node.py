@@ -36,7 +36,7 @@ class Node(threading.Thread):
         self.name = name
         self.ip = NetworkUtils.get_interface_ip()
         self.port = HOST_PORT
-        self.last_keep_alive = time.time()
+        self.last_keep_alive = self.blockchain.get_synchronized_time()
         self.keep_alive_timeout = 10
         self.zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
         self.listener = NodeListener(self)
@@ -75,7 +75,7 @@ class Node(threading.Thread):
             properties={'IP': self.ip, 'ID': self.id, 'LOCAL': self.local},
         )
         self.homeassistant_listener = Homeassistant()
-        self.blockchain.register_node({self.ip: time.time()})
+        self.blockchain.register_node({self.ip: self.blockchain.get_synchronized_time()})
 
     def run(self):
         """
@@ -335,12 +335,12 @@ class Node(threading.Thread):
         inferred_classes, last_class, transaction_type, top_score = "", "", "", ""
 
         if inferred_audio_classes != last_audio_class:
-            if (self.name == "NODE-1"):
+            if self.name == "NODE-1":
                 inferred_classes, last_class, transaction_type, top_score = inferred_audio_classes, last_audio_class, Transaction.TYPE_AUDIO_INFERENCE.value, top_score_audio
                 logging.info(f'[AUDIO - \'{audio_inference.model_name}\'] {inferred_audio_classes} ({top_score_audio})')
 
         if last_video_class != inferred_video_classes:
-            if (self.name == "NODE-1"):
+            if self.name == "NODE-1":
                 inferred_classes, last_class, transaction_type, top_score = inferred_video_classes, last_video_class, Transaction.TYPE_VIDEO_INFERENCE.value, top_score_video
                 logging.info(f'[VIDEO - \'{video_inference.model_name}\'] {inferred_video_classes} ({top_score_video})')
 
@@ -379,7 +379,7 @@ class Node(threading.Thread):
         exp_backoff_time = 0
         while self.running:
             if len(self.connections) < 1 and self.recon_state is True:
-                self.blockchain.nodes[self.ip] = time.time()
+                self.blockchain.nodes[self.ip] = self.blockchain.get_synchronized_time()
                 print("Attempting to reconnect...")
                 exp_backoff_time = self.keep_alive_timeout + exp_backoff_time
                 time.sleep(exp_backoff_time)
@@ -730,7 +730,7 @@ class Node(threading.Thread):
         node_local = node_local.decode('utf-8')
         if conn not in self.connections:
             self.connections.append(conn)
-            self.blockchain.register_node({conn.getpeername()[0]: time.time()})
+            self.blockchain.register_node({conn.getpeername()[0]: self.blockchain.get_synchronized_time()})
 
             new_client_id = uuid.UUID(client_id)
             new_ip = conn.getpeername()[0]

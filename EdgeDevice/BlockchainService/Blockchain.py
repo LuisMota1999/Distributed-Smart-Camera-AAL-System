@@ -9,6 +9,8 @@ import random
 from asyncio.log import logger
 from hashlib import sha256
 from EdgeDevice.utils.helper import Utils
+import ntplib
+from time import ctime
 
 
 class Blockchain(object):
@@ -18,6 +20,19 @@ class Blockchain(object):
         self.target = "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         self.nodes = {}
         self.running = True
+        self.sync_clocks()
+
+    def get_synchronized_time(self):
+        """
+        Retorna o tempo sincronizado levando em consideração o offset do tempo local.
+        """
+        return time.time() + self.local_time_offset
+
+    def sync_clocks(self):
+        # Sincronizar o relógio com um servidor NTP
+        client = ntplib.NTPClient()
+        response = client.request('pool.ntp.org')
+        self.local_time_offset = response.offset
 
     def register_node(self, connection_peer):
         """
@@ -51,7 +66,7 @@ class Blockchain(object):
                 previous_hash=self.last_block["HASH"] if self.last_block else None,
                 nonce=format(random.getrandbits(64), "x"),
                 target=self.target,
-                timestamp=time.time(),
+                timestamp=self.get_synchronized_time(),
             )
 
             # Check if the block meets the target difficulty
@@ -301,6 +316,8 @@ class Blockchain(object):
 
         :return: None
         """
+
+        self.sync_clocks()
         self.recalculate_target(self.last_block["HEIGHT"] + 1)
         while self.running:
             new_block = self.new_block()
