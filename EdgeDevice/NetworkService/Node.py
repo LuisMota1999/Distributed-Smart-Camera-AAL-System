@@ -292,14 +292,14 @@ class Node(threading.Thread):
             if (self.name == "NODE-1"):
                 inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             else:
-                inferred_audio_classes, top_score_audio = 'water', 0.4616928102
+                inferred_audio_classes, top_score_audio = 'water', 0.4521683285714694
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             last_event_registered_bc = None
 
             if top_score_video < video_model['threshold'] and top_score_audio < audio_model['threshold']:
                 logging.info(
-                    f"Event {inferred_video_classes} with {round(top_score_video, 3)} precision is below the limit "
+                    f"Event {inferred_audio_classes} with {round(top_score_audio, 3)} precision is below the limit "
                     f"established, proceding with the BC search.")
                 last_event_registered_bc = NetworkUtils.get_last_event_blockchain(
                     "INFERENCE", self.blockchain.pending_transactions)
