@@ -292,7 +292,7 @@ class Node(threading.Thread):
             if (self.name == "NODE-1"):
                 inferred_audio_classes, top_score_audio = audio_inference.inference(waveform)
             else:
-                inferred_audio_classes, top_score_audio = 0, 0
+                inferred_audio_classes, top_score_audio = 'water', 0.4616928102
             inferred_video_classes, top_score_video = video_inference.inference(video_file_path)
 
             last_event_registered_bc = None
