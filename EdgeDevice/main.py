@@ -10,7 +10,7 @@ def main():
     NetworkUtils.generate_tls_keys()
 
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
-    time.sleep(2)
+    time.sleep(1)
     node = Node(HOST_NAME)
 
     logging.info(f"Listening on {node.ip}:{node.port}...")

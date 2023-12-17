@@ -201,9 +201,13 @@ class Node(threading.Thread):
                 self.add_node(conn, client_id, node_local)
                 self.list_peers()
 
+                time.sleep(1)
+
                 handle_keep_alive_messages = threading.Thread(target=self.handle_keep_alive_messages,
                                                               args=(client_id,))
                 handle_keep_alive_messages.start()
+
+                time.sleep(1)
 
                 handle_chain_messages = threading.Thread(target=self.handle_chain_message,
                                                          args=("", conn, client_id,
