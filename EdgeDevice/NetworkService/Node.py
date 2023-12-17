@@ -561,7 +561,7 @@ class Node(threading.Thread):
         while self.running:
             try:
                 data = conn.recv(BUFFER_SIZE).decode()
-
+                print(data)
                 if not data:
                     logging.info(f"Data not found {data}")
                     self.service_info.priority = random.randint(1, 100)
